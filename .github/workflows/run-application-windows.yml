@@ -1,0 +1,77 @@
+name: Windows Release
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run migrations
+      run: |
+        python manage.py migrate
+        
+    - name: Collect static files
+      run: |
+        python manage.py collectstatic --noinput
+        
+    - name: Run tests
+      run: |
+        python manage.py test
+
+  server-check:
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run migrations
+      run: |
+        python manage.py migrate
+        
+    - name: Collect static files
+      run: |
+        python manage.py collectstatic --noinput
+        
+    - name: Start server and check response
+      run: |
+        Start-Process -NoNewWindow -FilePath "python" -ArgumentList "manage.py runserver"
+
+        Start-Sleep -Seconds 5
+
+        try {
+            $response = Invoke-WebRequest -Uri "http://localhost:8000/" -ErrorAction Stop
+            Write-Host "Server responded with status code: $($response.StatusCode)"
+            Write-Host "Server is running successfully"
+            Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+            exit 0
+        }
+        catch {
+            Write-Host "Server is not responding: $($_.Exception.Message)"
+            
+            Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+            exit 1
+        }
