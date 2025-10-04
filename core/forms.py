@@ -1,0 +1,274 @@
+import os
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from .models import UserProfile, Car, CarBrand, CarModel
+from datetime import datetime, date, timedelta
+from django.forms import ValidationError
+from .models import ServiceType, Appointment, WorkingHours
+
+
+class UserRegisterForm(UserCreationForm):
+    email = forms.EmailField()
+    first_name = forms.CharField(max_length=30, required=True)
+    last_name = forms.CharField(max_length=30, required=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "password1",
+            "password2",
+        ]
+
+
+class UserUpdateForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email"]
+
+
+class ProfileUpdateForm(forms.ModelForm):
+    avatar = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={"class": "form-control"}),
+        help_text="Максимальный размер: 2MB. Поддерживаемые форматы: JPG, PNG.",
+    )
+
+    class Meta:
+        model = UserProfile
+        fields = ["phone", "address", "avatar"]
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get("avatar")
+        if avatar:
+            if avatar.size > 2 * 1024 * 1024:
+                raise forms.ValidationError("Размер файла не должен превышать 2MB.")
+
+            valid_extensions = [".jpg", ".jpeg", ".png"]
+            ext = os.path.splitext(avatar.name)[1].lower()
+            if ext not in valid_extensions:
+                raise forms.ValidationError("Поддерживаются только JPG и PNG форматы.")
+
+        return avatar
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        if not self.cleaned_data.get("avatar"):
+            if instance.pk:
+                original = UserProfile.objects.get(pk=instance.pk)
+                instance.avatar = original.avatar
+
+        if commit:
+            instance.save()
+
+        return instance
+
+
+class CarForm(forms.Form):
+    brand = forms.ModelChoiceField(
+        queryset=CarBrand.objects.all(),
+        empty_label="Выберите марку",
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    model = forms.ModelChoiceField(
+        queryset=CarModel.objects.none(),
+        empty_label="Сначала выберите марку",
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    year = forms.IntegerField(
+        min_value=1900,
+        max_value=datetime.now().year,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    license_plate = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    vin = forms.CharField(
+        max_length=17,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        required=False,
+    )
+
+    def __init__(self, *args, **kwargs):
+        initial = kwargs.get("initial", {})
+        super().__init__(*args, **kwargs)
+
+        if "brand" in initial and initial["brand"]:
+            self.fields["model"].queryset = CarModel.objects.filter(
+                brand=initial["brand"]
+            )
+
+        if self.data and "brand" in self.data:
+            try:
+                brandId = self.data.get("brand")
+                self.fields["model"].queryset = CarModel.objects.filter(
+                    brand_id=brandId
+                )
+            except (ValueError, TypeError):
+                pass
+
+    def clean(self):
+        cleaned_data = super().clean()
+        brand = cleaned_data.get("brand")
+        model = cleaned_data.get("model")
+        if brand and model:
+            if model.brand != brand:
+                self.add_error(
+                    "model", "Выбранная модель не соответствует выбранной марке."
+                )
+
+        return cleaned_data
+
+    def save(self, user):
+        car = Car(
+            year=self.cleaned_data["year"],
+            model=self.cleaned_data["model"],
+            license_plate=self.cleaned_data["license_plate"],
+            vin=self.cleaned_data.get("vin"),
+            owner=user,
+        )
+        car.save()
+        return car
+
+
+class AppointmentForm(forms.Form):
+    service_type = forms.ModelChoiceField(
+        queryset=ServiceType.objects.all(),
+        empty_label="Выберите услугу",
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+        label="Тип услуги",
+    )
+
+    car = forms.ModelChoiceField(
+        queryset=Car.objects.none(),
+        empty_label="Выберите автомобиль",
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+        label="Автомобиль",
+    )
+
+    scheduled_date = forms.DateField(
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "type": "date",
+                "min": date.today().isoformat(),
+            }
+        ),
+        required=True,
+        label="Дата записи",
+    )
+
+    scheduled_time = forms.ChoiceField(
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-control"}),
+        required=True,
+        label="Время записи",
+    )
+
+    notes = forms.CharField(
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Дополнительные пожелания или описание проблемы",
+            }
+        ),
+        required=False,
+        label="Примечания",
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+        if self.user and self.user.is_authenticated:
+            self.fields["car"].queryset = Car.objects.filter(owner=self.user)
+
+        self.generate_time_slots()
+
+    def generate_time_slots(self):
+        """Генерирует список доступных временных слотов"""
+        time_slots = []
+        start_time = datetime.strptime("09:00", "%H:%M")
+        end_time = datetime.strptime("18:00", "%H:%M")
+        slot_duration = timedelta(minutes=30)
+
+        current_time = start_time
+        while current_time <= end_time:
+            if not (
+                datetime.strptime("13:00", "%H:%M")
+                <= current_time
+                < datetime.strptime("14:00", "%H:%M")
+            ):
+                time_slots.append(
+                    (current_time.strftime("%H:%M"), current_time.strftime("%H:%M"))
+                )
+            current_time += slot_duration
+
+        self.fields["scheduled_time"].choices = time_slots
+
+    def clean(self):
+        cleaned_data = super().clean()
+        service_type = cleaned_data.get("service_type")
+        scheduled_date = cleaned_data.get("scheduled_date")
+        scheduled_time = cleaned_data.get("scheduled_time")
+        car = cleaned_data.get("car")
+
+        if service_type and scheduled_date and scheduled_time:
+            if scheduled_date < date.today():
+                raise ValidationError("Нельзя записаться на прошедшую дату")
+
+            day_of_week = scheduled_date.isoweekday()
+            try:
+                working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
+                if not working_hours.is_working:
+                    raise ValidationError("Выбранная дата не является рабочим днем")
+            except WorkingHours.DoesNotExist:
+                raise ValidationError("На выбранную дату запись невозможна")
+
+            scheduled_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
+            scheduled_datetime = datetime.combine(scheduled_date, scheduled_time_obj)
+
+            start_datetime = datetime.combine(scheduled_date, working_hours.start_time)
+            end_datetime = datetime.combine(scheduled_date, working_hours.end_time)
+
+            if not (start_datetime <= scheduled_datetime <= end_datetime):
+                raise ValidationError("Выбранное время вне рабочего времени")
+
+            if service_type and scheduled_date and scheduled_time:
+                start_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
+                end_time_obj = (
+                    scheduled_datetime + timedelta(minutes=service_type.duration)
+                ).time()
+
+                conflicting_appointments = Appointment.objects.filter(
+                    scheduled_date=scheduled_date,
+                    status__in=["SCHEDULED", "IN_PROGRESS"],
+                ).exclude(
+                    scheduled_time__gte=end_time_obj, end_time__lte=start_time_obj
+                )
+
+                if conflicting_appointments.exists():
+                    raise ValidationError(
+                        "Выбранное время уже занято. Пожалуйста, выберите другое время."
+                    )
+
+        return cleaned_data

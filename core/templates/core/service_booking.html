@@ -1,0 +1,225 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Запись на услугу{% endblock %}
+
+{% block extra_css %}
+<style>
+    .booking-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .time-slot {
+        padding: 10px;
+        margin: 5px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .time-slot:hover {
+        background-color: #f8f9fa;
+    }
+    .time-slot.selected {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .time-slot.disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+    .service-card {
+        transition: transform 0.3s;
+        cursor: pointer;
+    }
+    .service-card:hover {
+        transform: translateY(-2px);
+    }
+    .service-card.selected {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 min-vh-80">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card booking-card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Запись на услугу</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" id="bookingForm">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <h5>1. Выберите услугу</h5>
+                            <div class="row">
+                                {% for service in services %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card service-card h-100" data-service-id="{{ service.id }}">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ service.name }}</h6>
+                                            <p class="card-text small text-muted">{{ service.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-primary">{{ service.duration }} мин.</span>
+                                                <strong>{{ service.price }} руб.</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {{ form.service_type.errors }}
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>2. Выберите автомобиль</h5>
+                            {{ form.car }}
+                            {{ form.car.errors }}
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>3. Выберите дату</h5>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="datePicker" 
+                                   min="{{ min_date }}" 
+                                   max="{{ max_date }}"
+                                   required>
+                            <small class="text-muted">Запись доступна на 30 дней вперед</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>4. Выберите время</h5>
+                            <div id="timeSlotsContainer">
+                                <p class="text-muted">Сначала выберите дату и услугу</p>
+                            </div>
+                            {{ form.scheduled_time.errors }}
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>5. Дополнительная информация</h5>
+                            {{ form.notes }}
+                            {{ form.notes.errors }}
+                        </div>
+ 
+                        {{ form.service_type.as_hidden }}
+                        {{ form.scheduled_date.as_hidden }}
+                        {{ form.scheduled_time.as_hidden }}
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Записаться</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let selectedService = null;
+        let selectedDate = null;
+        let selectedTime = null;
+
+        $('.service-card').click(function() {
+            $('.service-card').removeClass('selected');
+            $(this).addClass('selected');
+            selectedService = $(this).data('service-id');
+            $('#id_service_type').val(selectedService);
+            updateTimeSlots();
+            checkFormCompletion();
+        });
+
+        $('#datePicker').change(function() {
+            selectedDate = $(this).val();
+            $('#id_scheduled_date').val(selectedDate);
+            updateTimeSlots();
+            checkFormCompletion();
+        });
+        
+        function updateTimeSlots() {
+            if (!selectedService || !selectedDate) {
+                $('#timeSlotsContainer').html('<p class="text-muted">Сначала выберите услугу и дату</p>');
+                return;
+            }
+            
+            $('#timeSlotsContainer').html('<p class="text-muted">Загрузка доступного времени...</p>');
+            
+            $.ajax({
+                url: "{% url 'get_time_slots' %}",
+                data: {
+                    'service_type': selectedService,
+                    'date': selectedDate
+                },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(data) {
+                    if (data.error) {
+                        $('#timeSlotsContainer').html('<p class="text-danger">Ошибка: ' + data.error + '</p>');
+                        return;
+                    }
+                    
+                    if (data.available_slots && data.available_slots.length > 0) {
+                        let html = '<div class="row">';
+                        data.available_slots.forEach(function(slot) {
+                            html += `
+                                <div class="col-3 mb-2">
+                                    <div class="time-slot text-center" data-time="${slot}">
+                                        ${slot}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $('#timeSlotsContainer').html(html);
+                        
+                        $('.time-slot').click(function() {
+                            $('.time-slot').removeClass('selected');
+                            $(this).addClass('selected');
+                            selectedTime = $(this).data('time');
+                            $('#id_scheduled_time').val(selectedTime);
+                            checkFormCompletion();
+                        });
+                    } else {
+                        $('#timeSlotsContainer').html('<p class="text-danger">На выбранную дату нет свободного времени</p>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#timeSlotsContainer').html('<p class="text-danger">Ошибка загрузки времени: ' + error + '</p>');
+                }
+            });
+        }
+        
+        function checkFormCompletion() {
+            if (selectedService && selectedDate && selectedTime && $('#id_car').val()) {
+                $('#submitBtn').prop('disabled', false);
+            } else {
+                $('#submitBtn').prop('disabled', true);
+            }
+        }
+        
+        $('#id_car').change(function() {
+            checkFormCompletion();
+        });
+    });
+</script>
+{% endblock %}

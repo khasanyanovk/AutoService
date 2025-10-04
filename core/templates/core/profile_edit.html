@@ -1,0 +1,112 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 min-vh-80">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Редактирование профиля</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <fieldset class="mb-4">
+                            <legend class="h5 mb-3">Личная информация</legend>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ u_form.first_name.id_for_label }}" class="form-label">Имя</label>
+                                    {{ u_form.first_name }}
+                                    {% if u_form.first_name.errors %}
+                                        <div class="text-danger small mt-1">{{ u_form.first_name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ u_form.last_name.id_for_label }}" class="form-label">Фамилия</label>
+                                    {{ u_form.last_name }}
+                                    {% if u_form.last_name.errors %}
+                                        <div class="text-danger small mt-1">{{ u_form.last_name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ u_form.email.id_for_label }}" class="form-label">Email</label>
+                                {{ u_form.email }}
+                                {% if u_form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ u_form.email.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </fieldset>
+                        
+                        <fieldset class="mb-4">
+                            <legend class="h5 mb-3">Контактная информация</legend>
+                            
+                            <div class="mb-3">
+                                <label for="{{ p_form.phone.id_for_label }}" class="form-label">Телефон</label>
+                                {{ p_form.phone }}
+                                {% if p_form.phone.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.phone.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ p_form.address.id_for_label }}" class="form-label">Адрес</label>
+                                {{ p_form.address }}
+                                {% if p_form.address.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.address.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ p_form.avatar.id_for_label }}" class="form-label">Аватар</label>
+                                {{ p_form.avatar }}
+                                {% if p_form.avatar.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.avatar.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">Максимальный размер: 2MB. Поддерживаемые форматы: JPG, PNG.</div>
+                            </div>
+                        </fieldset>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

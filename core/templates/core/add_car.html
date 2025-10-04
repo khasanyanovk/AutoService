@@ -1,0 +1,179 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Добавление автомобиля{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+        width: 100%;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 min-vh-80">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Добавление автомобиля</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" id="carForm" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <strong>Ошибка!</strong> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group">
+                            <label for="{{ form.brand.id_for_label }}" class="form-label">Марка автомобиля *</label>
+                            {{ form.brand }}
+                            {% if form.brand.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.brand.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.model.id_for_label }}" class="form-label">Модель автомобиля *</label>
+                            {{ form.model }}
+                            {% if form.model.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.model.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.year.id_for_label }}" class="form-label">Год выпуска *</label>
+                                    {{ form.year }}
+                                    {% if form.year.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in form.year.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.license_plate.id_for_label }}" class="form-label">Гос. номер *</label>
+                                    {{ form.license_plate }}
+                                    {% if form.license_plate.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in form.license_plate.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.vin.id_for_label }}" class="form-label">VIN код</label>
+                                    {{ form.vin }}
+                                    {% if form.vin.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in form.vin.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Добавить автомобиль</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        function loadModels(brandId) {
+            const $modelField = $("#id_model");
+            
+            if (brandId) {
+                const url = "{% url 'load_models' %}";
+                $modelField.html('<option value="">Загрузка...</option>');
+                
+                $.ajax({
+                    url: url,
+                    data: {
+                        'brand_id': brandId
+                    },
+                    success: function (data) {
+                        $modelField.html(data.options);
+                    },
+                    error: function() {
+                        $modelField.html('<option value="">Ошибка загрузки моделей</option>');
+                    }
+                });
+            } else {
+                $modelField.html('<option value="">Сначала выберите марку</option>');
+            }
+        }
+
+        $("#id_brand").change(function () {
+            const brandId = $(this).val();
+            loadModels(brandId);
+        });
+        
+        const initialBrandId = $("#id_brand").val();
+        if (initialBrandId) {
+            loadModels(initialBrandId);
+        }
+    });
+</script>
+{% endblock %}
