@@ -60,10 +60,9 @@ class ProfileUpdateForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
 
-        if not self.cleaned_data.get("avatar"):
-            if instance.pk:
-                original = UserProfile.objects.get(pk=instance.pk)
-                instance.avatar = original.avatar
+        if not self.cleaned_data.get("avatar") and instance.pk:
+            original = UserProfile.objects.get(pk=instance.pk)
+            instance.avatar = original.avatar
 
         if commit:
             instance.save()
@@ -230,7 +229,6 @@ class AppointmentForm(forms.Form):
         service_type = cleaned_data.get("service_type")
         scheduled_date = cleaned_data.get("scheduled_date")
         scheduled_time = cleaned_data.get("scheduled_time")
-        car = cleaned_data.get("car")
 
         if service_type and scheduled_date and scheduled_time:
             if scheduled_date < date.today():

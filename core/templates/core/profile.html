@@ -67,7 +67,7 @@
                 {% if user.userprofile.avatar %}
                     <img src="{{ user.userprofile.avatar.url }}" class="profile-avatar rounded-circle" alt="Аватар">
                 {% else %}
-                    <img src="{% static 'core/img/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
+                    <img src="{% static 'media/avatars/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
                 {% endif %}
             </div>
             <h2>{{ user.get_full_name }}</h2>
@@ -119,7 +119,7 @@
             {% for car in cars %}
             <div class="col-lg-4 col-md-6 mb-4">
                 <div class="car-card card">
-                    <img src="{% static 'core/img/car-placeholder.jpg' %}" class="card-img-top car-image" alt="{{ car.model.brand }} {{ car.model.name }}">
+                    <img src="{% static 'media/car-images/car-placeholder.jpg' %}" class="card-img-top car-image" alt="{{ car.model.brand }} {{ car.model.name }}">
                     <div class="card-body">
                         <h5 class="card-title">{{ car.model.brand }} {{ car.model.name }}</h5>
                         <p class="card-text">
