@@ -3,7 +3,7 @@ body {
 }
 
 .hero-section {
-    background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/static/core/img/avtoservice.jpg') no-repeat center;
+    background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('../img/promo.jpg') no-repeat center;
     background-size: cover;
     color: white;
     padding: 100px 0;
