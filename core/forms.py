@@ -2,7 +2,7 @@ import os
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import UserProfile, Car, CarBrand, CarModel
+from .models import ServiceCenter, UserProfile, Car, CarBrand, CarModel
 from datetime import datetime, date, timedelta
 from django.forms import ValidationError
 from .models import ServiceType, Appointment, WorkingHours
@@ -23,6 +23,17 @@ class UserRegisterForm(UserCreationForm):
             "password1",
             "password2",
         ]
+
+
+class ServiceCenterChoiceForm(forms.Form):
+    """Форма выбора автосервиса"""
+
+    service_center = forms.ModelChoiceField(
+        queryset=ServiceCenter.objects.all(),
+        empty_label="Выберите автосервис",
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Автосервис",
+    )
 
 
 class UserUpdateForm(forms.ModelForm):

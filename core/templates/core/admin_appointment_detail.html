@@ -1,0 +1,153 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Запись #{{ appointment.id }} - Детали{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .appointment-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+        background: white;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    .info-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">Запись на услугу</h1>
+                    <p class="text-muted mb-0">Детальная информация о записи</p>
+                </div>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
+                </a>
+            </div>
+
+            <div class="appointment-card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Информация о записи</h4>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Статус записи -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <form method="post" class="d-flex align-items-center">
+                                {% csrf_token %}
+                                <strong class="me-3">Статус:</strong>
+                                <select name="status" class="form-select me-3" style="width: auto;">
+                                    {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if appointment.status == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i> Обновить
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Основная информация -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <strong>Клиент:</strong>
+                                <div class="mt-1">
+                                    {{ appointment.car.owner.get_full_name|default:appointment.car.owner.username }}
+                                    <br><small class="text-muted">{{ appointment.car.owner.email }}</small>
+                                </div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <strong>Автомобиль:</strong>
+                                <div class="mt-1">{{ appointment.car }}</div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <strong>VIN:</strong>
+                                <div class="mt-1">{{ appointment.car.vin|default:"Не указан" }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <strong>Дата и время:</strong>
+                                <div class="mt-1">
+                                    {{ appointment.scheduled_date|date:"d.m.Y" }} 
+                                    в {{ appointment.scheduled_time|time:"H:i" }}
+                                </div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <strong>Услуга:</strong>
+                                <div class="mt-1">
+                                    {{ appointment.service_type.name }}
+                                    <br><small class="text-muted">
+                                        Длительность: {{ appointment.service_type.duration }} мин.
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <strong>Стоимость:</strong>
+                                <div class="mt-1">{{ appointment.service_type.price }} руб.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Примечания -->
+                    {% if appointment.notes %}
+                    <div class="info-item">
+                        <strong>Примечания:</strong>
+                        <div class="mt-2 p-3 bg-light rounded">
+                            {{ appointment.notes|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Информация о создании -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <small class="text-muted">
+                                Создано: {{ appointment.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <small class="text-muted">
+                                Обновлено: {{ appointment.updated_at|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

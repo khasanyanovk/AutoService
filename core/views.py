@@ -1,8 +1,19 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import IntegrityError
-from django.contrib.auth.decorators import login_required
-from .models import CarModel, UserProfile, Car, ServiceType, Appointment, WorkingHours
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Count
+from django.utils import timezone
+import json
+from .models import (
+    CarModel,
+    UserProfile,
+    Car,
+    ServiceType,
+    Appointment,
+    WorkingHours,
+    ServiceCenter,
+)
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .forms import (
@@ -18,6 +29,10 @@ from datetime import datetime, date, timedelta, time
 
 def home(request):
     return render(request, "core/index.html")
+
+
+def about(request):
+    return render(request, "core/about.html")
 
 
 def register(request):
@@ -325,3 +340,165 @@ def cancel_appointment(request, appointment_id):
             messages.error(request, "Невозможно отменить запись в текущем статусе")
 
     return redirect("appointment_list")
+
+
+def admin_required(view_func):
+    """Декоратор для проверки прав администратора"""
+    return user_passes_test(lambda u: u.is_staff)(view_func)
+
+
+@login_required
+@admin_required
+def admin_dashboard(request):
+    """Главная страница администратора"""
+    service_centers = ServiceCenter.objects.all()
+
+    total_appointments = Appointment.objects.count()
+    today_appointments = Appointment.objects.filter(
+        scheduled_date=timezone.now().date()
+    ).count()
+    pending_appointments = Appointment.objects.filter(status="SCHEDULED").count()
+
+    context = {
+        "service_centers": service_centers,
+        "total_appointments": total_appointments,
+        "today_appointments": today_appointments,
+        "pending_appointments": pending_appointments,
+    }
+    return render(request, "core/admin_dashboard.html", context)
+
+
+@login_required
+@admin_required
+def admin_service_center_detail(request, service_center_id):
+    """Детальная страница автосервиса с календарем и статистикой"""
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+
+    today = timezone.now().date()
+    year = request.GET.get("year", today.year)
+    month = request.GET.get("month", today.month)
+
+    appointments = Appointment.objects.filter(
+        scheduled_date__year=year, scheduled_date__month=month
+    ).select_related("car", "service_type", "car__owner")
+
+    calendar_events = []
+    for appointment in appointments:
+        calendar_events.append(
+            {
+                "id": str(appointment.id),
+                "title": f"{appointment.car} - {appointment.service_type.name}",
+                "start": f"{appointment.scheduled_date}T{appointment.scheduled_time}",
+                "end": (
+                    f"{appointment.scheduled_date}T{appointment.end_time}"
+                    if appointment.end_time
+                    else f"{appointment.scheduled_date}T{appointment.scheduled_time}"
+                ),
+                "status": appointment.status,
+                "user": appointment.car.owner.get_full_name()
+                or appointment.car.owner.username,
+                "car": str(appointment.car),
+                "service": appointment.service_type.name,
+            }
+        )
+
+    start_date = today - timedelta(days=30)
+    service_stats = (
+        Appointment.objects.filter(
+            scheduled_date__gte=start_date, scheduled_date__lte=today
+        )
+        .values("service_type__name")
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+
+    stats_labels = [stat["service_type__name"] for stat in service_stats]
+    stats_data = [stat["count"] for stat in service_stats]
+
+    status_stats = Appointment.objects.values("status").annotate(count=Count("id"))
+
+    weekday_stats = (
+        Appointment.objects.filter(scheduled_date__gte=start_date)
+        .extra({"weekday": "EXTRACT(dow FROM scheduled_date)"})
+        .values("weekday")
+        .annotate(count=Count("id"))
+        .order_by("weekday")
+    )
+
+    weekday_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    weekday_labels = []
+    weekday_data = []
+    for stat in weekday_stats:
+        weekday_index = int(stat["weekday"])
+        if 0 <= weekday_index < len(weekday_names):
+            weekday_labels.append(weekday_names[weekday_index])
+            weekday_data.append(stat["count"])
+
+    context = {
+        "service_center": service_center,
+        "calendar_events": json.dumps(calendar_events, ensure_ascii=False),
+        "stats_labels": json.dumps(stats_labels, ensure_ascii=False),
+        "stats_data": json.dumps(stats_data, ensure_ascii=False),
+        "weekday_labels": json.dumps(weekday_labels, ensure_ascii=False),
+        "weekday_data": json.dumps(weekday_data, ensure_ascii=False),
+        "status_stats": status_stats,
+        "current_year": year,
+        "current_month": month,
+    }
+    return render(request, "core/admin_service_center_detail.html", context)
+
+
+@login_required
+@admin_required
+def admin_appointment_detail(request, appointment_id):
+    """Детальная информация о записи"""
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        if new_status in dict(Appointment.STATUS_CHOICES):
+            appointment.status = new_status
+            appointment.save()
+            messages.success(request, "Статус записи обновлен!")
+
+    context = {
+        "appointment": appointment,
+        "status_choices": Appointment.STATUS_CHOICES,
+    }
+    return render(request, "core/admin_appointment_detail.html", context)
+
+
+@login_required
+@admin_required
+def admin_api_appointments(request):
+    """API для получения записей (для календаря)"""
+    start_date = request.GET.get("start")
+    end_date = request.GET.get("end")
+
+    appointments = Appointment.objects.all()
+
+    if start_date:
+        appointments = appointments.filter(scheduled_date__gte=start_date)
+    if end_date:
+        appointments = appointments.filter(scheduled_date__lte=end_date)
+
+    events = []
+    for appointment in appointments:
+        events.append(
+            {
+                "id": str(appointment.id),
+                "title": f"{appointment.car} - {appointment.service_type.name}",
+                "start": f"{appointment.scheduled_date}T{appointment.scheduled_time}",
+                "end": (
+                    f"{appointment.scheduled_date}T{appointment.end_time}"
+                    if appointment.end_time
+                    else f"{appointment.scheduled_date}T{appointment.scheduled_time}"
+                ),
+                "status": appointment.status,
+                "user": appointment.car.owner.get_full_name()
+                or appointment.car.owner.username,
+                "className": f"appointment-status-{appointment.status.lower()}",
+            }
+        )
+
+    return JsonResponse(events, safe=False)

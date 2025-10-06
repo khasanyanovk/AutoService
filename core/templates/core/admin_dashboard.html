@@ -1,0 +1,155 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .dashboard-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+    .service-center-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    }
+    .service-center-card:hover {
+        border-color: #0d6efd;
+        transform: translateY(-3px);
+    }
+    .text-decoration-none:hover {
+        text-decoration: none !important;
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    .btn-admin {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .service-center-image {
+        height: 200px;
+        object-fit: cover;
+        width: 100%;
+    }
+    .service-center-info {
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">Панель администратора</h1>
+                    <p class="text-muted">Управление автосервисами и записями</p>
+                </div>
+                <div class="text-end">
+                    <div class="text-muted small">Сегодня: {% now "d.m.Y" %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">{{ total_appointments }}</div>
+                <div class="stat-label">Всего записей</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">{{ today_appointments }}</div>
+                <div class="stat-label">Записей сегодня</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">{{ pending_appointments }}</div>
+                <div class="stat-label">Ожидают подтверждения</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Автосервисы</h4>
+                </div>
+                <div class="card-body p-4">
+                    {% if service_centers %}
+                    <div class="row">
+                        {% for service_center in service_centers %}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <a href="{% url 'admin_service_center_detail' service_center.id %}" class="text-decoration-none">
+                                <div class="card service-center-card h-100">
+                                    <div class="service-center-image bg-secondary d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-tools text-white" style="font-size: 3rem;"></i>
+                                    </div>
+                                    <div class="service-center-info">
+                                        <h5 class="card-title text-dark">{{ service_center.address }}</h5>
+                                        <p class="card-text text-muted small mb-2">
+                                            <i class="bi bi-telephone me-1"></i>{{ service_center.phone }}
+                                        </p>
+                                        <p class="card-text text-muted small">
+                                            <i class="bi bi-clock me-1"></i>{{ service_center.opening_hours }}
+                                        </p>
+                                        <div class="mt-3">
+                                            <span class="badge bg-primary">Управление</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-building" style="font-size: 3rem; color: #6c757d;"></i>
+                        <h4 class="mt-3">Нет доступных автосервисов</h4>
+                        <p class="text-muted">Добавьте автосервисы в административной панели</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -22,4 +22,21 @@ urlpatterns = [
         name="cancel_appointment",
     ),
     path("ajax/get-time-slots/", views.get_available_time_slots, name="get_time_slots"),
+    path("about/", views.about, name="about"),
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path(
+        "admin-dashboard/service-center/<uuid:service_center_id>/",
+        views.admin_service_center_detail,
+        name="admin_service_center_detail",
+    ),
+    path(
+        "admin-dashboard/appointment/<uuid:appointment_id>/",
+        views.admin_appointment_detail,
+        name="admin_appointment_detail",
+    ),
+    path(
+        "admin-api/appointments/",
+        views.admin_api_appointments,
+        name="admin_api_appointments",
+    ),
 ]

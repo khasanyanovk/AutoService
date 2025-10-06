@@ -1,0 +1,254 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ service_center.address }} - Панель управления{% endblock %}
+
+{% block extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .dashboard-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+        background: white;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    .service-center-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    /* Стили для FullCalendar */
+    #calendar {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .fc-toolbar {
+        padding: 1rem;
+        margin-bottom: 0 !important;
+    }
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 600;
+    }
+    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; }
+    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; }
+    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; }
+    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .small-chart {
+        height: 250px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Шапка автосервиса -->
+<div class="service-center-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-2">Автосервис</h1>
+                <p class="mb-2">
+                    <i class="bi bi-geo-alt me-1"></i>{{ service_center.address }}
+                </p>
+                <p class="mb-0">
+                    <i class="bi bi-clock me-1"></i>{{ service_center.opening_hours }} | 
+                    <i class="bi bi-telephone me-1"></i>{{ service_center.phone }}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-light">
+                    <i class="bi bi-arrow-left me-1"></i> Назад к списку
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Левая колонка - Календарь -->
+        <div class="col-lg-8 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Календарь записей</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка - Статистика -->
+        <div class="col-lg-4">
+            <!-- Статистика по услугам -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Статистика по услугам</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="serviceStatsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика по дням недели -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Нагрузка по дням</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container small-chart">
+                        <canvas id="weekdayStatsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика по статусам -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
+                </div>
+                <div class="card-body">
+                    {% for stat in status_stats %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge 
+                            {% if stat.status == 'SCHEDULED' %}bg-primary
+                            {% elif stat.status == 'IN_PROGRESS' %}bg-warning
+                            {% elif stat.status == 'COMPLETED' %}bg-success
+                            {% elif stat.status == 'CANCELLED' %}bg-danger
+                            {% endif %}">
+                            {{ stat.get_status_display }}
+                        </span>
+                        <strong class="text-dark">{{ stat.count }}</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ru.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'ru',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: '{% url "admin_api_appointments" %}',
+            eventClick: function(info) {
+                window.location.href = '{% url "admin_appointment_detail" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', info.event.id);
+            },
+            eventClassNames: function(arg) {
+                return ['appointment-status-' + arg.event.extendedProps.status.toLowerCase()];
+            },
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: false
+            }
+        });
+        calendar.render();
+
+        var ctxService = document.getElementById('serviceStatsChart').getContext('2d');
+        var serviceStatsChart = new Chart(ctxService, {
+            type: 'doughnut',
+            data: {
+                labels: JSON.parse('{{ stats_labels|escapejs }}'),
+                datasets: [{
+                    data: JSON.parse('{{ stats_data|escapejs }}'),
+                    backgroundColor: [
+                        '#0d6efd', '#6610f2', '#6f42c1', '#d63384', 
+                        '#dc3545', '#fd7e14', '#ffc107', '#198754'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        var ctxWeekday = document.getElementById('weekdayStatsChart').getContext('2d');
+        var weekdayStatsChart = new Chart(ctxWeekday, {
+            type: 'bar',
+            data: {
+                labels: JSON.parse('{{ weekday_labels|escapejs }}'),
+                datasets: [{
+                    label: 'Количество записей',
+                    data: JSON.parse('{{ weekday_data|escapejs }}'),
+                    backgroundColor: '#0d6efd',
+                    borderColor: '#0b5ed7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

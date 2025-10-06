@@ -132,7 +132,7 @@
                 {% if user.userprofile.avatar %}
                     <img src="{{ user.userprofile.avatar.url }}" class="profile-avatar rounded-circle" alt="Аватар">
                 {% else %}
-                    <img src="{% static 'media/avatars/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
+                    <img src="{% static 'core/img/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
                 {% endif %}
             </div>
             <h2>{{ user.get_full_name }}</h2>
@@ -195,7 +195,7 @@
                     <div class="carousel-card">
                         <div class="row g-0">
                             <div class="col-md-6">
-                                <img src="{% static 'media/car-images/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
                             </div>
                             <div class="col-md-6">
                                 <div class="car-details h-100 d-flex flex-column justify-content-center">

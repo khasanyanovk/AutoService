@@ -244,3 +244,20 @@ class WorkingHours(models.Model):
     class Meta:
         verbose_name = "Рабочее время"
         verbose_name_plural = "Рабочее время"
+
+
+class AdminDashboard(models.Model):
+    """Модель для хранения настроек админ-панели"""
+
+    service_center = models.OneToOneField(
+        ServiceCenter, on_delete=models.CASCADE, verbose_name="Автосервис"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Дашборд для {self.service_center}"
+
+    class Meta:
+        verbose_name = "Дашборд администратора"
+        verbose_name_plural = "Дашборды администраторов"
