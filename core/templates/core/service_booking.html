@@ -5,58 +5,157 @@
 
 {% block extra_css %}
 <style>
+    body {
+        background-color: #f8f9fa;
+    }
     .booking-card {
         border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+    }
+    .section-title {
+        color: #333;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        font-size: 1.3rem;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 0.5rem;
     }
     .time-slot {
-        padding: 10px;
-        margin: 5px;
-        border: 1px solid #dee2e6;
-        border-radius: 5px;
+        padding: 12px 8px;
+        margin: 4px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s ease;
+        text-align: center;
+        font-weight: 500;
+        background: white;
     }
     .time-slot:hover {
         background-color: #f8f9fa;
+        border-color: #adb5bd;
+        transform: translateY(-2px);
     }
     .time-slot.selected {
-        background-color: #0d6efd;
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
         border-color: #0d6efd;
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
     }
     .time-slot.disabled {
-        background-color: #e9ecef;
-        color: #6c757d;
+        background-color: #f8f9fa;
+        color: #adb5bd;
         cursor: not-allowed;
+        border-color: #e9ecef;
     }
     .service-card {
-        transition: transform 0.3s;
+        transition: all 0.3s ease;
         cursor: pointer;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        height: 100%;
     }
     .service-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        border-color: #adb5bd;
     }
     .service-card.selected {
         border-color: #0d6efd;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.2);
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    }
+    .form-select, .form-control, .form-control:focus {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    .form-select:focus, .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+    }
+    .date-picker-container {
+        position: relative;
+    }
+    .date-picker-container .form-control {
+        background: white;
+        font-weight: 500;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        border: none;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(13, 110, 253, 0.4);
+    }
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        border: none;
+    }
+    .alert {
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .badge {
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    .notes-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0d6efd;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 10px;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4 min-vh-80">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
             <div class="card booking-card">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Запись на услугу</h4>
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Запись на услугу</h4>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
                                 {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -64,18 +163,18 @@
                     <form method="post" id="bookingForm">
                         {% csrf_token %}
 
-                        <div class="mb-4">
-                            <h5>1. Выберите услугу</h5>
+                        <div class="mb-5">
+                            <h5 class="section-title"><span class="badge bg-primary me-2">1</span>Выберите услугу</h5>
                             <div class="row">
                                 {% for service in services %}
                                 <div class="col-md-6 mb-3">
                                     <div class="card service-card h-100" data-service-id="{{ service.id }}">
                                         <div class="card-body">
-                                            <h6 class="card-title">{{ service.name }}</h6>
-                                            <p class="card-text small text-muted">{{ service.description }}</p>
+                                            <h6 class="card-title text-primary">{{ service.name }}</h6>
+                                            <p class="card-text small text-muted mb-3">{{ service.description }}</p>
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <span class="badge bg-primary">{{ service.duration }} мин.</span>
-                                                <strong>{{ service.price }} руб.</strong>
+                                                <span class="badge bg-secondary">{{ service.duration }} мин.</span>
+                                                <strong class="text-dark h5 mb-0">{{ service.price }} ₽</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -85,44 +184,68 @@
                             {{ form.service_type.errors }}
                         </div>
 
-                        <div class="mb-4">
-                            <h5>2. Выберите автомобиль</h5>
-                            {{ form.car }}
-                            {{ form.car.errors }}
+                        <div class="mb-5">
+                            <h5 class="section-title"><span class="badge bg-primary me-2">2</span>Выберите автомобиль</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label for="{{ form.car.id_for_label }}" class="form-label">Ваш автомобиль</label>
+                                    {{ form.car }}
+                                    {{ form.car.errors }}
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <h5>3. Выберите дату</h5>
-                            <input type="date" 
-                                   class="form-control" 
-                                   id="datePicker" 
-                                   min="{{ min_date }}" 
-                                   max="{{ max_date }}"
-                                   required>
-                            <small class="text-muted">Запись доступна на 30 дней вперед</small>
+                        <div class="mb-5">
+                            <h5 class="section-title"><span class="badge bg-primary me-2">3</span>Выберите дату</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="date-picker-container">
+                                        <label for="datePicker" class="form-label">Дата записи</label>
+                                        <input type="date" 
+                                               class="form-control" 
+                                               id="datePicker" 
+                                               min="{{ min_date }}" 
+                                               max="{{ max_date }}"
+                                               required>
+                                        <small class="text-muted mt-2 d-block">Запись доступна на 30 дней вперед</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <h5>4. Выберите время</h5>
+                        <div class="mb-5">
+                            <h5 class="section-title"><span class="badge bg-primary me-2">4</span>Выберите время</h5>
                             <div id="timeSlotsContainer">
-                                <p class="text-muted">Сначала выберите дату и услугу</p>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Сначала выберите услугу и дату для отображения доступного времени
+                                </div>
                             </div>
                             {{ form.scheduled_time.errors }}
                         </div>
 
                         <div class="mb-4">
-                            <h5>5. Дополнительная информация</h5>
-                            {{ form.notes }}
-                            {{ form.notes.errors }}
+                            <h5 class="section-title"><span class="badge bg-primary me-2">5</span>Дополнительная информация</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label for="{{ form.notes.id_for_label }}" class="form-label">Комментарий (необязательно)</label>
+                                    {{ form.notes }}
+                                    {{ form.notes.errors }}
+                                </div>
+                            </div>
                         </div>
- 
+
                         {{ form.service_type.as_hidden }}
                         {{ form.scheduled_date.as_hidden }}
                         {{ form.scheduled_time.as_hidden }}
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">Отмена</a>
-                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Записаться</button>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">
+                                <i class="bi bi-arrow-left me-1"></i> Назад
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                <i class="bi bi-calendar-plus me-1"></i> Записаться
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -154,14 +277,24 @@
             updateTimeSlots();
             checkFormCompletion();
         });
-        
+
         function updateTimeSlots() {
             if (!selectedService || !selectedDate) {
-                $('#timeSlotsContainer').html('<p class="text-muted">Сначала выберите услугу и дату</p>');
+                $('#timeSlotsContainer').html(
+                    '<div class="alert alert-info">' +
+                    '<i class="bi bi-info-circle me-2"></i>' +
+                    'Сначала выберите услугу и дату для отображения доступного времени' +
+                    '</div>'
+                );
                 return;
             }
             
-            $('#timeSlotsContainer').html('<p class="text-muted">Загрузка доступного времени...</p>');
+            $('#timeSlotsContainer').html(
+                '<div class="text-center py-4">' +
+                '<div class="loading-spinner mx-auto mb-2"></div>' +
+                '<p class="text-muted">Загрузка доступного времени...</p>' +
+                '</div>'
+            );
             
             $.ajax({
                 url: "{% url 'get_time_slots' %}",
@@ -174,7 +307,12 @@
                 },
                 success: function(data) {
                     if (data.error) {
-                        $('#timeSlotsContainer').html('<p class="text-danger">Ошибка: ' + data.error + '</p>');
+                        $('#timeSlotsContainer').html(
+                            '<div class="alert alert-danger">' +
+                            '<i class="bi bi-exclamation-triangle me-2"></i>' +
+                            'Ошибка: ' + data.error +
+                            '</div>'
+                        );
                         return;
                     }
                     
@@ -182,8 +320,8 @@
                         let html = '<div class="row">';
                         data.available_slots.forEach(function(slot) {
                             html += `
-                                <div class="col-3 mb-2">
-                                    <div class="time-slot text-center" data-time="${slot}">
+                                <div class="col-6 col-md-3 mb-3">
+                                    <div class="time-slot" data-time="${slot}">
                                         ${slot}
                                     </div>
                                 </div>
@@ -200,11 +338,21 @@
                             checkFormCompletion();
                         });
                     } else {
-                        $('#timeSlotsContainer').html('<p class="text-danger">На выбранную дату нет свободного времени</p>');
+                        $('#timeSlotsContainer').html(
+                            '<div class="alert alert-warning">' +
+                            '<i class="bi bi-clock me-2"></i>' +
+                            'На выбранную дату нет свободного времени. Пожалуйста, выберите другую дату.' +
+                            '</div>'
+                        );
                     }
                 },
                 error: function(xhr, status, error) {
-                    $('#timeSlotsContainer').html('<p class="text-danger">Ошибка загрузки времени: ' + error + '</p>');
+                    $('#timeSlotsContainer').html(
+                        '<div class="alert alert-danger">' +
+                        '<i class="bi bi-exclamation-triangle me-2"></i>' +
+                        'Ошибка загрузки времени: ' + error +
+                        '</div>'
+                    );
                 }
             });
         }
@@ -220,6 +368,8 @@
         $('#id_car').change(function() {
             checkFormCompletion();
         });
+
+        $('#id_notes').addClass('form-control notes-textarea');
     });
 </script>
 {% endblock %}

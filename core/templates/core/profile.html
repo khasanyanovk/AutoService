@@ -181,7 +181,6 @@
     
     {% if cars %}
         <div id="carCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
-            <!-- Индикаторы -->
             <div class="carousel-indicators">
                 {% for car in cars %}
                 <button type="button" data-bs-target="#carCarousel" data-bs-slide-to="{{ forloop.counter0 }}" 
@@ -190,7 +189,6 @@
                 {% endfor %}
             </div>
             
-            <!-- Слайды -->
             <div class="carousel-inner">
                 {% for car in cars %}
                 <div class="carousel-item {% if forloop.first %}active{% endif %}">
@@ -221,8 +219,7 @@
                 </div>
                 {% endfor %}
             </div>
-            
-            <!-- Стрелки управления -->
+
             <button class="carousel-control-prev" type="button" data-bs-target="#carCarousel" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Предыдущий</span>
@@ -245,4 +242,4 @@
         </div>
     {% endif %}
 </div>
-{% endblock %}
+{% endblock %} 
