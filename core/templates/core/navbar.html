@@ -20,7 +20,7 @@
                     <a class="nav-link" href="{% url 'appointment_list' %}">Мои записи</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Контакты</a>
+                    <a class="nav-link" href="{% url 'about' %}">О нас</a>
                 </li>
                 {% endif %}
                 {% if user.is_staff %}
