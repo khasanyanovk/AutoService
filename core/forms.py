@@ -158,16 +158,21 @@ class CarForm(forms.Form):
 
 
 class AppointmentForm(forms.Form):
+    service_center = forms.ModelChoiceField(
+        queryset=ServiceCenter.objects.all(),
+        empty_label="Выберите автосервис",
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Автосервис",
+    )
     service_type = forms.ModelChoiceField(
         queryset=ServiceType.objects.all(),
-        empty_label="Выберите услугу",
-        widget=forms.Select(attrs={"class": "form-control"}),
-        required=True,
+        empty_label="Сначала выберите автосервис",
+        widget=forms.Select(attrs={"class": "form-select"}),
         label="Тип услуги",
     )
 
     car = forms.ModelChoiceField(
-        queryset=Car.objects.none(),
+        queryset=Car.objects.all(),
         empty_label="Выберите автомобиль",
         widget=forms.Select(attrs={"class": "form-control"}),
         required=True,
@@ -205,14 +210,30 @@ class AppointmentForm(forms.Form):
         label="Примечания",
     )
 
+    class Meta:
+        model = Appointment
+        fields = [
+            "car",
+            "service_center",
+            "service_type",
+            "scheduled_date",
+            "scheduled_time",
+            "notes",
+        ]
+        widgets = {
+            "scheduled_date": forms.HiddenInput(),
+            "scheduled_time": forms.HiddenInput(),
+            "notes": forms.Textarea(
+                attrs={"class": "form-control notes-textarea", "rows": 4}
+            ),
+        }
+
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop("user", None)
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-
-        if self.user and self.user.is_authenticated:
-            self.fields["car"].queryset = Car.objects.filter(owner=self.user)
-
-        self.generate_time_slots()
+        self.fields["scheduled_time"].choices = self.generate_time_slots()
+        if user is not None:
+            self.fields["car"].queryset = Car.objects.filter(owner=user)
 
     def generate_time_slots(self):
         """Генерирует список доступных временных слотов"""
@@ -233,7 +254,7 @@ class AppointmentForm(forms.Form):
                 )
             current_time += slot_duration
 
-        self.fields["scheduled_time"].choices = time_slots
+        return time_slots
 
     def clean(self):
         cleaned_data = super().clean()

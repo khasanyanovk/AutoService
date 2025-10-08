@@ -39,4 +39,10 @@ urlpatterns = [
         views.admin_api_appointments,
         name="admin_api_appointments",
     ),
+    path(
+        "get-available-services/",
+        views.get_available_services,
+        name="get_available_services",
+    ),
+    path("get-service-details/", views.get_service_details, name="get_service_details"),
 ]

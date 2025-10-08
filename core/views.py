@@ -195,17 +195,17 @@ def service_booking(request):
         if form.is_valid():
             try:
                 car = form.cleaned_data["car"]
+                service_center = form.cleaned_data["service_center"]
                 service_type = form.cleaned_data["service_type"]
                 scheduled_date = form.cleaned_data["scheduled_date"]
                 scheduled_time_str = form.cleaned_data["scheduled_time"]
                 notes = form.cleaned_data["notes"]
 
-                from datetime import datetime
-
                 scheduled_time = datetime.strptime(scheduled_time_str, "%H:%M").time()
 
                 appointment = Appointment(
                     car=car,
+                    service_center=service_center,
                     service_type=service_type,
                     scheduled_date=scheduled_date,
                     scheduled_time=scheduled_time,
@@ -215,7 +215,7 @@ def service_booking(request):
 
                 messages.success(
                     request,
-                    f'Запись на услугу "{appointment.service_type}" успешно создана на {appointment.scheduled_date} в {appointment.scheduled_time}',
+                    f'Запись на услугу "{appointment.service_type}" успешно создана в {appointment.service_center} на {appointment.scheduled_date} в {appointment.scheduled_time}',
                 )
                 return redirect("appointment_list")
 
@@ -224,16 +224,39 @@ def service_booking(request):
     else:
         form = AppointmentForm(user=request.user)
 
-    services = ServiceType.objects.all()
+    service_centers = ServiceCenter.objects.all()
 
     context = {
         "form": form,
-        "services": services,
+        "service_centers": service_centers,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
     }
 
     return render(request, "core/service_booking.html", context)
+
+
+@login_required
+def get_available_services(request):
+    """AJAX-функция для получения услуг по выбранному автосервису"""
+    if (
+        request.method == "GET"
+        and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
+        service_center_id = request.GET.get("service_center_id")
+
+        try:
+            services = ServiceType.objects.filter(
+                service_center_id=service_center_id, is_active=True
+            )
+            options = '<option value="">Выберите услугу</option>'
+            for service in services:
+                options += f'<option value="{service.id}">{service.name} - {service.duration} мин. - {service.price} руб.</option>'
+            return JsonResponse({"options": options})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
 @login_required
@@ -243,12 +266,16 @@ def get_available_time_slots(request):
         request.method == "GET"
         and request.headers.get("X-Requested-With") == "XMLHttpRequest"
     ):
+
         selected_date = request.GET.get("date")
         service_type_id = request.GET.get("service_type")
+        service_center_id = request.GET.get("service_center")
 
         try:
             selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
             service_type = ServiceType.objects.get(id=service_type_id)
+            service_center = ServiceCenter.objects.get(id=service_center_id)
+
             day_of_week = selected_date.isoweekday()
             try:
                 working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
@@ -262,7 +289,9 @@ def get_available_time_slots(request):
             )
 
             booked_appointments = Appointment.objects.filter(
-                scheduled_date=selected_date, status__in=["SCHEDULED", "IN_PROGRESS"]
+                scheduled_date=selected_date,
+                status__in=["SCHEDULED", "IN_PROGRESS"],
+                service_center=service_center,
             )
 
             available_slots = []
@@ -502,3 +531,20 @@ def admin_api_appointments(request):
         )
 
     return JsonResponse(events, safe=False)
+
+
+def get_service_details(request):
+    service_id = request.GET.get("service_id")
+
+    try:
+        service = ServiceType.objects.get(id=service_id)
+        service_data = {
+            "id": service.id,
+            "name": service.name,
+            "description": service.description,
+            "duration": service.duration,
+            "price": service.price,
+        }
+        return JsonResponse({"service": service_data})
+    except ServiceType.DoesNotExist:
+        return JsonResponse({"error": "Service not found"}, status=404)

@@ -62,12 +62,30 @@
         border-radius: 10px;
         height: 100%;
     }
+
     .service-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         border-color: #adb5bd;
     }
     .service-card.selected {
+        border-color: #0d6efd;
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.2);
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    }
+    .service-center-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        height: 100%;
+    }
+    .service-center-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        border-color: #adb5bd;
+    }
+    .service-center-card.selected {
         border-color: #0d6efd;
         box-shadow: 0 8px 25px rgba(13, 110, 253, 0.2);
         background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
@@ -164,28 +182,31 @@
                         {% csrf_token %}
 
                         <div class="mb-5">
-                            <h5 class="section-title"><span class="badge bg-primary me-2">1</span>Выберите услугу</h5>
+                            <h5 class="section-title"><span class="badge bg-primary me-2">1</span>Выберите автосервис</h5>
                             <div class="row">
-                                {% for service in services %}
-                                <div class="col-md-6 mb-3">
-                                    <div class="card service-card h-100" data-service-id="{{ service.id }}">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-primary">{{ service.name }}</h6>
-                                            <p class="card-text small text-muted mb-3">{{ service.description }}</p>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="badge bg-secondary">{{ service.duration }} мин.</span>
-                                                <strong class="text-dark h5 mb-0">{{ service.price }} ₽</strong>
-                                            </div>
-                                        </div>
+                                <div class="col-md-8">
+                                    <label for="{{ form.service_center.id_for_label }}" class="form-label">Автосервис</label>
+                                    {{ form.service_center }}
+                                    {{ form.service_center.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-5" id="serviceTypeSection">
+                            <h5 class="section-title"><span class="badge bg-primary me-2">2</span>Выберите услугу</h5>
+                            <div class="row" id="serviceCardsContainer">
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Сначала выберите автосервис для отображения доступных услуг
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
                             {{ form.service_type.errors }}
                         </div>
 
                         <div class="mb-5">
-                            <h5 class="section-title"><span class="badge bg-primary me-2">2</span>Выберите автомобиль</h5>
+                            <h5 class="section-title"><span class="badge bg-primary me-2">3</span>Выберите автомобиль</h5>
                             <div class="row">
                                 <div class="col-md-8">
                                     <label for="{{ form.car.id_for_label }}" class="form-label">Ваш автомобиль</label>
@@ -196,7 +217,7 @@
                         </div>
 
                         <div class="mb-5">
-                            <h5 class="section-title"><span class="badge bg-primary me-2">3</span>Выберите дату</h5>
+                            <h5 class="section-title"><span class="badge bg-primary me-2">4</span>Выберите дату</h5>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="date-picker-container">
@@ -214,18 +235,18 @@
                         </div>
 
                         <div class="mb-5">
-                            <h5 class="section-title"><span class="badge bg-primary me-2">4</span>Выберите время</h5>
+                            <h5 class="section-title"><span class="badge bg-primary me-2">5</span>Выберите время</h5>
                             <div id="timeSlotsContainer">
                                 <div class="alert alert-info">
                                     <i class="bi bi-info-circle me-2"></i>
-                                    Сначала выберите услугу и дату для отображения доступного времени
+                                    Сначала выберите автосервис, услугу и дату для отображения доступного времени
                                 </div>
                             </div>
                             {{ form.scheduled_time.errors }}
                         </div>
 
                         <div class="mb-4">
-                            <h5 class="section-title"><span class="badge bg-primary me-2">5</span>Дополнительная информация</h5>
+                            <h5 class="section-title"><span class="badge bg-primary me-2">6</span>Дополнительная информация</h5>
                             <div class="row">
                                 <div class="col-md-8">
                                     <label for="{{ form.notes.id_for_label }}" class="form-label">Комментарий (необязательно)</label>
@@ -257,16 +278,32 @@
 
 {% block extra_js %}
 <script>
+
+    let servicesData = {};
+
     $(document).ready(function() {
+        let selectedServiceCenter = null;
         let selectedService = null;
         let selectedDate = null;
         let selectedTime = null;
 
-        $('.service-card').click(function() {
-            $('.service-card').removeClass('selected');
-            $(this).addClass('selected');
-            selectedService = $(this).data('service-id');
-            $('#id_service_type').val(selectedService);
+        $('#id_service_center').change(function() {
+            selectedServiceCenter = $(this).val();
+            if (selectedServiceCenter) {
+                loadServices(selectedServiceCenter);
+            } else {
+                $('#serviceCardsContainer').html(
+                    '<div class="col-12">' +
+                    '<div class="alert alert-info">' +
+                    '<i class="bi bi-info-circle me-2"></i>' +
+                    'Сначала выберите автосервис для отображения доступных услуг' +
+                    '</div>' +
+                    '</div>'
+                );
+                selectedService = null;
+                $('#id_service_type').val('');
+                servicesData = {};
+            }
             updateTimeSlots();
             checkFormCompletion();
         });
@@ -278,12 +315,192 @@
             checkFormCompletion();
         });
 
+        function loadServices(serviceCenterId) {
+            $('#serviceCardsContainer').html(
+                '<div class="col-12 text-center py-4">' +
+                '<div class="loading-spinner mx-auto mb-2"></div>' +
+                '<p class="text-muted">Загрузка услуг...</p>' +
+                '</div>'
+            );
+
+            $.ajax({
+                url: "{% url 'get_available_services' %}",
+                data: {
+                    'service_center_id': serviceCenterId
+                },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(data) {
+                    console.log('Received services data:', data);
+                    
+                    let services = [];
+                    
+                    if (data.services && Array.isArray(data.services)) {
+                        services = data.services;
+                    } else if (Array.isArray(data)) {
+                        services = data;
+                    } else if (data.options) {
+                        services = extractServicesFromOptions(data.options);
+                    }
+                    
+                    if (services.length > 0) {
+                        loadServiceDetails(services, serviceCenterId);
+                    } else {
+                        $('#serviceCardsContainer').html(
+                            '<div class="col-12">' +
+                            '<div class="alert alert-warning">' +
+                            '<i class="bi bi-exclamation-triangle me-2"></i>' +
+                            'Для выбранного автосервиса нет доступных услуг.' +
+                            '</div>' +
+                            '</div>'
+                        );
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading services:', error);
+                    $('#serviceCardsContainer').html(
+                        '<div class="col-12">' +
+                        '<div class="alert alert-danger">' +
+                        '<i class="bi bi-exclamation-triangle me-2"></i>' +
+                        'Ошибка загрузки услуг. Пожалуйста, попробуйте еще раз.' +
+                        '</div>' +
+                        '</div>'
+                    );
+                }
+            });
+        }
+
+        function loadServiceDetails(services, serviceCenterId) {
+            servicesData = {};
+            
+            let html = '';
+            let loadedCount = 0;
+            const totalCount = services.length;
+            
+            services.forEach(function(service) {
+                const serviceId = service.id || service.value;
+                const serviceName = (service.name || service.text || 'Услуга').split(' - ')[0].trim();
+
+
+                servicesData[serviceId] = {
+                    id: serviceId,
+                    name: serviceName,
+                    description: service.description || '',
+                    duration: service.duration || '60',
+                    price: service.price || '0'
+                };
+
+                $.ajax({
+                    url: "{% url 'get_service_details' %}",
+                    data: {
+                        'service_id': serviceId,
+                        'service_center_id': serviceCenterId
+                    },
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(serviceData) {
+                        if (serviceData.service) {
+                            servicesData[serviceId].duration = serviceData.service.duration || servicesData[serviceId].duration;
+                            servicesData[serviceId].price = serviceData.service.price || servicesData[serviceId].price;
+                            servicesData[serviceId].description = serviceData.service.description || servicesData[serviceId].description;
+                        }
+                        
+                        loadedCount++;              
+                        if (loadedCount === totalCount) {
+                            renderServiceCards();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading service details:', error);
+                        loadedCount++;
+                        
+                    if (loadedCount === totalCount) {
+                            renderServiceCards();
+                        }
+                    }
+                });
+
+                html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card service-card h-100" data-service-id="${serviceId}">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">${serviceName}</h5>
+                            <p class="card-text small text-muted mb-3">${service.description || 'Загрузка...'}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-secondary">${service.duration || '60'} мин.</span>
+                                <strong class="text-dark h5 mb-0">${service.price || '0'} ₽</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            });
+
+            $('#serviceCardsContainer').html(html);
+
+            function renderServiceCards() {
+                let updatedHtml = '';
+                
+                services.forEach(function(service) {
+                    const serviceId = service.id || service.value;
+                    const serviceInfo = servicesData[serviceId] || {};
+                    
+                    updatedHtml += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card service-card h-100" data-service-id="${serviceId}">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary">${serviceInfo.name}</h6>
+                                    ${serviceInfo.description ? `<p class="card-text small text-muted mb-3">${serviceInfo.description}</p>` : ''}
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-secondary">${serviceInfo.duration} мин.</span>
+                                        <strong class="text-dark h5 mb-0">${serviceInfo.price} ₽</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                $('#serviceCardsContainer').html(updatedHtml);
+
+                $('.service-card').click(function() {
+                    $('.service-card').removeClass('selected');
+                    $(this).addClass('selected');
+                    selectedService = $(this).data('service-id');
+                    $('#id_service_type').val(selectedService);
+                    updateTimeSlots();
+                    checkFormCompletion();
+                });
+            }
+        }
+
+        function extractServicesFromOptions(html) {
+            const services = [];
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            const options = tempDiv.querySelectorAll('option');
+            options.forEach(option => {
+                if (option.value) {
+                    services.push({
+                        id: option.value,
+                        text: option.text,
+                        value: option.value
+                    });
+                }
+            });
+            
+            return services;
+        }
+
         function updateTimeSlots() {
-            if (!selectedService || !selectedDate) {
+            if (!selectedServiceCenter || !selectedService || !selectedDate) {
                 $('#timeSlotsContainer').html(
                     '<div class="alert alert-info">' +
                     '<i class="bi bi-info-circle me-2"></i>' +
-                    'Сначала выберите услугу и дату для отображения доступного времени' +
+                    'Сначала выберите автосервис, услугу и дату для отображения доступного времени' +
                     '</div>'
                 );
                 return;
@@ -299,6 +516,7 @@
             $.ajax({
                 url: "{% url 'get_time_slots' %}",
                 data: {
+                    'service_center': selectedServiceCenter,
                     'service_type': selectedService,
                     'date': selectedDate
                 },
@@ -358,13 +576,13 @@
         }
         
         function checkFormCompletion() {
-            if (selectedService && selectedDate && selectedTime && $('#id_car').val()) {
+            if (selectedServiceCenter && selectedService && selectedDate && selectedTime && $('#id_car').val()) {
                 $('#submitBtn').prop('disabled', false);
             } else {
                 $('#submitBtn').prop('disabled', true);
             }
         }
-        
+
         $('#id_car').change(function() {
             checkFormCompletion();
         });

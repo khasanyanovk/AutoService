@@ -167,9 +167,17 @@ class ServiceType(models.Model):
     price = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Стоимость"
     )
+    service_center = models.ForeignKey(
+        ServiceCenter,
+        on_delete=models.CASCADE,
+        verbose_name="Автосервис",
+        related_name="services",
+        null=True,
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.service_center}"
 
     class Meta:
         verbose_name = "Тип услуги"
@@ -188,6 +196,9 @@ class Appointment(models.Model):
     car = models.ForeignKey(Car, on_delete=models.CASCADE, verbose_name="Автомобиль")
     service_type = models.ForeignKey(
         ServiceType, on_delete=models.CASCADE, verbose_name="Тип услуги"
+    )
+    service_center = models.ForeignKey(
+        ServiceCenter, on_delete=models.CASCADE, verbose_name="Автосервис", null=True
     )
     scheduled_date = models.DateField(verbose_name="Дата записи")
     scheduled_time = models.TimeField(verbose_name="Время записи")
