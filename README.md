@@ -56,8 +56,8 @@ python manage.py migrate
 ```
 ### 5. Set initial data
 ```bash
-python manage.py runscript fill_car_data
-python manage.py runscript seed_data
+python manage.py fill_car_data
+python manage.py seed_data
 ```
 ### 6. Run server
 ```bash
