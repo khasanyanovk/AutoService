@@ -65,13 +65,40 @@
         padding-bottom: 0.5rem;
     }
     .avatar-preview {
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border-radius: 50%;
-        border: 4px solid #e9ecef;
-        margin-bottom: 1rem;
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #e9ecef;
+    margin-bottom: 1rem;
+    display: block;
     }
+
+
+    .text-center .position-relative.d-inline-block {
+        position: relative;
+        display: inline-block;
+    }
+
+    .avatar-remove-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(35%, -35%);
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-preview-container {
+        position: relative;
+        display: inline-block;
+    }
+    
+
 </style>
 {% endblock %}
 
@@ -88,12 +115,21 @@
                         {% csrf_token %}
 
                         <div class="text-center mb-4">
-                            {% if user.userprofile.avatar %}
-                                <img src="{{ user.userprofile.avatar.url }}" class="avatar-preview" id="avatarPreview" alt="Текущий аватар">
-                            {% else %}
-                                <img src="{% static 'core/img/default-avatar.png' %}" class="avatar-preview" id="avatarPreview" alt="Аватар по умолчанию">
-                            {% endif %}
+                            <div class="position-relative d-inline-block">
+                                {% if user.userprofile.avatar %}
+                                    <img src="{{ user.userprofile.avatar.url }}" class="avatar-preview" id="avatarPreview" alt="Текущий аватар">
+                                    <button type="submit" name="delete_avatar" value="1"
+                                            class="btn btn-sm btn-danger rounded-circle avatar-remove-btn"
+                                            title="Удалить аватар">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                {% else %}
+                                    <img src="{% static 'core/img/default-avatar.png' %}" class="avatar-preview" id="avatarPreview" alt="Аватар по умолчанию">
+                                {% endif %}
+                            </div>
                         </div>
+
+
                         
                         <fieldset class="mb-4">
                             <h5 class="section-title">Личная информация</h5>

@@ -79,6 +79,13 @@ def profile(request):
 @login_required
 def profile_edit(request):
     if request.method == "POST":
+        if "delete_avatar" in request.POST:
+            profile = UserProfile.objects.get(user=request.user)
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+                profile.avatar = None
+                profile.save()
+            return redirect("profile_edit")
         u_form = UserUpdateForm(request.POST, instance=request.user)
         p_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.userprofile

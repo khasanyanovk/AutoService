@@ -6,6 +6,7 @@ from .models import ServiceCenter, UserProfile, Car, CarBrand, CarModel
 from datetime import datetime, date, timedelta
 from django.forms import ValidationError
 from .models import ServiceType, Appointment, WorkingHours
+import re
 
 
 class UserRegisterForm(UserCreationForm):
@@ -88,32 +89,52 @@ class CarForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-control"}),
         required=True,
     )
-
     model = forms.ModelChoiceField(
         queryset=CarModel.objects.none(),
         empty_label="Сначала выберите марку",
         widget=forms.Select(attrs={"class": "form-control"}),
         required=True,
     )
-
     year = forms.IntegerField(
         min_value=1900,
         max_value=datetime.now().year,
         widget=forms.NumberInput(attrs={"class": "form-control"}),
         required=True,
     )
-
     license_plate = forms.CharField(
         max_length=20,
         widget=forms.TextInput(attrs={"class": "form-control"}),
         required=True,
+        label="Гос. номер",
     )
-
     vin = forms.CharField(
         max_length=17,
         widget=forms.TextInput(attrs={"class": "form-control"}),
         required=False,
+        label="VIN",
     )
+
+    def clean_license_plate(self):
+        """Проверка корректности формата гос. номера (X000XX)"""
+        plate = self.cleaned_data.get("license_plate", "").strip().upper()
+        pattern = r"^[A-Z]{1}\d{3}[A-Z]{2}$"
+
+        if not re.match(pattern, plate):
+            raise ValidationError(
+                "Номер должен быть в формате X000XX (латинские буквы, 3 цифры)."
+            )
+
+        return plate
+
+    def clean_vin(self):
+        """Проверка корректности VIN-кода"""
+        vin = self.cleaned_data.get("vin", "")
+        if vin:
+            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin.upper()):
+                raise ValidationError(
+                    "VIN должен содержать ровно 17 символов (латинские буквы и цифры)."
+                )
+        return vin
 
     def __init__(self, *args, **kwargs):
         initial = kwargs.get("initial", {})
