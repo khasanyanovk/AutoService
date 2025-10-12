@@ -99,9 +99,7 @@ def profile_edit(request):
     else:
         u_form = UserUpdateForm(instance=request.user)
         p_form = ProfileUpdateForm(instance=request.user.userprofile)
-
     context = {"u_form": u_form, "p_form": p_form}
-
     return render(request, "core/profile_edit.html", context)
 
 
@@ -228,18 +226,20 @@ def service_booking(request):
 
             except Exception as e:
                 messages.error(request, f"Ошибка при создании записи: {str(e)}")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{error}")
     else:
         form = AppointmentForm(user=request.user)
 
     service_centers = ServiceCenter.objects.all()
-
     context = {
         "form": form,
         "service_centers": service_centers,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
     }
-
     return render(request, "core/service_booking.html", context)
 
 
@@ -273,7 +273,6 @@ def get_available_time_slots(request):
         request.method == "GET"
         and request.headers.get("X-Requested-With") == "XMLHttpRequest"
     ):
-
         selected_date = request.GET.get("date")
         service_type_id = request.GET.get("service_type")
         service_center_id = request.GET.get("service_center")
@@ -295,6 +294,15 @@ def get_available_time_slots(request):
                 working_hours.start_time, working_hours.end_time
             )
 
+            now = timezone.localtime(timezone.now())
+            if selected_date == now.date():
+                all_slots = [
+                    slot
+                    for slot in all_slots
+                    if datetime.strptime(slot, "%H:%M").time()
+                    > (now + timedelta(minutes=15)).time()
+                ]
+
             booked_appointments = Appointment.objects.filter(
                 scheduled_date=selected_date,
                 status__in=["SCHEDULED", "IN_PROGRESS"],
@@ -313,7 +321,6 @@ def get_available_time_slots(request):
                 for appointment in booked_appointments:
                     app_start = appointment.scheduled_time
                     app_end = appointment.end_time
-
                     if not (slot_end_time <= app_start or slot_time >= app_end):
                         is_available = False
                         break
@@ -351,6 +358,7 @@ def generate_time_slots(start_time, end_time, slot_duration=30):
 @login_required
 def appointment_list(request):
     """Список записей пользователя"""
+    auto_update_appointments()
     appointments = Appointment.objects.filter(car__owner=request.user).order_by(
         "-scheduled_date", "scheduled_time"
     )
@@ -555,3 +563,21 @@ def get_service_details(request):
         return JsonResponse({"service": service_data})
     except ServiceType.DoesNotExist:
         return JsonResponse({"error": "Service not found"}, status=404)
+
+
+def auto_update_appointments():
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+    current_time = now.time()
+
+    expired_appointments = Appointment.objects.filter(
+        scheduled_date__lt=today, status__in=["SCHEDULED", "IN_PROGRESS"]
+    ) | Appointment.objects.filter(
+        scheduled_date=today,
+        end_time__lt=current_time,
+        status__in=["SCHEDULED", "IN_PROGRESS"],
+    )
+
+    for appointment in expired_appointments:
+        appointment.status = "COMPLETED"
+        appointment.save()

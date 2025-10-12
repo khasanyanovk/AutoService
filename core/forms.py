@@ -284,16 +284,24 @@ class AppointmentForm(forms.Form):
         scheduled_time = cleaned_data.get("scheduled_time")
 
         if service_type and scheduled_date and scheduled_time:
-            if scheduled_date < date.today():
-                raise ValidationError("Нельзя записаться на прошедшую дату")
 
+            if scheduled_date < date.today():
+                raise ValidationError("Нельзя записаться на прошедшую дату.")
+
+            if scheduled_date == date.today():
+                now = datetime.now().time()
+                selected_time = datetime.strptime(scheduled_time, "%H:%M").time()
+                if selected_time <= now:
+                    raise ValidationError(
+                        "Нельзя записаться на уже прошедшее время сегодня."
+                    )
             day_of_week = scheduled_date.isoweekday()
             try:
                 working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
                 if not working_hours.is_working:
-                    raise ValidationError("Выбранная дата не является рабочим днем")
+                    raise ValidationError("Выбранная дата не является рабочим днем.")
             except WorkingHours.DoesNotExist:
-                raise ValidationError("На выбранную дату запись невозможна")
+                raise ValidationError("На выбранную дату запись невозможна.")
 
             scheduled_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
             scheduled_datetime = datetime.combine(scheduled_date, scheduled_time_obj)
@@ -302,24 +310,21 @@ class AppointmentForm(forms.Form):
             end_datetime = datetime.combine(scheduled_date, working_hours.end_time)
 
             if not (start_datetime <= scheduled_datetime <= end_datetime):
-                raise ValidationError("Выбранное время вне рабочего времени")
+                raise ValidationError("Выбранное время вне рабочего времени.")
 
-            if service_type and scheduled_date and scheduled_time:
-                start_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
-                end_time_obj = (
-                    scheduled_datetime + timedelta(minutes=service_type.duration)
-                ).time()
+            start_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
+            end_time_obj = (
+                scheduled_datetime + timedelta(minutes=service_type.duration)
+            ).time()
 
-                conflicting_appointments = Appointment.objects.filter(
-                    scheduled_date=scheduled_date,
-                    status__in=["SCHEDULED", "IN_PROGRESS"],
-                ).exclude(
-                    scheduled_time__gte=end_time_obj, end_time__lte=start_time_obj
+            conflicting_appointments = Appointment.objects.filter(
+                scheduled_date=scheduled_date,
+                status__in=["SCHEDULED", "IN_PROGRESS"],
+            ).exclude(scheduled_time__gte=end_time_obj, end_time__lte=start_time_obj)
+
+            if conflicting_appointments.exists():
+                raise ValidationError(
+                    "Выбранное время уже занято. Пожалуйста, выберите другое время."
                 )
-
-                if conflicting_appointments.exists():
-                    raise ValidationError(
-                        "Выбранное время уже занято. Пожалуйста, выберите другое время."
-                    )
 
         return cleaned_data
