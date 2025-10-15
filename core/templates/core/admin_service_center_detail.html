@@ -56,7 +56,7 @@
         font-size: 1.5rem !important;
         font-weight: 600;
     }
-    /* Центрирование и стилизация цифр дней */
+
     .fc .fc-daygrid-day-number {
         display: inline-flex;
         width: 2rem;
@@ -67,12 +67,12 @@
         font-weight: 600;
         margin: .25rem auto .25rem .25rem;
     }
-    /* Сегодня */
+
     .fc .fc-day-today .fc-daygrid-day-number {
         background: #e7f1ff;
         color: #0d6efd;
     }
-    /* Выбранный день */
+
     .fc-selected-day .fc-daygrid-day-number {
         background: #0d6efd;
         color: #fff;
@@ -429,7 +429,6 @@
             }
         });
 
-        // AJAX for attendance chart period toggle
         document.querySelectorAll('.btn-period-toggle').forEach(function(button) {
             button.addEventListener('click', function(event) {
                 event.preventDefault();

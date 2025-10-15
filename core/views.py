@@ -560,7 +560,6 @@ def admin_service_center_detail(request, service_center_id):
             slot_time = datetime.strptime(slot, "%H:%M").time()
             matched = None
             for a in day_appointments:
-                # determine appointment interval
                 end_t = a.end_time
                 if not end_t and a.service_type and a.service_type.duration:
                     end_t = (
@@ -598,11 +597,9 @@ def admin_service_center_detail(request, service_center_id):
                         }
                     )
                     last_app_id = str(matched.id)
-                # skip subsequent slots for the same appointment
             else:
                 todays_schedule.append({"time": slot, "busy": False})
 
-    # Диапазон для графика посещаемости
     if period == "month":
         chart_start = today - timedelta(days=29)
     else:
@@ -637,7 +634,6 @@ def admin_service_center_detail(request, service_center_id):
         for s in status_stats
     ]
 
-    # Empty-state flags
     status_total = sum(s["count"] for s in status_stats)
     has_service_stats = any(stats_data) if stats_data else False
     has_weekday_stats = any(weekday_data) if weekday_data else False
@@ -781,7 +777,6 @@ def admin_api_day_schedule(request, service_center_id):
                     }
                 )
                 last_app_id = str(matched.id)
-            # skip subsequent slots for same appointment
         else:
             slots.append({"time": slot, "busy": False})
 
