@@ -46,6 +46,12 @@ class ServiceCenter(models.Model):
     address = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
     opening_hours = models.TextField()
+    photo = models.ImageField(
+        upload_to="service_centers/",
+        blank=True,
+        null=True,
+        default="service_centers/default_service_center.jpg",
+    )
 
     def __str__(self):
         return self.address

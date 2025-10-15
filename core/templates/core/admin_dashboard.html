@@ -20,18 +20,14 @@
         transform: translateY(-5px);
         box-shadow: 0 12px 40px rgba(0,0,0,0.15);
     }
-    .service-center-card {
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
+    .quick-action {
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        transition: all .2s ease;
     }
-    .service-center-card:hover {
-        border-color: #0d6efd;
-        transform: translateY(-3px);
-    }
-    .text-decoration-none:hover {
-        text-decoration: none !important;
-    }
+    .quick-action:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
     .stats-card {
         background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
         color: white;
@@ -59,14 +55,7 @@
         font-weight: 500;
         transition: all 0.3s ease;
     }
-    .service-center-image {
-        height: 200px;
-        object-fit: cover;
-        width: 100%;
-    }
-    .service-center-info {
-        padding: 1.5rem;
-    }
+    .table thead th { background:#f8f9fa; }
 </style>
 {% endblock %}
 
@@ -81,6 +70,7 @@
                 </div>
                 <div class="text-end">
                     <div class="text-muted small">Сегодня: {% now "d.m.Y" %}</div>
+                    <div class="mt-2"><a href="{% url 'admin_branches' %}" class="btn btn-primary btn-admin"><i class="bi bi-building me-1"></i> Филиалы</a></div>
                 </div>
             </div>
         </div>
@@ -108,45 +98,67 @@
     </div>
 
     <div class="row">
-        <div class="col-12">
+        <div class="col-xl-8 mb-4">
             <div class="dashboard-card">
                 <div class="card-header">
-                    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Автосервисы</h4>
+                    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Ближайшие записи</h4>
                 </div>
-                <div class="card-body p-4">
-                    {% if service_centers %}
-                    <div class="row">
-                        {% for service_center in service_centers %}
-                        <div class="col-lg-4 col-md-6 mb-4">
-                            <a href="{% url 'admin_service_center_detail' service_center.id %}" class="text-decoration-none">
-                                <div class="card service-center-card h-100">
-                                    <div class="service-center-image bg-secondary d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-tools text-white" style="font-size: 3rem;"></i>
-                                    </div>
-                                    <div class="service-center-info">
-                                        <h5 class="card-title text-dark">{{ service_center.address }}</h5>
-                                        <p class="card-text text-muted small mb-2">
-                                            <i class="bi bi-telephone me-1"></i>{{ service_center.phone }}
-                                        </p>
-                                        <p class="card-text text-muted small">
-                                            <i class="bi bi-clock me-1"></i>{{ service_center.opening_hours }}
-                                        </p>
-                                        <div class="mt-3">
-                                            <span class="badge bg-primary">Управление</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                        {% endfor %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="text-nowrap">Дата</th>
+                                    <th class="text-nowrap">Время</th>
+                                    <th>Клиент</th>
+                                    <th>Авто</th>
+                                    <th>Услуга</th>
+                                    <th class="text-nowrap">Филиал</th>
+                                    <th class="text-end">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if upcoming_appointments %}
+                                    {% for a in upcoming_appointments %}
+                                    <tr>
+                                        <td>{{ a.scheduled_date|date:'d.m.Y' }}</td>
+                                        <td>{{ a.scheduled_time|time:'H:i' }}</td>
+                                        <td>{{ a.car.owner.get_full_name|default:a.car.owner.username }}</td>
+                                        <td>{{ a.car }}</td>
+                                        <td>{{ a.service_type.name }}</td>
+                                        <td class="text-muted small">{{ a.service_center.address }}</td>
+                                        <td class="text-end">
+                                            <a href="{% url 'admin_appointment_detail' a.id %}" class="btn btn-sm btn-outline-primary">Открыть</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="7" class="text-center text-muted py-4">Нет ближайших записей</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-building" style="font-size: 3rem; color: #6c757d;"></i>
-                        <h4 class="mt-3">Нет доступных автосервисов</h4>
-                        <p class="text-muted">Добавьте автосервисы в административной панели</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 mb-4">
+            <div class="dashboard-card mb-4">
+                <div class="card-header"><h4 class="mb-0"><i class="bi bi-lightning me-2"></i>Быстрые действия</h4></div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a class="btn btn-primary" href="{% url 'admin_branches' %}"><i class="bi bi-building me-1"></i> Перейти к филиалам</a>
+                        <a class="btn btn-outline-secondary" href="{% url 'service_booking' %}"><i class="bi bi-plus-circle me-1"></i> Создать запись</a>
+                        <a class="btn btn-outline-secondary" href="{% url 'appointment_list' %}"><i class="bi bi-list-check me-1"></i> Список записей</a>
                     </div>
-                    {% endif %}
+                </div>
+            </div>
+            <div class="quick-action">
+                <div class="d-flex align-items-center">
+                    <div class="me-3"><i class="bi bi-info-circle" style="font-size:1.5rem;color:#0d6efd"></i></div>
+                    <div>
+                        <div class="fw-semibold">Совет</div>
+                        <div class="text-muted small">Используйте страницу филиалов, чтобы управлять расписанием и статистикой каждого сервиса.</div>
+                    </div>
                 </div>
             </div>
         </div>

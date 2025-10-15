@@ -56,6 +56,27 @@
         font-size: 1.5rem !important;
         font-weight: 600;
     }
+    /* Центрирование и стилизация цифр дней */
+    .fc .fc-daygrid-day-number {
+        display: inline-flex;
+        width: 2rem;
+        height: 2rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: 600;
+        margin: .25rem auto .25rem .25rem;
+    }
+    /* Сегодня */
+    .fc .fc-day-today .fc-daygrid-day-number {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+    /* Выбранный день */
+    .fc-selected-day .fc-daygrid-day-number {
+        background: #0d6efd;
+        color: #fff;
+    }
     .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; }
     .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; }
     .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; }
@@ -69,11 +90,20 @@
     .small-chart {
         height: 250px;
     }
+    .schedule-list .slot { display:flex; justify-content:space-between; align-items:center; padding:.6rem .9rem; border-bottom:1px solid #f1f3f5; }
+    .slot.free { background:#f8f9fa; }
+    .slot.busy { background:#fff5f5; }
+    .slot-time { font-weight:600; }
+    .slot-title { color:#495057; }
+    .slot-status { font-size:.85rem; }
+    @media (max-width: 991.98px) {
+        .chart-container { height: 240px; }
+        .small-chart { height: 200px; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Шапка автосервиса -->
 <div class="service-center-header">
     <div class="container">
         <div class="row align-items-center">
@@ -91,6 +121,9 @@
                 <a href="{% url 'admin_dashboard' %}" class="btn btn-light">
                     <i class="bi bi-arrow-left me-1"></i> Назад к списку
                 </a>
+                <a href="{% url 'admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
+                    <i class="bi bi-pencil-square me-1"></i> Редактировать
+                </a>
             </div>
         </div>
     </div>
@@ -98,7 +131,6 @@
 
 <div class="container-fluid py-4">
     <div class="row">
-        <!-- Левая колонка - Календарь -->
         <div class="col-lg-8 mb-4">
             <div class="dashboard-card">
                 <div class="card-header">
@@ -110,10 +142,45 @@
             </div>
         </div>
 
-        <!-- Правая колонка - Статистика -->
         <div class="col-lg-4">
-            <!-- Статистика по услугам -->
             <div class="dashboard-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Расписание на день</h4>
+                    <form class="d-flex" method="get">
+                        <input type="date" class="form-control form-control-sm me-2" name="date" value="{{ selected_date }}">
+                        <button class="btn btn-light btn-sm">OK</button>
+                    </form>
+                </div>
+                <div class="card-body p-0 schedule-list">
+                    {% if todays_schedule %}
+                        {% for s in todays_schedule %}
+                        <div class="slot {% if s.busy %}busy{% else %}free{% endif %}">
+                            <div>
+                                <div class="slot-time">{{ s.time }}</div>
+                                {% if s.busy %}
+                                    <div class="slot-title small">{{ s.title }}</div>
+                                {% else %}
+                                    <div class="text-muted small">Свободно</div>
+                                {% endif %}
+                            </div>
+                            {% if s.busy %}
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace('00000000-0000-0000-0000-000000000000','{{ s.appointment_id }}')">Открыть</a>
+                            {% else %}
+                            <span class="badge bg-success slot-status">Свободно</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Статистика по услугам</h4>
                 </div>
@@ -123,11 +190,12 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Статистика по дням недели -->
-            <div class="dashboard-card mb-4">
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
                 <div class="card-header">
-                    <h4 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Нагрузка по дням</h4>
+                    <h4 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Нагрузка по дням недели</h4>
                 </div>
                 <div class="card-body">
                     <div class="chart-container small-chart">
@@ -135,8 +203,24 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Статистика по статусам -->
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Посещаемость</h4>
+                    <div>
+                        <a class="btn btn-light btn-sm me-1" href="?period=week">Неделя</a>
+                        <a class="btn btn-light btn-sm" href="?period=month">Месяц</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="visitsChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-4">
             <div class="dashboard-card">
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
@@ -150,7 +234,7 @@
                             {% elif stat.status == 'COMPLETED' %}bg-success
                             {% elif stat.status == 'CANCELLED' %}bg-danger
                             {% endif %}">
-                            {{ stat.get_status_display }}
+                            {{ stat.label }}
                         </span>
                         <strong class="text-dark">{{ stat.count }}</strong>
                     </div>
@@ -178,7 +262,56 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: '{% url "admin_api_appointments" %}',
+            events: '{% url "admin_api_appointments" %}?service_center={{ service_center.id }}',
+            dateClick: function(info) {
+                var y = info.date.getFullYear();
+                var m = String(info.date.getMonth()+1).padStart(2,'0');
+                var d = String(info.date.getDate()).padStart(2,'0');
+                var iso = y + '-' + m + '-' + d;
+                var dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) { dateInput.value = iso; }
+                document.querySelectorAll('.fc-selected-day').forEach(function(el){ el.classList.remove('fc-selected-day'); });
+                var cell = document.querySelector('.fc-daygrid-day[data-date="'+iso+'"]');
+                if (cell) cell.classList.add('fc-selected-day');
+
+                fetch('{% url "admin_api_day_schedule" service_center.id %}?date=' + iso, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function(r){ return r.json(); }).then(function(data){
+                    var container = document.querySelector('.schedule-list');
+                    if (!container) return;
+                    var html = '';
+                    if (data.slots && data.slots.length) {
+                        data.slots.forEach(function(s){
+                            if (s.busy) {
+                                html += '<div class="slot busy">' +
+                                    '<div><div class="slot-time">'+s.time+'</div>'+
+                                    '<div class="slot-title small">'+s.title+'</div></div>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \''+s.appointment_id+'\')">Открыть</a>'+
+                                '</div>';
+                            } else {
+                                html += '<div class="slot free">' +
+                                    '<div><div class="slot-time">'+s.time+'</div>'+
+                                    '<div class="text-muted small">Свободно</div></div>'+
+                                    '<span class="badge bg-success slot-status">Свободно</span>'+
+                                '</div>';
+                            }
+                        });
+                    } else {
+                        html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                    }
+                    container.innerHTML = html;
+                });
+            },
+            dayCellDidMount: function(arg) {
+                var selected = '{{ selected_date }}';
+                var y = arg.date.getFullYear();
+                var m = String(arg.date.getMonth()+1).padStart(2,'0');
+                var dd = String(arg.date.getDate()).padStart(2,'0');
+                var d = y+'-'+m+'-'+dd;
+                if (d === selected) {
+                    arg.el.classList.add('fc-selected-day');
+                }
+            },
             eventClick: function(info) {
                 window.location.href = '{% url "admin_appointment_detail" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', info.event.id);
             },
@@ -246,6 +379,29 @@
                             stepSize: 1
                         }
                     }
+                }
+            }
+        });
+
+        var ctxVisits = document.getElementById('visitsChart').getContext('2d');
+        var visitsChart = new Chart(ctxVisits, {
+            type: 'line',
+            data: {
+                labels: JSON.parse('{{ visits_labels|escapejs }}'),
+                datasets: [{
+                    label: 'Записей',
+                    data: JSON.parse('{{ visits_data|escapejs }}'),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13,110,253,0.15)',
+                    tension: 0.3,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
                 }
             }
         });

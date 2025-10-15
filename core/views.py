@@ -3,6 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.db import IntegrityError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Count
+from django.db.models.functions import ExtractWeekDay
 from django.utils import timezone
 import json
 from .models import (
@@ -22,9 +23,24 @@ from .forms import (
     UserUpdateForm,
     ProfileUpdateForm,
     CarForm,
+    ServiceCenterEditForm,
 )
 from django.http import JsonResponse
 from datetime import datetime, date, timedelta, time
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_branches(request):
+    """Список филиалов (автосервисов) в виде карточек с фото"""
+    service_centers = ServiceCenter.objects.all().annotate(
+        appointments_count=Count("appointment", distinct=False)
+    )
+    return render(
+        request,
+        "core/admin_branches.html",
+        {"service_centers": service_centers},
+    )
 
 
 def home(request):
@@ -41,19 +57,21 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect("home")
+            return redirect("admin_branches" if user.is_staff else "home")
     else:
         form = UserRegisterForm()
     return render(request, "core/register.html", {"form": form})
 
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect("admin_branches" if request.user.is_staff else "home")
     if request.method == "POST":
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect("home")
+            return redirect("admin_branches" if user.is_staff else "home")
     else:
         form = AuthenticationForm()
     return render(request, "core/login.html", {"form": form})
@@ -403,11 +421,20 @@ def admin_dashboard(request):
     ).count()
     pending_appointments = Appointment.objects.filter(status="SCHEDULED").count()
 
+    upcoming_appointments = (
+        Appointment.objects.filter(
+            scheduled_date__gte=timezone.localtime(timezone.now()).date()
+        )
+        .select_related("service_center", "car", "service_type", "car__owner")
+        .order_by("scheduled_date", "scheduled_time")[:12]
+    )
+
     context = {
         "service_centers": service_centers,
         "total_appointments": total_appointments,
         "today_appointments": today_appointments,
         "pending_appointments": pending_appointments,
+        "upcoming_appointments": upcoming_appointments,
     }
     return render(request, "core/admin_dashboard.html", context)
 
@@ -415,16 +442,29 @@ def admin_dashboard(request):
 @login_required
 @admin_required
 def admin_service_center_detail(request, service_center_id):
-    """Детальная страница автосервиса с календарем и статистикой"""
+    """Детальная страница автосервиса с календарем, расписанием на сегодня и статистикой"""
     service_center = get_object_or_404(ServiceCenter, id=service_center_id)
 
-    today = timezone.now().date()
-    year = request.GET.get("year", today.year)
-    month = request.GET.get("month", today.month)
+    today = timezone.localtime(timezone.now()).date()
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+    selected_date_str = request.GET.get("date")
+    selected_date = (
+        datetime.strptime(selected_date_str, "%Y-%m-%d").date()
+        if selected_date_str
+        else today
+    )
+    period = request.GET.get("period", "week")
 
-    appointments = Appointment.objects.filter(
-        scheduled_date__year=year, scheduled_date__month=month
-    ).select_related("car", "service_type", "car__owner")
+    appointments = (
+        Appointment.objects.filter(
+            scheduled_date__year=year,
+            scheduled_date__month=month,
+            service_center=service_center,
+        )
+        .select_related("car", "service_type", "car__owner")
+        .order_by("scheduled_date", "scheduled_time")
+    )
 
     calendar_events = []
     for appointment in appointments:
@@ -449,7 +489,9 @@ def admin_service_center_detail(request, service_center_id):
     start_date = today - timedelta(days=30)
     service_stats = (
         Appointment.objects.filter(
-            scheduled_date__gte=start_date, scheduled_date__lte=today
+            scheduled_date__gte=start_date,
+            scheduled_date__lte=today,
+            service_center=service_center,
         )
         .values("service_type__name")
         .annotate(count=Count("id"))
@@ -459,11 +501,17 @@ def admin_service_center_detail(request, service_center_id):
     stats_labels = [stat["service_type__name"] for stat in service_stats]
     stats_data = [stat["count"] for stat in service_stats]
 
-    status_stats = Appointment.objects.values("status").annotate(count=Count("id"))
+    status_stats = (
+        Appointment.objects.filter(service_center=service_center)
+        .values("status")
+        .annotate(count=Count("id"))
+    )
 
     weekday_stats = (
-        Appointment.objects.filter(scheduled_date__gte=start_date)
-        .extra({"weekday": "EXTRACT(dow FROM scheduled_date)"})
+        Appointment.objects.filter(
+            scheduled_date__gte=start_date, service_center=service_center
+        )
+        .annotate(weekday=ExtractWeekDay("scheduled_date"))
         .values("weekday")
         .annotate(count=Count("id"))
         .order_by("weekday")
@@ -473,10 +521,94 @@ def admin_service_center_detail(request, service_center_id):
     weekday_labels = []
     weekday_data = []
     for stat in weekday_stats:
-        weekday_index = int(stat["weekday"])
-        if 0 <= weekday_index < len(weekday_names):
-            weekday_labels.append(weekday_names[weekday_index])
-            weekday_data.append(stat["count"])
+        weekday_index = (int(stat["weekday"]) - 2) % 7
+        weekday_labels.append(weekday_names[weekday_index])
+        weekday_data.append(stat["count"])
+
+    try:
+        working_hours = WorkingHours.objects.get(day_of_week=selected_date.isoweekday())
+    except WorkingHours.DoesNotExist:
+        working_hours = None
+
+    todays_schedule = []
+    if working_hours and working_hours.is_working:
+        all_slots = generate_time_slots(
+            working_hours.start_time, working_hours.end_time
+        )
+
+        now = timezone.localtime(timezone.now())
+        if selected_date == now.date():
+            all_slots = [
+                s
+                for s in all_slots
+                if datetime.strptime(s, "%H:%M").time()
+                > (now + timedelta(minutes=0)).time()
+            ]
+
+        day_appointments = (
+            Appointment.objects.filter(
+                scheduled_date=selected_date,
+                service_center=service_center,
+                status__in=["SCHEDULED", "IN_PROGRESS"],
+            )
+            .select_related("car", "service_type", "car__owner")
+            .order_by("scheduled_time")
+        )
+
+        for slot in all_slots:
+            slot_time = datetime.strptime(slot, "%H:%M").time()
+            matched = None
+            for a in day_appointments:
+                if a.scheduled_time <= slot_time < (a.end_time or a.scheduled_time):
+                    matched = a
+                    break
+            if matched:
+                todays_schedule.append(
+                    {
+                        "time": slot,
+                        "busy": True,
+                        "title": f"{matched.service_type.name} — {matched.car}",
+                        "status": matched.status,
+                        "appointment_id": str(matched.id),
+                    }
+                )
+            else:
+                todays_schedule.append({"time": slot, "busy": False})
+
+    # Диапазон для графика посещаемости
+    if period == "month":
+        chart_start = today - timedelta(days=29)
+    else:
+        chart_start = today - timedelta(days=6)
+
+    visits_qs = (
+        Appointment.objects.filter(
+            scheduled_date__gte=chart_start,
+            scheduled_date__lte=today,
+            service_center=service_center,
+        )
+        .values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+    visits_labels = []
+    visits_data = []
+    current = chart_start
+    while current <= today:
+        visits_labels.append(current.strftime("%d.%m"))
+        found = next((v for v in visits_qs if v["scheduled_date"] == current), None)
+        visits_data.append(found["count"] if found else 0)
+        current += timedelta(days=1)
+
+    status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
+    status_stats_list = [
+        {
+            "status": s["status"],
+            "count": s["count"],
+            "label": status_label_map.get(s["status"], s["status"]),
+        }
+        for s in status_stats
+    ]
 
     context = {
         "service_center": service_center,
@@ -485,11 +617,108 @@ def admin_service_center_detail(request, service_center_id):
         "stats_data": json.dumps(stats_data, ensure_ascii=False),
         "weekday_labels": json.dumps(weekday_labels, ensure_ascii=False),
         "weekday_data": json.dumps(weekday_data, ensure_ascii=False),
-        "status_stats": status_stats,
+        "status_stats": status_stats_list,
         "current_year": year,
         "current_month": month,
+        "selected_date": selected_date.isoformat(),
+        "todays_schedule": todays_schedule,
+        "period": period,
+        "visits_labels": json.dumps(visits_labels, ensure_ascii=False),
+        "visits_data": json.dumps(visits_data, ensure_ascii=False),
     }
     return render(request, "core/admin_service_center_detail.html", context)
+
+
+@login_required
+@admin_required
+def admin_service_center_edit(request, service_center_id):
+    """Редактирование информации об автосервисе"""
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+
+    if request.method == "POST":
+        form = ServiceCenterEditForm(
+            request.POST, request.FILES, instance=service_center
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Информация о филиале обновлена")
+            return redirect(
+                "admin_service_center_detail", service_center_id=service_center.id
+            )
+    else:
+        form = ServiceCenterEditForm(instance=service_center)
+
+    return render(
+        request,
+        "core/admin_service_center_edit.html",
+        {"form": form, "service_center": service_center},
+    )
+
+
+@login_required
+@admin_required
+def admin_api_day_schedule(request, service_center_id):
+    """JSON: расписание по слотам для выбранного дня"""
+    date_str = request.GET.get("date")
+    if not date_str:
+        return JsonResponse({"error": "Missing date"}, status=400)
+    try:
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return JsonResponse({"error": "Invalid date format"}, status=400)
+
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+
+    try:
+        working_hours = WorkingHours.objects.get(day_of_week=selected_date.isoweekday())
+    except WorkingHours.DoesNotExist:
+        return JsonResponse({"slots": []})
+
+    if not working_hours.is_working:
+        return JsonResponse({"slots": []})
+
+    all_slots = generate_time_slots(working_hours.start_time, working_hours.end_time)
+    now = timezone.localtime(timezone.now())
+    if selected_date == now.date():
+        all_slots = [
+            s
+            for s in all_slots
+            if datetime.strptime(s, "%H:%M").time()
+            > (now + timedelta(minutes=0)).time()
+        ]
+
+    day_appointments = (
+        Appointment.objects.filter(
+            scheduled_date=selected_date,
+            service_center=service_center,
+            status__in=["SCHEDULED", "IN_PROGRESS"],
+        )
+        .select_related("car", "service_type", "car__owner")
+        .order_by("scheduled_time")
+    )
+
+    slots = []
+    for slot in all_slots:
+        slot_time = datetime.strptime(slot, "%H:%M").time()
+        matched = None
+        for a in day_appointments:
+            if a.scheduled_time <= slot_time < (a.end_time or a.scheduled_time):
+                matched = a
+                break
+        if matched:
+            slots.append(
+                {
+                    "time": slot,
+                    "busy": True,
+                    "title": f"{matched.service_type.name} — {matched.car}",
+                    "status": matched.status,
+                    "appointment_id": str(matched.id),
+                }
+            )
+        else:
+            slots.append({"time": slot, "busy": False})
+
+    return JsonResponse({"slots": slots})
 
 
 @login_required
@@ -518,6 +747,7 @@ def admin_api_appointments(request):
     """API для получения записей (для календаря)"""
     start_date = request.GET.get("start")
     end_date = request.GET.get("end")
+    service_center_id = request.GET.get("service_center")
 
     appointments = Appointment.objects.all()
 
@@ -525,6 +755,8 @@ def admin_api_appointments(request):
         appointments = appointments.filter(scheduled_date__gte=start_date)
     if end_date:
         appointments = appointments.filter(scheduled_date__lte=end_date)
+    if service_center_id:
+        appointments = appointments.filter(service_center_id=service_center_id)
 
     events = []
     for appointment in appointments:
