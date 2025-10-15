@@ -555,23 +555,50 @@ def admin_service_center_detail(request, service_center_id):
             .order_by("scheduled_time")
         )
 
+        last_app_id = None
         for slot in all_slots:
             slot_time = datetime.strptime(slot, "%H:%M").time()
             matched = None
             for a in day_appointments:
-                if a.scheduled_time <= slot_time < (a.end_time or a.scheduled_time):
+                # determine appointment interval
+                end_t = a.end_time
+                if not end_t and a.service_type and a.service_type.duration:
+                    end_t = (
+                        datetime.combine(selected_date, a.scheduled_time)
+                        + timedelta(minutes=a.service_type.duration)
+                    ).time()
+                if not end_t:
+                    end_t = a.scheduled_time
+
+                if a.scheduled_time <= slot_time < end_t:
                     matched = a
                     break
             if matched:
-                todays_schedule.append(
-                    {
-                        "time": slot,
-                        "busy": True,
-                        "title": f"{matched.service_type.name} — {matched.car}",
-                        "status": matched.status,
-                        "appointment_id": str(matched.id),
-                    }
-                )
+                if str(matched.id) != str(last_app_id):
+                    end_t = matched.end_time
+                    if (
+                        not end_t
+                        and matched.service_type
+                        and matched.service_type.duration
+                    ):
+                        end_t = (
+                            datetime.combine(selected_date, matched.scheduled_time)
+                            + timedelta(minutes=matched.service_type.duration)
+                        ).time()
+                    if not end_t:
+                        end_t = matched.scheduled_time
+                    todays_schedule.append(
+                        {
+                            "busy": True,
+                            "start": matched.scheduled_time.strftime("%H:%M"),
+                            "end": end_t.strftime("%H:%M"),
+                            "title": f"{matched.service_type.name} — {matched.car}",
+                            "status": matched.status,
+                            "appointment_id": str(matched.id),
+                        }
+                    )
+                    last_app_id = str(matched.id)
+                # skip subsequent slots for the same appointment
             else:
                 todays_schedule.append({"time": slot, "busy": False})
 
@@ -610,6 +637,20 @@ def admin_service_center_detail(request, service_center_id):
         for s in status_stats
     ]
 
+    # Empty-state flags
+    status_total = sum(s["count"] for s in status_stats)
+    has_service_stats = any(stats_data) if stats_data else False
+    has_weekday_stats = any(weekday_data) if weekday_data else False
+    has_visits_data = any(visits_data) if visits_data else False
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(
+            {
+                "visits_labels": visits_labels,
+                "visits_data": visits_data,
+            }
+        )
+
     context = {
         "service_center": service_center,
         "calendar_events": json.dumps(calendar_events, ensure_ascii=False),
@@ -625,6 +666,10 @@ def admin_service_center_detail(request, service_center_id):
         "period": period,
         "visits_labels": json.dumps(visits_labels, ensure_ascii=False),
         "visits_data": json.dumps(visits_data, ensure_ascii=False),
+        "has_service_stats": has_service_stats,
+        "has_weekday_stats": has_weekday_stats,
+        "has_visits_data": has_visits_data,
+        "status_total": status_total,
     }
     return render(request, "core/admin_service_center_detail.html", context)
 
@@ -698,23 +743,45 @@ def admin_api_day_schedule(request, service_center_id):
     )
 
     slots = []
+    last_app_id = None
     for slot in all_slots:
         slot_time = datetime.strptime(slot, "%H:%M").time()
         matched = None
         for a in day_appointments:
-            if a.scheduled_time <= slot_time < (a.end_time or a.scheduled_time):
+            end_t = a.end_time
+            if not end_t and a.service_type and a.service_type.duration:
+                end_t = (
+                    datetime.combine(selected_date, a.scheduled_time)
+                    + timedelta(minutes=a.service_type.duration)
+                ).time()
+            if not end_t:
+                end_t = a.scheduled_time
+
+            if a.scheduled_time <= slot_time < end_t:
                 matched = a
                 break
         if matched:
-            slots.append(
-                {
-                    "time": slot,
-                    "busy": True,
-                    "title": f"{matched.service_type.name} — {matched.car}",
-                    "status": matched.status,
-                    "appointment_id": str(matched.id),
-                }
-            )
+            if str(matched.id) != str(last_app_id):
+                end_t = matched.end_time
+                if not end_t and matched.service_type and matched.service_type.duration:
+                    end_t = (
+                        datetime.combine(selected_date, matched.scheduled_time)
+                        + timedelta(minutes=matched.service_type.duration)
+                    ).time()
+                if not end_t:
+                    end_t = matched.scheduled_time
+                slots.append(
+                    {
+                        "busy": True,
+                        "start": matched.scheduled_time.strftime("%H:%M"),
+                        "end": end_t.strftime("%H:%M"),
+                        "title": f"{matched.service_type.name} — {matched.car}",
+                        "status": matched.status,
+                        "appointment_id": str(matched.id),
+                    }
+                )
+                last_app_id = str(matched.id)
+            # skip subsequent slots for same appointment
         else:
             slots.append({"time": slot, "busy": False})
 

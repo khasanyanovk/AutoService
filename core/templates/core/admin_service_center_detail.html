@@ -96,6 +96,7 @@
     .slot-time { font-weight:600; }
     .slot-title { color:#495057; }
     .slot-status { font-size:.85rem; }
+    .empty-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#6c757d; font-size:.95rem; text-align:center; padding:0 1rem; }
     @media (max-width: 991.98px) {
         .chart-container { height: 240px; }
         .small-chart { height: 200px; }
@@ -118,7 +119,7 @@
                 </p>
             </div>
             <div class="col-md-4 text-md-end">
-                <a href="{% url 'admin_dashboard' %}" class="btn btn-light">
+                <a href="{% url 'admin_branches' %}" class="btn btn-light">
                     <i class="bi bi-arrow-left me-1"></i> Назад к списку
                 </a>
                 <a href="{% url 'admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
@@ -156,7 +157,13 @@
                         {% for s in todays_schedule %}
                         <div class="slot {% if s.busy %}busy{% else %}free{% endif %}">
                             <div>
-                                <div class="slot-time">{{ s.time }}</div>
+                                <div class="slot-time">
+                                    {% if s.busy %}
+                                        {% if s.start and s.end %}{{ s.start }}–{{ s.end }}{% else %}{{ s.time }}{% endif %}
+                                    {% else %}
+                                        {{ s.time }}
+                                    {% endif %}
+                                </div>
                                 {% if s.busy %}
                                     <div class="slot-title small">{{ s.title }}</div>
                                 {% else %}
@@ -187,6 +194,9 @@
                 <div class="card-body">
                     <div class="chart-container">
                         <canvas id="serviceStatsChart"></canvas>
+                        {% if not has_service_stats %}
+                        <div class="empty-overlay">Нет данных по услугам</div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -200,6 +210,9 @@
                 <div class="card-body">
                     <div class="chart-container small-chart">
                         <canvas id="weekdayStatsChart"></canvas>
+                        {% if not has_weekday_stats %}
+                            <div class="empty-overlay">Нет данных по дням недели</div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -210,12 +223,15 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Посещаемость</h4>
                     <div>
-                        <a class="btn btn-light btn-sm me-1" href="?period=week">Неделя</a>
-                        <a class="btn btn-light btn-sm" href="?period=month">Месяц</a>
+                        <button type="button" class="btn btn-light btn-sm me-1 btn-period-toggle" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-light btn-sm btn-period-toggle" data-period="month">Месяц</button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container"><canvas id="visitsChart"></canvas></div>
+                    <div class="chart-container">
+                        <canvas id="visitsChart"></canvas>
+                        <div id="visitsEmpty" class="empty-overlay" style="{% if has_visits_data %}display:none{% endif %}">Нет посещений за выбранный период</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -225,20 +241,24 @@
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
                 </div>
-                <div class="card-body">
-                    {% for stat in status_stats %}
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="badge 
-                            {% if stat.status == 'SCHEDULED' %}bg-primary
-                            {% elif stat.status == 'IN_PROGRESS' %}bg-warning
-                            {% elif stat.status == 'COMPLETED' %}bg-success
-                            {% elif stat.status == 'CANCELLED' %}bg-danger
-                            {% endif %}">
-                            {{ stat.label }}
-                        </span>
-                        <strong class="text-dark">{{ stat.count }}</strong>
-                    </div>
-                    {% endfor %}
+                <div class="card-body" style="min-height:300px; position:relative;">
+                    {% if status_total > 0 %}
+                        {% for stat in status_stats %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge 
+                                {% if stat.status == 'SCHEDULED' %}bg-primary
+                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
+                                {% elif stat.status == 'COMPLETED' %}bg-success
+                                {% elif stat.status == 'CANCELLED' %}bg-danger
+                                {% endif %}">
+                                {{ stat.label }}
+                            </span>
+                            <strong class="text-dark">{{ stat.count }}</strong>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-overlay">Нет записей со статусами за выбранный период</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -283,10 +303,13 @@
                     if (data.slots && data.slots.length) {
                         data.slots.forEach(function(s){
                             if (s.busy) {
+                                var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
                                 html += '<div class="slot busy">' +
-                                    '<div><div class="slot-time">'+s.time+'</div>'+
-                                    '<div class="slot-title small">'+s.title+'</div></div>'+
-                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \''+s.appointment_id+'\')">Открыть</a>'+
+                                    '<div>'+
+                                        '<div class="slot-time">'+ timeLabel +'</div>'+
+                                        '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                    '</div>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \'"+s.appointment_id+"\')">Открыть</a>'+
                                 '</div>';
                             } else {
                                 html += '<div class="slot free">' +
@@ -404,6 +427,29 @@
                     y: { beginAtZero: true, ticks: { stepSize: 1 } }
                 }
             }
+        });
+
+        // AJAX for attendance chart period toggle
+        document.querySelectorAll('.btn-period-toggle').forEach(function(button) {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const period = this.getAttribute('data-period');
+                fetch(`?period=${period}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const chartInstance = Chart.getChart('visitsChart');
+                    const emptyEl = document.getElementById('visitsEmpty');
+                    const sum = (data.visits_data || []).reduce((a,b) => a+b, 0);
+                    if (emptyEl) emptyEl.style.display = sum > 0 ? 'none' : '';
+                    if (chartInstance) {
+                        chartInstance.data.labels = data.visits_labels;
+                        chartInstance.data.datasets[0].data = data.visits_data;
+                        chartInstance.update();
+                    }
+                });
+            });
         });
     });
 </script>
