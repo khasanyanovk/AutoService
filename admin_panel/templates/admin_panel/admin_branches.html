@@ -29,15 +29,15 @@
       <h1 class="h3 mb-1">Филиалы</h1>
       <p class="text-muted mb-0">Выберите филиал для просмотра расписания и статистики</p>
     </div>
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Панель администратора</a>
+  <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Панель администратора</a>
   </div>
 
   {% if service_centers %}
   <div class="row grid-gap">
     {% for sc in service_centers %}
     <div class="col-xl-3 col-lg-4 col-md-6">
-        <div class="card branch-card h-100" role="button" onclick="window.location.href='{% url 'admin_service_center_detail' sc.id %}'">
-          <a href="{% url 'admin_service_center_edit' sc.id %}" class="btn btn-sm btn-light edit-btn" title="Редактировать" onclick="event.stopPropagation();">
+        <div class="card branch-card h-100" role="button" onclick="window.location.href='{% url 'admin_panel:admin_service_center_detail' sc.id %}'">
+          <a href="{% url 'admin_panel:admin_service_center_edit' sc.id %}" class="btn btn-sm btn-light edit-btn" title="Редактировать" onclick="event.stopPropagation();">
             <i class="bi bi-pencil"></i>
           </a>
           <div class="branch-photo">

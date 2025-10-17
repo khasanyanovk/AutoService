@@ -119,10 +119,10 @@
                 </p>
             </div>
             <div class="col-md-4 text-md-end">
-                <a href="{% url 'admin_branches' %}" class="btn btn-light">
+                <a href="{% url 'admin_panel:admin_branches' %}" class="btn btn-light">
                     <i class="bi bi-arrow-left me-1"></i> Назад к списку
                 </a>
-                <a href="{% url 'admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
+                <a href="{% url 'admin_panel:admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
                     <i class="bi bi-pencil-square me-1"></i> Редактировать
                 </a>
             </div>
@@ -171,7 +171,7 @@
                                 {% endif %}
                             </div>
                             {% if s.busy %}
-                            <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace('00000000-0000-0000-0000-000000000000','{{ s.appointment_id }}')">Открыть</a>
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_panel:admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace('00000000-0000-0000-0000-000000000000','{{ s.appointment_id }}')">Открыть</a>
                             {% else %}
                             <span class="badge bg-success slot-status">Свободно</span>
                             {% endif %}
@@ -282,7 +282,7 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: '{% url "admin_api_appointments" %}?service_center={{ service_center.id }}',
+            events: '{% url "admin_panel:admin_api_appointments" %}?service_center={{ service_center.id }}',
             dateClick: function(info) {
                 var y = info.date.getFullYear();
                 var m = String(info.date.getMonth()+1).padStart(2,'0');
@@ -294,7 +294,7 @@
                 var cell = document.querySelector('.fc-daygrid-day[data-date="'+iso+'"]');
                 if (cell) cell.classList.add('fc-selected-day');
 
-                fetch('{% url "admin_api_day_schedule" service_center.id %}?date=' + iso, {
+                fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).then(function(r){ return r.json(); }).then(function(data){
                     var container = document.querySelector('.schedule-list');
@@ -309,7 +309,7 @@
                                         '<div class="slot-time">'+ timeLabel +'</div>'+
                                         '<div class="slot-title small">'+ (s.title || '') +'</div>'+
                                     '</div>'+
-                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \'"+s.appointment_id+"\')">Открыть</a>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_panel:admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \'"+s.appointment_id+"\')">Открыть</a>'+
                                 '</div>';
                             } else {
                                 html += '<div class="slot free">' +
@@ -336,7 +336,7 @@
                 }
             },
             eventClick: function(info) {
-                window.location.href = '{% url "admin_appointment_detail" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', info.event.id);
+                window.location.href = '{% url "admin_panel:admin_appointment_detail" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', info.event.id);
             },
             eventClassNames: function(arg) {
                 return ['appointment-status-' + arg.event.extendedProps.status.toLowerCase()];
