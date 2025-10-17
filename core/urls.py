@@ -26,6 +26,11 @@ urlpatterns = [
     path("admin-branches/", views.admin_branches, name="admin_branches"),
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path(
+        "admin-dashboard/appointments/",
+        views.admin_appointments,
+        name="admin_appointments",
+    ),
+    path(
         "admin-dashboard/service-center/<uuid:service_center_id>/",
         views.admin_service_center_detail,
         name="admin_service_center_detail",
@@ -49,6 +54,16 @@ urlpatterns = [
         "admin-api/appointments/",
         views.admin_api_appointments,
         name="admin_api_appointments",
+    ),
+    path(
+        "admin-api/overall-visits/",
+        views.admin_api_overall_visits,
+        name="admin_api_overall_visits",
+    ),
+    path(
+        "admin-api/overall-statuses/",
+        views.admin_api_overall_statuses,
+        name="admin_api_overall_statuses",
     ),
     path(
         "get-available-services/",

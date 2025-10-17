@@ -415,11 +415,21 @@ def admin_dashboard(request):
     """Главная страница администратора"""
     service_centers = ServiceCenter.objects.all()
 
+    today = timezone.localtime(timezone.now()).date()
+
     total_appointments = Appointment.objects.count()
-    today_appointments = Appointment.objects.filter(
-        scheduled_date=timezone.now().date()
-    ).count()
+    today_appointments = Appointment.objects.filter(scheduled_date=today).count()
     pending_appointments = Appointment.objects.filter(status="SCHEDULED").count()
+    in_progress_appointments = Appointment.objects.filter(status="IN_PROGRESS").count()
+    completed_30d = Appointment.objects.filter(
+        status="COMPLETED", scheduled_date__gte=today - timedelta(days=30)
+    ).count()
+    cancelled_30d = Appointment.objects.filter(
+        status="CANCELLED", scheduled_date__gte=today - timedelta(days=30)
+    ).count()
+    active_services = ServiceType.objects.filter(is_active=True).count()
+    branches_count = ServiceCenter.objects.count()
+    customers_count = Appointment.objects.values("car__owner").distinct().count()
 
     upcoming_appointments = (
         Appointment.objects.filter(
@@ -429,14 +439,136 @@ def admin_dashboard(request):
         .order_by("scheduled_date", "scheduled_time")[:12]
     )
 
+    chart_start = today - timedelta(days=6)
+    visits_qs = (
+        Appointment.objects.filter(
+            scheduled_date__gte=chart_start, scheduled_date__lte=today
+        )
+        .values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+    overall_visits_labels = []
+    overall_visits_data = []
+    current = chart_start
+    while current <= today:
+        overall_visits_labels.append(current.strftime("%d.%m"))
+        found = next((v for v in visits_qs if v["scheduled_date"] == current), None)
+        overall_visits_data.append(found["count"] if found else 0)
+        current += timedelta(days=1)
+
+    services_qs = (
+        Appointment.objects.filter(status__in=["SCHEDULED", "IN_PROGRESS", "COMPLETED"])
+        .values("service_type__name")
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+    overall_service_labels = [s["service_type__name"] for s in services_qs]
+    overall_service_data = [s["count"] for s in services_qs]
+
+    status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
+    statuses_qs = (
+        Appointment.objects.filter(
+            scheduled_date__gte=today - timedelta(days=6), scheduled_date__lte=today
+        )
+        .values("status")
+        .annotate(count=Count("id"))
+    )
+    overall_statuses = [
+        {
+            "status": row["status"],
+            "label": status_label_map.get(row["status"], row["status"]),
+            "count": row["count"],
+        }
+        for row in statuses_qs
+    ]
+
     context = {
         "service_centers": service_centers,
         "total_appointments": total_appointments,
         "today_appointments": today_appointments,
         "pending_appointments": pending_appointments,
+        "in_progress_appointments": in_progress_appointments,
+        "completed_30d": completed_30d,
+        "cancelled_30d": cancelled_30d,
+        "active_services": active_services,
+        "branches_count": branches_count,
+        "customers_count": customers_count,
         "upcoming_appointments": upcoming_appointments,
+        "overall_visits_labels": overall_visits_labels,
+        "overall_visits_data": overall_visits_data,
+        "overall_service_labels": overall_service_labels,
+        "overall_service_data": overall_service_data,
+        "overall_statuses": overall_statuses,
     }
     return render(request, "core/admin_dashboard.html", context)
+
+
+@login_required
+@admin_required
+def admin_appointments(request):
+    """Заглушка для страницы управления всеми записями (будет реализована позже)."""
+    return render(request, "core/admin_appointments.html")
+
+
+@login_required
+@admin_required
+def admin_api_overall_statuses(request):
+    """AJAX: Статистика по статусам записей за период (неделя/месяц) по всем филиалам"""
+    today = timezone.localtime(timezone.now()).date()
+    period = request.GET.get("period", "week")
+    if period == "month":
+        start = today - timedelta(days=29)
+    else:
+        start = today - timedelta(days=6)
+
+    qs = (
+        Appointment.objects.filter(scheduled_date__gte=start, scheduled_date__lte=today)
+        .values("status")
+        .annotate(count=Count("id"))
+    )
+    status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
+    data = [
+        {
+            "status": row["status"],
+            "label": status_label_map.get(row["status"], row["status"]),
+            "count": row["count"],
+        }
+        for row in qs
+    ]
+    return JsonResponse({"items": data})
+
+
+@login_required
+@admin_required
+def admin_api_overall_visits(request):
+    """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц"""
+    today = timezone.localtime(timezone.now()).date()
+    period = request.GET.get("period", "week")
+    if period == "month":
+        chart_start = today - timedelta(days=29)
+    else:
+        chart_start = today - timedelta(days=6)
+
+    visits_qs = (
+        Appointment.objects.filter(
+            scheduled_date__gte=chart_start, scheduled_date__lte=today
+        )
+        .values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+
+    by_date = {row["scheduled_date"]: row["count"] for row in visits_qs}
+    labels = []
+    data = []
+    current = chart_start
+    while current <= today:
+        labels.append(current.strftime("%d.%m"))
+        data.append(by_date.get(current, 0))
+        current += timedelta(days=1)
+
+    return JsonResponse({"labels": labels, "data": data})
 
 
 @login_required
