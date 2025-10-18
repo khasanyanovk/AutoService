@@ -313,7 +313,6 @@ class AppointmentForm(forms.Form):
             if not (start_datetime <= scheduled_datetime <= end_datetime):
                 raise ValidationError("Выбранное время вне рабочего времени.")
 
-            # Дополнительно проверим, что услуга полностью укладывается в рабочие часы
             if (
                 scheduled_datetime + timedelta(minutes=service_type.duration)
                 > end_datetime
@@ -327,8 +326,6 @@ class AppointmentForm(forms.Form):
                 scheduled_datetime + timedelta(minutes=service_type.duration)
             ).time()
 
-            # Проверяем занятость только в выбранном филиале и корректно определяем пересечение интервалов
-            # Пересечение, если (existing.start < new.end) и (existing.end > new.start)
             service_center = cleaned_data.get("service_center")
             qs = Appointment.objects.filter(
                 scheduled_date=scheduled_date,

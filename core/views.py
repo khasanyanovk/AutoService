@@ -229,14 +229,12 @@ def service_booking(request):
             except Exception as e:
                 messages.error(request, f"Ошибка при создании записи: {str(e)}")
         else:
-            # Не теряем состояние: покажем ошибки и вернем выбранные значения в шаблон
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{error}")
     else:
         form = AppointmentForm(user=request.user)
 
-    # Восстанавливаем выбранные значения (если POST был невалиден)
     selected_service_center = (
         request.POST.get("service_center") if request.method == "POST" else ""
     )
