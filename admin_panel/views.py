@@ -19,6 +19,8 @@ from core.forms import (
 from django.http import JsonResponse
 from datetime import datetime, timedelta
 from .decorators import admin_required
+from django.core.paginator import Paginator
+from django.db.models import Q
 
 
 @login_required
@@ -119,8 +121,84 @@ def admin_dashboard(request):
 @login_required
 @admin_required
 def admin_appointments(request):
-    """Заглушка для страницы управления всеми записями (будет реализована позже)."""
-    return render(request, "admin_panel/admin_appointments.html")
+    """Страница управления всеми записями: фильтры, список, быстрые действия"""
+    qs = Appointment.objects.select_related(
+        "service_center", "car", "car__owner", "service_type"
+    ).all()
+
+    # Фильтры
+    branch = request.GET.get("branch")
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+    statuses = request.GET.getlist("status")
+    user_query = request.GET.get("user")
+    plate_query = request.GET.get("plate")
+
+    if branch:
+        qs = qs.filter(service_center_id=branch)
+    if date_from:
+        qs = qs.filter(scheduled_date__gte=date_from)
+    if date_to:
+        qs = qs.filter(scheduled_date__lte=date_to)
+    if statuses:
+        qs = qs.filter(status__in=statuses)
+    if user_query:
+        qs = qs.filter(
+            Q(car__owner__username__icontains=user_query)
+            | Q(car__owner__first_name__icontains=user_query)
+            | Q(car__owner__last_name__icontains=user_query)
+            | Q(car__owner__email__icontains=user_query)
+        )
+    if plate_query:
+        qs = qs.filter(car__license_plate__icontains=plate_query)
+
+    qs = qs.order_by("-scheduled_date", "-scheduled_time")
+
+    page = request.GET.get("page", 1)
+    paginator = Paginator(qs, 15)
+    page_obj = paginator.get_page(page)
+
+    branches = ServiceCenter.objects.all()
+    status_choices = Appointment.STATUS_CHOICES
+
+    context = {
+        "page_obj": page_obj,
+        "branches": branches,
+        "status_choices": status_choices,
+        "filters": {
+            "branch": branch or "",
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "statuses": statuses or [],
+            "user": user_query or "",
+            "plate": plate_query or "",
+        },
+    }
+    return render(request, "admin_panel/admin_appointments.html", context)
+
+
+@login_required
+@admin_required
+def admin_api_update_appointment(request, appointment_id):
+    """AJAX: Обновление статуса и добавление комментария администратора"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    appt = get_object_or_404(Appointment, id=appointment_id)
+    new_status = request.POST.get("status")
+    comment = request.POST.get("comment", "").strip()
+
+    payload = {}
+    if new_status and new_status in dict(Appointment.STATUS_CHOICES):
+        appt.status = new_status
+        payload["status"] = new_status
+    if comment:
+        prefix = "admin: "
+        appt.notes = (appt.notes + "\n" if appt.notes else "") + prefix + comment
+        payload["notes"] = appt.notes
+    appt.save()
+
+    return JsonResponse({"ok": True, **payload})
 
 
 @login_required
@@ -278,7 +356,6 @@ def admin_service_center_detail(request, service_center_id):
     if working_hours and working_hours.is_working:
         now = timezone.localtime(timezone.now())
         if selected_date < now.date():
-            # Past date: only completed services
             day_appointments = (
                 Appointment.objects.filter(
                     scheduled_date=selected_date,
@@ -288,7 +365,6 @@ def admin_service_center_detail(request, service_center_id):
                 .select_related("car", "service_type", "car__owner")
                 .order_by("scheduled_time")
             )
-            # Past date: show only performed/scheduled services (busy blocks), no free slots
             for a in day_appointments:
                 end_t = a.end_time
                 if not end_t and a.service_type and a.service_type.duration:
@@ -309,7 +385,6 @@ def admin_service_center_detail(request, service_center_id):
                     }
                 )
         else:
-            # Today or future: include busy blocks and free slots (for today: only in the future)
             day_appointments = (
                 Appointment.objects.filter(
                     scheduled_date=selected_date,

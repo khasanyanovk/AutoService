@@ -37,6 +37,11 @@ urlpatterns = [
         name="admin_api_appointments",
     ),
     path(
+        "admin-api/appointment/<uuid:appointment_id>/update/",
+        views.admin_api_update_appointment,
+        name="admin_api_update_appointment",
+    ),
+    path(
         "admin-api/overall-visits/",
         views.admin_api_overall_visits,
         name="admin_api_overall_visits",
