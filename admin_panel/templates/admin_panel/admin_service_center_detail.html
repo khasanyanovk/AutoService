@@ -171,7 +171,7 @@
                                 {% endif %}
                             </div>
                             {% if s.busy %}
-                            <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_panel:admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace('00000000-0000-0000-0000-000000000000','{{ s.appointment_id }}')">Открыть</a>
+                            <a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/{{ s.appointment_id }}/">Открыть</a>
                             {% else %}
                             <span class="badge bg-success slot-status">Свободно</span>
                             {% endif %}
@@ -293,8 +293,12 @@
                 document.querySelectorAll('.fc-selected-day').forEach(function(el){ el.classList.remove('fc-selected-day'); });
                 var cell = document.querySelector('.fc-daygrid-day[data-date="'+iso+'"]');
                 if (cell) cell.classList.add('fc-selected-day');
+                
+                var now = new Date();
+                var isToday = (new Date().toDateString() === info.date.toDateString());
+                var clientNow = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-                fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso, {
+                fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=' + (isToday ? '1' : '0') + '&client_now=' + encodeURIComponent(clientNow), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).then(function(r){ return r.json(); }).then(function(data){
                     var container = document.querySelector('.schedule-list');
@@ -309,7 +313,7 @@
                                         '<div class="slot-time">'+ timeLabel +'</div>'+
                                         '<div class="slot-title small">'+ (s.title || '') +'</div>'+
                                     '</div>'+
-                                    '<a class="btn btn-outline-primary btn-sm" href="{% url 'admin_panel:admin_appointment_detail' '00000000-0000-0000-0000-000000000000' %}" onclick="this.href=this.href.replace(\'00000000-0000-0000-0000-000000000000\', \'"+s.appointment_id+"\')">Открыть</a>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
                                 '</div>';
                             } else {
                                 html += '<div class="slot free">' +
@@ -336,7 +340,7 @@
                 }
             },
             eventClick: function(info) {
-                window.location.href = '{% url "admin_panel:admin_appointment_detail" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', info.event.id);
+                window.location.href = '/admin-dashboard/appointment/' + info.event.id + '/';
             },
             eventClassNames: function(arg) {
                 return ['appointment-status-' + arg.event.extendedProps.status.toLowerCase()];
@@ -348,6 +352,52 @@
             }
         });
         calendar.render();
+
+        (function initialTodayLoad(){
+            var selected = '{{ selected_date }}';
+            try {
+                var parts = selected.split('-');
+                var selDate = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+                var today = new Date();
+                if (selDate.toDateString() === today.toDateString()) {
+                    var y = selDate.getFullYear();
+                    var m = String(selDate.getMonth()+1).padStart(2,'0');
+                    var d = String(selDate.getDate()).padStart(2,'0');
+                    var iso = y + '-' + m + '-' + d;
+                    var clientNow = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
+                    fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=1&client_now=' + encodeURIComponent(clientNow), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    }).then(function(r){ return r.json(); }).then(function(data){
+                        var container = document.querySelector('.schedule-list');
+                        if (!container) return;
+                        var html = '';
+                        if (data.slots && data.slots.length) {
+                            data.slots.forEach(function(s){
+                                if (s.busy) {
+                                    var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
+                                    html += '<div class="slot busy">' +
+                                        '<div>'+
+                                            '<div class="slot-time">'+ timeLabel +'</div>'+
+                                            '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                        '</div>'+
+                                        '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
+                                    '</div>';
+                                } else {
+                                    html += '<div class="slot free">' +
+                                        '<div><div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-muted small">Свободно</div></div>'+
+                                        '<span class="badge bg-success slot-status">Свободно</span>'+
+                                    '</div>';
+                                }
+                            });
+                        } else {
+                            html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                        }
+                        container.innerHTML = html;
+                    });
+                }
+            } catch(e) {}
+        })();
 
         var ctxService = document.getElementById('serviceStatsChart').getContext('2d');
         var serviceStatsChart = new Chart(ctxService, {

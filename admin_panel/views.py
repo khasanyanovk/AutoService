@@ -477,6 +477,8 @@ def admin_service_center_edit(request, service_center_id):
 def admin_api_day_schedule(request, service_center_id):
     """JSON: расписание по слотам для выбранного дня"""
     date_str = request.GET.get("date")
+    is_today_param = request.GET.get("is_today", "0")
+    client_now_str = request.GET.get("client_now")
     if not date_str:
         return JsonResponse({"error": "Missing date"}, status=400)
     try:
@@ -496,7 +498,14 @@ def admin_api_day_schedule(request, service_center_id):
 
     now = timezone.localtime(timezone.now())
 
-    # Past date: return only busy entries (completed services)
+    client_now_time = None
+    is_today_client = str(is_today_param).lower() in ("1", "true", "yes")
+    if client_now_str:
+        try:
+            client_now_time = datetime.strptime(client_now_str, "%H:%M").time()
+        except ValueError:
+            client_now_time = None
+
     if selected_date < now.date():
         day_appointments = (
             Appointment.objects.filter(
@@ -529,7 +538,6 @@ def admin_api_day_schedule(request, service_center_id):
             )
         return JsonResponse({"slots": slots})
 
-    # Today or future: include future free slots (today) and busy blocks
     day_appointments = (
         Appointment.objects.filter(
             scheduled_date=selected_date,
@@ -540,12 +548,17 @@ def admin_api_day_schedule(request, service_center_id):
         .order_by("scheduled_time")
     )
     all_slots = generate_time_slots(working_hours.start_time, working_hours.end_time)
-    if selected_date == now.date():
+    effective_now_time = None
+    if is_today_client and client_now_time:
+        effective_now_time = client_now_time
+    elif selected_date == now.date():
+        effective_now_time = (now + timedelta(minutes=0)).time()
+
+    if effective_now_time:
         all_slots = [
             s
             for s in all_slots
-            if datetime.strptime(s, "%H:%M").time()
-            > (now + timedelta(minutes=0)).time()
+            if datetime.strptime(s, "%H:%M").time() > effective_now_time
         ]
 
     slots = []
