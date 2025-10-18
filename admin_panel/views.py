@@ -42,7 +42,12 @@ def admin_dashboard(request):
     cancelled_30d = Appointment.objects.filter(
         status="CANCELLED", scheduled_date__gte=today - timedelta(days=30)
     ).count()
-    active_services = ServiceType.objects.filter(is_active=True).count()
+    active_services = (
+        ServiceType.objects.filter(is_active=True)
+        .values_list("name", flat=True)
+        .distinct()
+        .count()
+    )
     branches_count = ServiceCenter.objects.count()
     customers_count = Appointment.objects.values("car__owner").distinct().count()
 
@@ -51,7 +56,7 @@ def admin_dashboard(request):
             scheduled_date__gte=timezone.localtime(timezone.now()).date()
         )
         .select_related("service_center", "car", "service_type", "car__owner")
-        .order_by("scheduled_date", "scheduled_time")[:12]
+        .order_by("scheduled_date", "scheduled_time")[:5]
     )
 
     chart_start = today - timedelta(days=6)
@@ -82,20 +87,15 @@ def admin_dashboard(request):
     overall_service_data = [s["count"] for s in services_qs]
 
     status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
-    statuses_qs = (
-        Appointment.objects.filter(
-            scheduled_date__gte=today - timedelta(days=6), scheduled_date__lte=today
-        )
-        .values("status")
-        .annotate(count=Count("id"))
-    )
+    statuses_qs = Appointment.objects.values("status").annotate(count=Count("id"))
+    counts_map = {row["status"]: row["count"] for row in statuses_qs}
     overall_statuses = [
         {
-            "status": row["status"],
-            "label": status_label_map.get(row["status"], row["status"]),
-            "count": row["count"],
+            "status": key,
+            "label": status_label_map.get(key, key),
+            "count": counts_map.get(key, 0),
         }
-        for row in statuses_qs
+        for key, _ in Appointment.STATUS_CHOICES
     ]
 
     context = {
@@ -169,7 +169,6 @@ def admin_users(request):
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(page)
 
-    # Подготовим безопасные ссылки на аватары (не у всех есть профиль)
     for u in page_obj.object_list:
         avatar_url = ""
         try:
@@ -444,26 +443,16 @@ def admin_api_update_appointment(request, appointment_id):
 @admin_required
 def admin_api_overall_statuses(request):
     """AJAX: Статистика по статусам записей за период (неделя/месяц) по всем филиалам"""
-    today = timezone.localtime(timezone.now()).date()
-    period = request.GET.get("period", "week")
-    if period == "month":
-        start = today - timedelta(days=29)
-    else:
-        start = today - timedelta(days=6)
-
-    qs = (
-        Appointment.objects.filter(scheduled_date__gte=start, scheduled_date__lte=today)
-        .values("status")
-        .annotate(count=Count("id"))
-    )
+    qs = Appointment.objects.values("status").annotate(count=Count("id"))
     status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
+    counts_map = {row["status"]: row["count"] for row in qs}
     data = [
         {
-            "status": row["status"],
-            "label": status_label_map.get(row["status"], row["status"]),
-            "count": row["count"],
+            "status": key,
+            "label": status_label_map.get(key, key),
+            "count": counts_map.get(key, 0),
         }
-        for row in qs
+        for key, _ in Appointment.STATUS_CHOICES
     ]
     return JsonResponse({"items": data})
 
