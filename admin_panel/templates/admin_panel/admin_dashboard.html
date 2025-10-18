@@ -67,8 +67,10 @@
                                 <li><a class="dropdown-item" href="{% url 'service_booking' %}"><i class="bi bi-plus-circle me-1"></i> Новая запись</a></li>
                                 <li><a class="dropdown-item" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-check me-1"></i> Все записи</a></li>
                                 <li><a class="dropdown-item" href="{% url 'admin_panel:admin_branches' %}"><i class="bi bi-building me-1"></i> Филиалы</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_users' %}"><i class="bi bi-people me-1"></i> Пользователи</a></li>
                             </ul>
                         </div>
+                        <a href="{% url 'admin_panel:admin_users' %}" class="btn btn-outline-primary btn-admin ms-1"><i class="bi bi-people me-1"></i> Пользователи</a>
                         <a href="{% url 'admin_panel:admin_branches' %}" class="btn btn-primary btn-admin ms-1"><i class="bi bi-building me-1"></i> Филиалы</a>
                     </div>
                 </div>

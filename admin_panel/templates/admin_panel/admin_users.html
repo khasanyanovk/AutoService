@@ -1,0 +1,202 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Пользователи — Администратор{% endblock %}
+{% block extra_css %}
+<style>
+  .dashboard-card { border-radius: 12px; background:#fff; border:1px solid #e9ecef; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+  .card-header { background: linear-gradient(135deg, #495057 0%, #6c757d 100%); color: white; padding: 1rem 1.25rem; border-bottom: none; }
+  .nowrap { white-space: nowrap; }
+  .filters-wrap { position: relative; }
+  .filters-reset { position: absolute; top: .5rem; right: .75rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Пользователи</h1>
+      <div class="text-muted">Поиск и управление аккаунтами</div>
+    </div>
+    <div>
+      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Назад к дашборду</a>
+    </div>
+  </div>
+
+  <div class="dashboard-card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center"><strong>Фильтры</strong><span class="badge bg-light text-dark">Найдено: {{ page_obj.paginator.count }}</span></div>
+    <div class="p-3 filters-wrap">
+      <button class="btn btn-outline-secondary btn-sm filters-reset" type="button" id="resetFilters" title="Сбросить фильтры"><i class="bi bi-x-circle me-1"></i> Сбросить</button>
+      <form method="get" class="row g-2 align-items-end" id="userFiltersForm">
+        <div class="col-md-2 col-xl-auto">
+          <label class="form-label">Логин</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="filterUsername" name="username" value="{{ filters.username }}" class="form-control" placeholder="username"/>
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterUsername" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-2 col-xl-auto">
+          <label class="form-label">Имя/Фамилия</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="filterName" name="name" value="{{ filters.name }}" class="form-control" placeholder="Иван"/>
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterName" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-3 col-xl-auto">
+          <label class="form-label">Email</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="filterEmail" name="email" value="{{ filters.email }}" class="form-control" placeholder="user@example.com"/>
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterEmail" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-2 col-xl-auto">
+          <label class="form-label">Телефон</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="filterPhone" name="phone" value="{{ filters.phone }}" class="form-control" placeholder="+7..."/>
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterPhone" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-auto">
+          <label class="form-label">Регистрация</label>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control form-control-sm" style="max-width:150px"/>
+            <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control form-control-sm" style="max-width:150px"/>
+          </div>
+        </div>
+        <div class="col-md-auto d-flex align-items-end gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="hasCars" name="has_cars" value="1" {% if filters.has_cars == '1' %}checked{% endif %}>
+            <label class="form-check-label" for="hasCars">Только с авто</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="hasActiveAppts" name="has_active_appts" value="1" {% if filters.has_active_appts == '1' %}checked{% endif %}>
+            <label class="form-check-label" for="hasActiveAppts">С активными</label>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Список пользователей</strong>
+      <div class="text-muted small">Всего: {{ page_obj.paginator.count }}</div>
+    </div>
+    <div class="p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Пользователь</th>
+              <th>Email</th>
+              <th>Телефон</th>
+              <th class="text-center">Авто</th>
+              <th class="text-center">Записей</th>
+              <th class="text-center">Активных</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% if page_obj.object_list %}
+            {% for u in page_obj.object_list %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% if u.avatar_url %}
+                  <img src="{{ u.avatar_url }}" class="rounded-circle" width="32" height="32" alt="avatar"/>
+                  {% else %}
+                  <span class="badge rounded-pill bg-secondary">{{ u.username|first|upper }}</span>
+                  {% endif %}
+                  <div>
+                    <div class="fw-semibold">{{ u.get_full_name|default:u.username }}</div>
+                    <div class="text-muted small">@{{ u.username }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-muted">{{ u.email }}</td>
+              <td class="text-muted">{{ u.userprofile.phone|default:'—' }}</td>
+              <td class="text-center">{{ u.cars_count }}</td>
+              <td class="text-center">{{ u.appts_count }}</td>
+              <td class="text-center">{{ u.active_appts_count }}</td>
+              <td class="text-end">
+                <a href="{% url 'admin_panel:admin_user_detail' u.id %}" class="btn btn-outline-primary btn-sm">Открыть</a>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Пользователи не найдены</td></tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="p-3">
+        <ul class="pagination justify-content-end mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.username %}&username={{ filters.username }}{% endif %}{% if filters.name %}&name={{ filters.name }}{% endif %}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.phone %}&phone={{ filters.phone }}{% endif %}{% if filters.has_cars %}&has_cars=1{% endif %}{% if filters.has_active_appts %}&has_active_appts=1{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">&laquo;</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+
+          {% for i in page_obj.paginator.page_range %}
+            {% if i >= page_obj.number|add:'-2' and i <= page_obj.number|add:'2' %}
+              {% if page_obj.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+              {% else %}
+                <li class="page-item"><a class="page-link" href="?page={{ i }}{% if filters.username %}&username={{ filters.username }}{% endif %}{% if filters.name %}&name={{ filters.name }}{% endif %}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.phone %}&phone={{ filters.phone }}{% endif %}{% if filters.has_cars %}&has_cars=1{% endif %}{% if filters.has_active_appts %}&has_active_appts=1{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">{{ i }}</a></li>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filters.username %}&username={{ filters.username }}{% endif %}{% if filters.name %}&name={{ filters.name }}{% endif %}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.phone %}&phone={{ filters.phone }}{% endif %}{% if filters.has_cars %}&has_cars=1{% endif %}{% if filters.has_active_appts %}&has_active_appts=1{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">&raquo;</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const form = document.getElementById('userFiltersForm');
+    const resetBtn = document.getElementById('resetFilters');
+
+    function submit(){ form.submit(); }
+    function submitOnEnter(e){ if (e.key === 'Enter') { e.preventDefault(); submit(); } }
+    function debounce(fn, delay){ let t; return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), delay); }; }
+    const debouncedSubmit = debounce(submit, 500);
+
+    if (form) {
+      form.querySelectorAll('input[type="date"]').forEach(el => el.addEventListener('change', submit));
+      form.querySelectorAll('input[type="checkbox"]').forEach(el => el.addEventListener('change', submit));
+      form.querySelectorAll('input[type="text"]').forEach(el => {
+        el.addEventListener('keydown', submitOnEnter);
+        el.addEventListener('input', debouncedSubmit);
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function(){
+        form.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+        form.querySelectorAll('input[type="date"]').forEach(el => el.value = '');
+        form.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+        submit();
+      });
+    }
+
+    document.querySelectorAll('.btn-clear-input').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input){ input.value = ''; submit(); }
+      });
+    });
+  });
+</script>
+{% endblock %}

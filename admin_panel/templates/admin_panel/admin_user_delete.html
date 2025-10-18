@@ -1,0 +1,15 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Удаление пользователя — Администратор{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="h4">Удалить пользователя: {{ user_obj.username }}</h1>
+  <p>Вы действительно хотите удалить пользователя <strong>{{ user_obj.get_full_name|default:user_obj.username }}</strong>? Это действие нельзя отменить.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger" type="submit"><i class="bi bi-trash me-1"></i> Удалить</button>
+    <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary">Отмена</a>
+  </form>
+</div>
+{% endblock %}

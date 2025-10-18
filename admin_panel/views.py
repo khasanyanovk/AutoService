@@ -10,6 +10,7 @@ from core.models import (
     Appointment,
     WorkingHours,
     ServiceCenter,
+    UserProfile,
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -21,6 +22,8 @@ from datetime import datetime, timedelta
 from .decorators import admin_required
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.contrib.auth.models import User
+from core.forms import UserUpdateForm, ProfileUpdateForm
 
 
 @login_required
@@ -120,13 +123,251 @@ def admin_dashboard(request):
 
 @login_required
 @admin_required
+def admin_users(request):
+    """Список пользователей: поиск по полям и дополнительные фильтры, пагинация"""
+    username = request.GET.get("username", "").strip()
+    name = request.GET.get("name", "").strip()
+    email = request.GET.get("email", "").strip()
+    phone = request.GET.get("phone", "").strip()
+    has_cars = request.GET.get("has_cars")
+    has_active_appts = request.GET.get("has_active_appts")
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+
+    qs = (
+        User.objects.all()
+        .select_related("userprofile")
+        .annotate(
+            cars_count=Count("car", distinct=True),
+            appts_count=Count("car__appointment", distinct=True),
+            active_appts_count=Count(
+                "car__appointment",
+                filter=Q(car__appointment__status__in=["SCHEDULED", "IN_PROGRESS"]),
+                distinct=True,
+            ),
+        )
+    )
+
+    if username:
+        qs = qs.filter(username__icontains=username)
+    if name:
+        qs = qs.filter(Q(first_name__icontains=name) | Q(last_name__icontains=name))
+    if email:
+        qs = qs.filter(email__icontains=email)
+    if phone:
+        qs = qs.filter(userprofile__phone__icontains=phone)
+    if has_cars == "1":
+        qs = qs.filter(cars_count__gt=0)
+    if has_active_appts == "1":
+        qs = qs.filter(active_appts_count__gt=0)
+    if date_from:
+        qs = qs.filter(date_joined__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(date_joined__date__lte=date_to)
+
+    qs = qs.order_by("username")
+
+    page = request.GET.get("page", 1)
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(page)
+
+    # Подготовим безопасные ссылки на аватары (не у всех есть профиль)
+    for u in page_obj.object_list:
+        avatar_url = ""
+        try:
+            if hasattr(u, "userprofile") and u.userprofile and u.userprofile.avatar:
+                avatar_url = u.userprofile.avatar.url
+        except Exception:
+            avatar_url = ""
+        setattr(u, "avatar_url", avatar_url)
+
+    filters = {
+        "username": username,
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "has_cars": has_cars or "",
+        "has_active_appts": has_active_appts or "",
+        "date_from": date_from or "",
+        "date_to": date_to or "",
+    }
+
+    return render(
+        request,
+        "admin_panel/admin_users.html",
+        {"page_obj": page_obj, "filters": filters},
+    )
+
+
+@login_required
+@admin_required
+def admin_user_detail(request, user_id):
+    """Детальный просмотр пользователя"""
+    user = get_object_or_404(User.objects.select_related("userprofile"), id=user_id)
+
+    user_appointments = (
+        Appointment.objects.filter(car__owner=user)
+        .select_related("service_center", "service_type", "car")
+        .order_by("-scheduled_date", "-scheduled_time")
+    )
+    total_appointments = user_appointments.count()
+    last_appointment = user_appointments.first()
+    recent_appointments = list(user_appointments[:5])
+
+    avatar_url = ""
+    try:
+        if (
+            hasattr(user, "userprofile")
+            and user.userprofile
+            and user.userprofile.avatar
+        ):
+            avatar_url = user.userprofile.avatar.url
+    except Exception:
+        avatar_url = ""
+
+    resp = render(
+        request,
+        "admin_panel/admin_user_detail.html",
+        {
+            "user_obj": user,
+            "total_appointments": total_appointments,
+            "last_appointment": last_appointment,
+            "recent_appointments": recent_appointments,
+            "avatar_url": avatar_url,
+        },
+    )
+    return resp
+
+
+@login_required
+@admin_required
+def admin_user_edit(request, user_id):
+    """Редактирование профиля пользователя (User + UserProfile)"""
+    user = get_object_or_404(User, id=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    if request.method == "POST":
+        u_form = UserUpdateForm(request.POST, instance=user)
+        p_form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            messages.success(request, "Профиль обновлён")
+            return redirect("admin_panel:admin_user_detail", user_id=user.id)
+    else:
+        u_form = UserUpdateForm(instance=user)
+        p_form = ProfileUpdateForm(instance=profile)
+
+    return render(
+        request,
+        "admin_panel/admin_user_edit.html",
+        {"u_form": u_form, "p_form": p_form, "user_obj": user},
+    )
+
+
+@login_required
+@admin_required
+def admin_user_delete(request, user_id):
+    """Удаление пользователя с подтверждением"""
+    user = get_object_or_404(User, id=user_id)
+
+    if request.method == "POST":
+        username = user.username
+        user.delete()
+        messages.success(request, f"Пользователь {username} удалён")
+        return redirect("admin_panel:admin_users")
+
+    return render(
+        request,
+        "admin_panel/admin_user_delete.html",
+        {"user_obj": user},
+    )
+
+
+@login_required
+@admin_required
+def admin_user_stats(request, user_id):
+    """Расширенная статистика пользователя: графики и агрегаты"""
+    user = get_object_or_404(User, id=user_id)
+
+    appts = (
+        Appointment.objects.filter(car__owner=user)
+        .select_related("service_type", "service_center")
+        .order_by("scheduled_date")
+    )
+
+    today = timezone.localtime(timezone.now()).date()
+    start = today - timedelta(days=89)
+    appts_range = appts.filter(scheduled_date__gte=start, scheduled_date__lte=today)
+    by_date = (
+        appts_range.values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+    labels = []
+    data = []
+    current = start
+    by_date_map = {row["scheduled_date"]: row["count"] for row in by_date}
+    while current <= today:
+        labels.append(current.strftime("%d.%m"))
+        data.append(by_date_map.get(current, 0))
+        current += timedelta(days=1)
+
+    top_services_qs = (
+        appts.values("service_type__name")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
+    )
+    top_services_labels = [r["service_type__name"] for r in top_services_qs]
+    top_services_data = [r["count"] for r in top_services_qs]
+
+    top_centers_qs = (
+        appts.values("service_center__address")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
+    )
+    top_centers_labels = [r["service_center__address"] for r in top_centers_qs]
+    top_centers_data = [r["count"] for r in top_centers_qs]
+
+    completed_qs = appts.filter(status="COMPLETED")
+    total_cost = sum(a.service_type.price for a in completed_qs)
+
+    weekday_counts = [0] * 7
+    for row in appts.values("scheduled_date").annotate(count=Count("id")):
+        wd = row["scheduled_date"].isoweekday()
+        weekday_counts[(wd - 1) % 7] += row["count"]
+    weekday_labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+    hour_counts = [0] * 24
+    for row in appts.values("scheduled_time").annotate(count=Count("id")):
+        hour = row["scheduled_time"].hour
+        hour_counts[hour] += row["count"]
+
+    context = {
+        "user_obj": user,
+        "labels": json.dumps(labels, ensure_ascii=False),
+        "data": json.dumps(data, ensure_ascii=False),
+        "top_services_labels": json.dumps(top_services_labels, ensure_ascii=False),
+        "top_services_data": json.dumps(top_services_data, ensure_ascii=False),
+        "top_centers_labels": json.dumps(top_centers_labels, ensure_ascii=False),
+        "top_centers_data": json.dumps(top_centers_data, ensure_ascii=False),
+        "total_cost": float(total_cost),
+        "weekday_labels": json.dumps(weekday_labels, ensure_ascii=False),
+        "weekday_data": json.dumps(weekday_counts, ensure_ascii=False),
+        "hour_data": json.dumps(hour_counts, ensure_ascii=False),
+    }
+
+    return render(request, "admin_panel/admin_user_stats.html", context)
+
+
+@login_required
+@admin_required
 def admin_appointments(request):
     """Страница управления всеми записями: фильтры, список, быстрые действия"""
     qs = Appointment.objects.select_related(
         "service_center", "car", "car__owner", "service_type"
     ).all()
 
-    # Фильтры
     branch = request.GET.get("branch")
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")

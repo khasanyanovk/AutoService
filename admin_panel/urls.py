@@ -6,6 +6,27 @@ app_name = "admin_panel"
 urlpatterns = [
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("admin-branches/", views.admin_branches, name="admin_branches"),
+    path("admin-users/", views.admin_users, name="admin_users"),
+    path(
+        "admin-user/<int:user_id>/",
+        views.admin_user_detail,
+        name="admin_user_detail",
+    ),
+    path(
+        "admin-user/<int:user_id>/edit/",
+        views.admin_user_edit,
+        name="admin_user_edit",
+    ),
+    path(
+        "admin-user/<int:user_id>/stats/",
+        views.admin_user_stats,
+        name="admin_user_stats",
+    ),
+    path(
+        "admin-user/<int:user_id>/delete/",
+        views.admin_user_delete,
+        name="admin_user_delete",
+    ),
     path(
         "admin-dashboard/service-center/<uuid:service_center_id>/",
         views.admin_service_center_detail,
