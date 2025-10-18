@@ -14,9 +14,7 @@ from core.models import (
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from core.forms import (
-    ServiceCenterEditForm,
-)
+from admin_panel.forms import ServiceCenterEditForm
 from django.http import JsonResponse
 from datetime import datetime, timedelta
 from .decorators import admin_required
