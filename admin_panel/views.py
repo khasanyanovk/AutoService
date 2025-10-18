@@ -276,33 +276,19 @@ def admin_service_center_detail(request, service_center_id):
 
     todays_schedule = []
     if working_hours and working_hours.is_working:
-        all_slots = generate_time_slots(
-            working_hours.start_time, working_hours.end_time
-        )
-
         now = timezone.localtime(timezone.now())
-        if selected_date == now.date():
-            all_slots = [
-                s
-                for s in all_slots
-                if datetime.strptime(s, "%H:%M").time()
-                > (now + timedelta(minutes=0)).time()
-            ]
-
-        day_appointments = (
-            Appointment.objects.filter(
-                scheduled_date=selected_date,
-                service_center=service_center,
-                status__in=["SCHEDULED", "IN_PROGRESS"],
+        if selected_date < now.date():
+            # Past date: only completed services
+            day_appointments = (
+                Appointment.objects.filter(
+                    scheduled_date=selected_date,
+                    service_center=service_center,
+                    status__in=["COMPLETED"],
+                )
+                .select_related("car", "service_type", "car__owner")
+                .order_by("scheduled_time")
             )
-            .select_related("car", "service_type", "car__owner")
-            .order_by("scheduled_time")
-        )
-
-        last_app_id = None
-        for slot in all_slots:
-            slot_time = datetime.strptime(slot, "%H:%M").time()
-            matched = None
+            # Past date: show only performed/scheduled services (busy blocks), no free slots
             for a in day_appointments:
                 end_t = a.end_time
                 if not end_t and a.service_type and a.service_type.duration:
@@ -312,37 +298,82 @@ def admin_service_center_detail(request, service_center_id):
                     ).time()
                 if not end_t:
                     end_t = a.scheduled_time
+                todays_schedule.append(
+                    {
+                        "busy": True,
+                        "start": a.scheduled_time.strftime("%H:%M"),
+                        "end": end_t.strftime("%H:%M"),
+                        "title": f"{a.service_type.name} — {a.car}",
+                        "status": a.status,
+                        "appointment_id": str(a.id),
+                    }
+                )
+        else:
+            # Today or future: include busy blocks and free slots (for today: only in the future)
+            day_appointments = (
+                Appointment.objects.filter(
+                    scheduled_date=selected_date,
+                    service_center=service_center,
+                    status__in=["SCHEDULED", "IN_PROGRESS"],
+                )
+                .select_related("car", "service_type", "car__owner")
+                .order_by("scheduled_time")
+            )
+            all_slots = generate_time_slots(
+                working_hours.start_time, working_hours.end_time
+            )
+            if selected_date == now.date():
+                all_slots = [
+                    s
+                    for s in all_slots
+                    if datetime.strptime(s, "%H:%M").time()
+                    > (now + timedelta(minutes=0)).time()
+                ]
 
-                if a.scheduled_time <= slot_time < end_t:
-                    matched = a
-                    break
-            if matched:
-                if str(matched.id) != str(last_app_id):
-                    end_t = matched.end_time
-                    if (
-                        not end_t
-                        and matched.service_type
-                        and matched.service_type.duration
-                    ):
+            last_app_id = None
+            for slot in all_slots:
+                slot_time = datetime.strptime(slot, "%H:%M").time()
+                matched = None
+                for a in day_appointments:
+                    end_t = a.end_time
+                    if not end_t and a.service_type and a.service_type.duration:
                         end_t = (
-                            datetime.combine(selected_date, matched.scheduled_time)
-                            + timedelta(minutes=matched.service_type.duration)
+                            datetime.combine(selected_date, a.scheduled_time)
+                            + timedelta(minutes=a.service_type.duration)
                         ).time()
                     if not end_t:
-                        end_t = matched.scheduled_time
-                    todays_schedule.append(
-                        {
-                            "busy": True,
-                            "start": matched.scheduled_time.strftime("%H:%M"),
-                            "end": end_t.strftime("%H:%M"),
-                            "title": f"{matched.service_type.name} — {matched.car}",
-                            "status": matched.status,
-                            "appointment_id": str(matched.id),
-                        }
-                    )
-                    last_app_id = str(matched.id)
-            else:
-                todays_schedule.append({"time": slot, "busy": False})
+                        end_t = a.scheduled_time
+
+                    if a.scheduled_time <= slot_time < end_t:
+                        matched = a
+                        break
+                if matched:
+                    if str(matched.id) != str(last_app_id):
+                        end_t = matched.end_time
+                        if (
+                            not end_t
+                            and matched.service_type
+                            and matched.service_type.duration
+                        ):
+                            end_t = (
+                                datetime.combine(selected_date, matched.scheduled_time)
+                                + timedelta(minutes=matched.service_type.duration)
+                            ).time()
+                        if not end_t:
+                            end_t = matched.scheduled_time
+                        todays_schedule.append(
+                            {
+                                "busy": True,
+                                "start": matched.scheduled_time.strftime("%H:%M"),
+                                "end": end_t.strftime("%H:%M"),
+                                "title": f"{matched.service_type.name} — {matched.car}",
+                                "status": matched.status,
+                                "appointment_id": str(matched.id),
+                            }
+                        )
+                        last_app_id = str(matched.id)
+                else:
+                    todays_schedule.append({"time": slot, "busy": False})
 
     if period == "month":
         chart_start = today - timedelta(days=29)
@@ -463,16 +494,42 @@ def admin_api_day_schedule(request, service_center_id):
     if not working_hours.is_working:
         return JsonResponse({"slots": []})
 
-    all_slots = generate_time_slots(working_hours.start_time, working_hours.end_time)
     now = timezone.localtime(timezone.now())
-    if selected_date == now.date():
-        all_slots = [
-            s
-            for s in all_slots
-            if datetime.strptime(s, "%H:%M").time()
-            > (now + timedelta(minutes=0)).time()
-        ]
 
+    # Past date: return only busy entries (completed services)
+    if selected_date < now.date():
+        day_appointments = (
+            Appointment.objects.filter(
+                scheduled_date=selected_date,
+                service_center=service_center,
+                status__in=["COMPLETED"],
+            )
+            .select_related("car", "service_type", "car__owner")
+            .order_by("scheduled_time")
+        )
+        slots = []
+        for a in day_appointments:
+            end_t = a.end_time
+            if not end_t and a.service_type and a.service_type.duration:
+                end_t = (
+                    datetime.combine(selected_date, a.scheduled_time)
+                    + timedelta(minutes=a.service_type.duration)
+                ).time()
+            if not end_t:
+                end_t = a.scheduled_time
+            slots.append(
+                {
+                    "busy": True,
+                    "start": a.scheduled_time.strftime("%H:%M"),
+                    "end": end_t.strftime("%H:%M"),
+                    "title": f"{a.service_type.name} — {a.car}",
+                    "status": a.status,
+                    "appointment_id": str(a.id),
+                }
+            )
+        return JsonResponse({"slots": slots})
+
+    # Today or future: include future free slots (today) and busy blocks
     day_appointments = (
         Appointment.objects.filter(
             scheduled_date=selected_date,
@@ -482,6 +539,14 @@ def admin_api_day_schedule(request, service_center_id):
         .select_related("car", "service_type", "car__owner")
         .order_by("scheduled_time")
     )
+    all_slots = generate_time_slots(working_hours.start_time, working_hours.end_time)
+    if selected_date == now.date():
+        all_slots = [
+            s
+            for s in all_slots
+            if datetime.strptime(s, "%H:%M").time()
+            > (now + timedelta(minutes=0)).time()
+        ]
 
     slots = []
     last_app_id = None
