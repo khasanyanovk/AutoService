@@ -1,11 +1,8 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import IntegrityError
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Count
-from django.db.models.functions import ExtractWeekDay
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-import json
 from .models import (
     CarModel,
     UserProfile,
@@ -232,11 +229,27 @@ def service_booking(request):
             except Exception as e:
                 messages.error(request, f"Ошибка при создании записи: {str(e)}")
         else:
+            # Не теряем состояние: покажем ошибки и вернем выбранные значения в шаблон
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{error}")
     else:
         form = AppointmentForm(user=request.user)
+
+    # Восстанавливаем выбранные значения (если POST был невалиден)
+    selected_service_center = (
+        request.POST.get("service_center") if request.method == "POST" else ""
+    )
+    selected_service_type = (
+        request.POST.get("service_type") if request.method == "POST" else ""
+    )
+    selected_date_val = (
+        request.POST.get("scheduled_date") if request.method == "POST" else ""
+    )
+    selected_time_val = (
+        request.POST.get("scheduled_time") if request.method == "POST" else ""
+    )
+    notes_val = request.POST.get("notes") if request.method == "POST" else ""
 
     service_centers = ServiceCenter.objects.all()
     context = {
@@ -244,6 +257,12 @@ def service_booking(request):
         "service_centers": service_centers,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
+        # значения для восстановления UI
+        "selected_service_center": selected_service_center,
+        "selected_service_type": selected_service_type,
+        "selected_date_val": selected_date_val,
+        "selected_time_val": selected_time_val,
+        "notes_val": notes_val,
     }
     return render(request, "core/service_booking.html", context)
 

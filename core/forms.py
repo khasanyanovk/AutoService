@@ -313,15 +313,34 @@ class AppointmentForm(forms.Form):
             if not (start_datetime <= scheduled_datetime <= end_datetime):
                 raise ValidationError("Выбранное время вне рабочего времени.")
 
+            # Дополнительно проверим, что услуга полностью укладывается в рабочие часы
+            if (
+                scheduled_datetime + timedelta(minutes=service_type.duration)
+                > end_datetime
+            ):
+                raise ValidationError(
+                    "Выбранная услуга не успевает завершиться до конца рабочего дня. Выберите более раннее время."
+                )
+
             start_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
             end_time_obj = (
                 scheduled_datetime + timedelta(minutes=service_type.duration)
             ).time()
 
-            conflicting_appointments = Appointment.objects.filter(
+            # Проверяем занятость только в выбранном филиале и корректно определяем пересечение интервалов
+            # Пересечение, если (existing.start < new.end) и (existing.end > new.start)
+            service_center = cleaned_data.get("service_center")
+            qs = Appointment.objects.filter(
                 scheduled_date=scheduled_date,
                 status__in=["SCHEDULED", "IN_PROGRESS"],
-            ).exclude(scheduled_time__gte=end_time_obj, end_time__lte=start_time_obj)
+            )
+            if service_center:
+                qs = qs.filter(service_center=service_center)
+
+            conflicting_appointments = qs.filter(
+                scheduled_time__lt=end_time_obj,
+                end_time__gt=start_time_obj,
+            )
 
             if conflicting_appointments.exists():
                 raise ValidationError(
