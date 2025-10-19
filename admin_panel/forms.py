@@ -2,6 +2,7 @@ from django import forms
 from django.core.validators import RegexValidator
 
 from core.models import ServiceCenter
+from core.models import ServiceType
 
 
 class ServiceCenterEditForm(forms.ModelForm):
@@ -41,3 +42,50 @@ class ServiceCenterEditForm(forms.ModelForm):
         if len(text) < 3:
             raise forms.ValidationError("Заполните часы работы")
         return text
+
+
+class ServiceTypeForm(forms.ModelForm):
+    class Meta:
+        model = ServiceType
+        fields = [
+            "name",
+            "description",
+            "duration",
+            "price",
+            "service_center",
+            "is_active",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "duration": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
+            "price": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": 0}
+            ),
+            "service_center": forms.Select(attrs={"class": "form-select"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+class ServiceTypeBaseCreateForm(forms.Form):
+    name = forms.CharField(
+        label="Название услуги",
+        max_length=200,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    description = forms.CharField(
+        label="Описание",
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )
+    duration = forms.IntegerField(
+        label="Продолжительность (мин)",
+        min_value=1,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+    is_active = forms.BooleanField(
+        label="Активна",
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )

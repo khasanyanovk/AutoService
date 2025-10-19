@@ -22,6 +22,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.auth.models import User
 from core.forms import UserUpdateForm, ProfileUpdateForm
+from .forms import ServiceTypeForm, ServiceTypeBaseCreateForm
 
 
 @login_required
@@ -979,4 +980,88 @@ def admin_branches(request):
         request,
         "admin_panel/admin_branches.html",
         {"service_centers": service_centers},
+    )
+
+
+@login_required
+@admin_required
+def admin_services(request):
+    """Список всех услуг по всем филиалам"""
+    services = (
+        ServiceType.objects.select_related("service_center")
+        .all()
+        .order_by("name", "service_center__address")
+    )
+    return render(
+        request,
+        "admin_panel/admin_services.html",
+        {"services": services},
+    )
+
+
+@login_required
+@admin_required
+def admin_service_edit(request, service_id):
+    """Редактирование конкретной услуги (в рамках одного филиала)"""
+    service = get_object_or_404(ServiceType, id=service_id)
+    if request.method == "POST":
+        form = ServiceTypeForm(request.POST, instance=service)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Услуга обновлена")
+            return redirect("admin_panel:admin_services")
+    else:
+        form = ServiceTypeForm(instance=service)
+    return render(
+        request,
+        "admin_panel/admin_service_edit.html",
+        {"form": form, "service": service},
+    )
+
+
+@login_required
+@admin_required
+def admin_service_create(request):
+    """Создание новой услуги: выбрать филиалы и задать цену для каждого"""
+    centers = ServiceCenter.objects.all().order_by("address")
+    if request.method == "POST":
+        base_form = ServiceTypeBaseCreateForm(request.POST)
+        center_prices = {}
+        for c in centers:
+            key = f"price_{c.id}"
+            val = request.POST.get(key)
+            if val is not None and val != "":
+                try:
+                    price = float(val)
+                except ValueError:
+                    price = None
+                selected = request.POST.get(f"center_{c.id}") == "on"
+                center_prices[str(c.id)] = {"selected": selected, "price": price}
+        if base_form.is_valid():
+            created = 0
+            for c in centers:
+                cp = center_prices.get(str(c.id))
+                if not cp or not cp["selected"]:
+                    continue
+                ServiceType.objects.create(
+                    name=base_form.cleaned_data["name"],
+                    description=base_form.cleaned_data.get("description", ""),
+                    duration=base_form.cleaned_data["duration"],
+                    price=cp["price"] or 0,
+                    service_center=c,
+                    is_active=base_form.cleaned_data.get("is_active", True),
+                )
+                created += 1
+            messages.success(
+                request,
+                f"Создано {created} записей услуги по филиалам",
+            )
+            return redirect("admin_panel:admin_services")
+    else:
+        base_form = ServiceTypeBaseCreateForm()
+
+    return render(
+        request,
+        "admin_panel/admin_service_create.html",
+        {"base_form": base_form, "centers": centers},
     )

@@ -7,6 +7,17 @@ urlpatterns = [
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("admin-branches/", views.admin_branches, name="admin_branches"),
     path("admin-users/", views.admin_users, name="admin_users"),
+    path("admin-services/", views.admin_services, name="admin_services"),
+    path(
+        "admin-services/create/",
+        views.admin_service_create,
+        name="admin_service_create",
+    ),
+    path(
+        "admin-services/<uuid:service_id>/edit/",
+        views.admin_service_edit,
+        name="admin_service_edit",
+    ),
     path(
         "admin-user/<int:user_id>/",
         views.admin_user_detail,
