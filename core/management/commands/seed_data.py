@@ -4,7 +4,7 @@ from datetime import time
 
 
 class Command(BaseCommand):
-    help = "Заполняет базу данных тестовыми сервис-центрами и услугами"
+    help = "Заполняет базу дефолтными сервис-центрами, рабочими часами (с обедом) и услугами"
 
     def handle(self, *args, **options):
         self.stdout.write("Начало заполнения базы данных...")
@@ -49,6 +49,10 @@ class Command(BaseCommand):
                 defaults={
                     "phone": center_data["phone"],
                     "opening_hours": center_data["opening_hours"],
+                    # Файл по умолчанию, если нужен кастом — можно заменить строку ниже
+                    "photo": center_data.get(
+                        "photo", "service_centers/default_service_center.jpg"
+                    ),
                 },
             )
             if created:
@@ -61,31 +65,52 @@ class Command(BaseCommand):
                     self.style.WARNING(f"Сервис-центр уже существует: {center.address}")
                 )
 
-        working_hours_data = [
-            (1, time(9, 0), time(18, 0), True),
-            (2, time(9, 0), time(18, 0), True),
-            (3, time(9, 0), time(18, 0), True),
-            (4, time(9, 0), time(18, 0), True),
-            (5, time(9, 0), time(18, 0), True),
-            (6, time(10, 0), time(16, 0), True),
-            (7, time(0, 0), time(0, 0), False),
+        # Расписание по умолчанию на неделю (Пн-Вс)
+        default_working_hours = [
+            (1, time(9, 0), time(18, 0), True),  # Пн
+            (2, time(9, 0), time(18, 0), True),  # Вт
+            (3, time(9, 0), time(18, 0), True),  # Ср
+            (4, time(9, 0), time(18, 0), True),  # Чт
+            (5, time(9, 0), time(18, 0), True),  # Пт
+            (6, time(10, 0), time(16, 0), True),  # Сб (короче)
+            (7, time(0, 0), time(0, 0), False),  # Вс (выходной)
         ]
 
-        for day, start, end, is_working in working_hours_data:
-            wh, created = WorkingHours.objects.get_or_create(
-                day_of_week=day,
-                defaults={
-                    "start_time": start,
-                    "end_time": end,
-                    "is_working": is_working,
-                },
-            )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Созданы рабочие часы для {wh.get_day_of_week_display()}"
-                    )
+        def default_lunch_for(day: int, is_working: bool):
+            """Возвращает (lunch_start, lunch_end) по умолчанию для дня недели.
+            Для будней — 13:00-14:00, для субботы — 13:00-13:30, для выходного — None.
+            """
+            if not is_working:
+                return None, None
+            if day in (1, 2, 3, 4, 5):
+                return time(13, 0), time(14, 0)
+            if day == 6:
+                return time(13, 0), time(13, 30)
+            return None, None
+
+        # Создаём рабочие часы для КАЖДОГО филиала (персонально), если отсутствуют
+        wh_created_total = 0
+        for center in ServiceCenter.objects.all():
+            for day, start, end, is_working in default_working_hours:
+                lunch_start, lunch_end = default_lunch_for(day, is_working)
+                wh, created = WorkingHours.objects.get_or_create(
+                    service_center=center,
+                    day_of_week=day,
+                    defaults={
+                        "start_time": start,
+                        "end_time": end,
+                        "is_working": is_working,
+                        "lunch_start": lunch_start,
+                        "lunch_end": lunch_end,
+                    },
                 )
+                if created:
+                    wh_created_total += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"[{center.address}] добавлен график: {wh.get_day_of_week_display()} {wh.start_time}-{wh.end_time}"
+                        )
+                    )
 
         services_data = [
             {
@@ -177,6 +202,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Успешно создано {len(created_centers)} сервис-центров и {total_services_created} услуг!"
+                f"Успешно создано {len(created_centers)} сервис-центров, {wh_created_total} записей рабочего времени и {total_services_created} услуг!"
             )
         )
