@@ -296,8 +296,11 @@ class AppointmentForm(forms.Form):
                         "Нельзя записаться на уже прошедшее время сегодня."
                     )
             day_of_week = scheduled_date.isoweekday()
+            service_center = cleaned_data.get("service_center")
             try:
-                working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
+                working_hours = WorkingHours.objects.get(
+                    service_center=service_center, day_of_week=day_of_week
+                )
                 if not working_hours.is_working:
                     raise ValidationError("Выбранная дата не является рабочим днем.")
             except WorkingHours.DoesNotExist:
@@ -325,7 +328,20 @@ class AppointmentForm(forms.Form):
                 scheduled_datetime + timedelta(minutes=service_type.duration)
             ).time()
 
-            service_center = cleaned_data.get("service_center")
+            if working_hours.lunch_start and working_hours.lunch_end:
+                lunch_start_dt = datetime.combine(
+                    scheduled_date, working_hours.lunch_start
+                )
+                lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
+                if not (
+                    scheduled_datetime >= lunch_end_dt
+                    or (scheduled_datetime + timedelta(minutes=service_type.duration))
+                    <= lunch_start_dt
+                ):
+                    raise ValidationError(
+                        "Выбранное время попадает на обеденный перерыв."
+                    )
+
             qs = Appointment.objects.filter(
                 scheduled_date=scheduled_date,
                 status__in=["SCHEDULED", "IN_PROGRESS"],

@@ -248,11 +248,19 @@ class WorkingHours(models.Model):
         (7, "Воскресенье"),
     ]
 
-    day_of_week = models.IntegerField(
-        choices=DAYS_OF_WEEK, unique=True, verbose_name="День недели"
+    service_center = models.ForeignKey(
+        ServiceCenter,
+        on_delete=models.CASCADE,
+        related_name="working_hours",
+        verbose_name="Автосервис",
+        null=True,
+        blank=True,
     )
+    day_of_week = models.IntegerField(choices=DAYS_OF_WEEK, verbose_name="День недели")
     start_time = models.TimeField(verbose_name="Время начала работы")
     end_time = models.TimeField(verbose_name="Время окончания работы")
+    lunch_start = models.TimeField(blank=True, null=True, verbose_name="Начало обеда")
+    lunch_end = models.TimeField(blank=True, null=True, verbose_name="Окончание обеда")
     is_working = models.BooleanField(default=True, verbose_name="Рабочий день")
 
     def __str__(self):
@@ -261,6 +269,7 @@ class WorkingHours(models.Model):
     class Meta:
         verbose_name = "Рабочее время"
         verbose_name_plural = "Рабочее время"
+        unique_together = ("service_center", "day_of_week")
 
 
 class AdminDashboard(models.Model):

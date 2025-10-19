@@ -44,6 +44,30 @@ class ServiceCenterEditForm(forms.ModelForm):
         return text
 
 
+class ServiceCenterCreateForm(ServiceCenterEditForm):
+    """Создание филиала: те же поля, что и в редактировании"""
+
+    class Meta(ServiceCenterEditForm.Meta):
+        fields = ["address", "phone", "opening_hours", "photo"]
+
+
+class BranchWorkingHoursForm(forms.Form):
+    """Упрощённый ввод рабочего времени в одном текстовом поле"""
+
+    opening_hours = forms.CharField(
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Напр.: Пн-Пт 9:00-18:00"}
+        ),
+        label="Время работы",
+    )
+
+
+class BranchServicesSelectionForm(forms.Form):
+    """Выбор услуг для филиала после создания, с ценой и длительностью"""
+
+    pass
+
+
 class ServiceTypeForm(forms.ModelForm):
     class Meta:
         model = ServiceType

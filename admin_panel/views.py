@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Count
+from django.db.models import Count, Min
 from django.db.models.functions import ExtractWeekDay
 from django.utils import timezone
 import json
@@ -577,7 +577,9 @@ def admin_service_center_detail(request, service_center_id):
         weekday_data.append(stat["count"])
 
     try:
-        working_hours = WorkingHours.objects.get(day_of_week=selected_date.isoweekday())
+        working_hours = WorkingHours.objects.get(
+            day_of_week=selected_date.isoweekday(), service_center=service_center
+        )
     except WorkingHours.DoesNotExist:
         working_hours = None
 
@@ -624,7 +626,10 @@ def admin_service_center_detail(request, service_center_id):
                 .order_by("scheduled_time")
             )
             all_slots = generate_time_slots(
-                working_hours.start_time, working_hours.end_time
+                working_hours.start_time,
+                working_hours.end_time,
+                lunch_start=working_hours.lunch_start,
+                lunch_end=working_hours.lunch_end,
             )
             if selected_date == now.date():
                 all_slots = [
@@ -778,6 +783,134 @@ def admin_service_center_edit(request, service_center_id):
 
 @login_required
 @admin_required
+def admin_service_center_delete(request, service_center_id):
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+    if request.method == "POST":
+        appts = Appointment.objects.filter(service_center=service_center)
+        for a in appts:
+            a.status = "CANCELLED"
+            a.save(update_fields=["status", "updated_at"])
+        service_center.delete()
+        messages.success(request, "Филиал удалён. Все записи в этом филиале отменены.")
+        return redirect("admin_panel:admin_branches")
+    return render(
+        request,
+        "admin_panel/admin_service_center_delete.html",
+        {"service_center": service_center},
+    )
+
+
+@login_required
+@admin_required
+def admin_service_center_create(request):
+    """Создание нового филиала с выбором услуг для него"""
+    base_services = (
+        ServiceType.objects.values("name")
+        .annotate(default_duration=Min("duration"), default_price=Min("price"))
+        .order_by("name")
+    )
+
+    if request.method == "POST":
+        form = ServiceCenterEditForm(request.POST, request.FILES)
+        if form.is_valid():
+            center = form.save()
+
+            for d in range(1, 8):
+                start = request.POST.get(f"wh_{d}_start")
+                end = request.POST.get(f"wh_{d}_end")
+                lstart = request.POST.get(f"wh_{d}_lstart")
+                lend = request.POST.get(f"wh_{d}_lend")
+                work = request.POST.get(f"wh_{d}_work") == "on"
+                if start and end:
+                    WorkingHours.objects.create(
+                        service_center=center,
+                        day_of_week=d,
+                        start_time=start,
+                        end_time=end,
+                        lunch_start=lstart or None,
+                        lunch_end=lend or None,
+                        is_working=work,
+                    )
+
+            try:
+                total_rows = int(request.POST.get("total_rows", "0"))
+            except ValueError:
+                total_rows = 0
+            created = 0
+            for i in range(total_rows):
+                if request.POST.get(f"svc_sel_{i}") != "on":
+                    continue
+                name = request.POST.get(f"svc_name_{i}")
+                duration_val = request.POST.get(f"svc_duration_{i}")
+                price_val = request.POST.get(f"svc_price_{i}")
+                desc_val = request.POST.get(f"svc_desc_{i}") or ""
+                if not name:
+                    continue
+                try:
+                    duration = int(duration_val) if duration_val else None
+                except ValueError:
+                    duration = None
+                try:
+                    price = float(price_val) if price_val else None
+                except ValueError:
+                    price = None
+                ServiceType.objects.create(
+                    name=name,
+                    description=desc_val,
+                    duration=duration or 60,
+                    price=price or 0,
+                    service_center=center,
+                    is_active=True,
+                )
+                created += 1
+
+            messages.success(
+                request,
+                f"Филиал создан. Добавлено услуг: {created}",
+            )
+            return redirect("admin_panel:admin_branches")
+    else:
+        form = ServiceCenterEditForm()
+
+    services_rows = []
+    for idx, row in enumerate(base_services):
+        services_rows.append(
+            {
+                "index": idx,
+                "name": row["name"],
+                "default_duration": row["default_duration"] or 60,
+                "default_price": (
+                    float(row["default_price"])
+                    if row["default_price"] is not None
+                    else 0.0
+                ),
+            }
+        )
+
+    weekdays = [
+        (1, "Пн"),
+        (2, "Вт"),
+        (3, "Ср"),
+        (4, "Чт"),
+        (5, "Пт"),
+        (6, "Сб"),
+        (7, "Вс"),
+    ]
+
+    return render(
+        request,
+        "admin_panel/admin_service_center_create.html",
+        {
+            "form": form,
+            "services_rows": services_rows,
+            "total_rows": len(services_rows),
+            "weekdays": weekdays,
+        },
+    )
+
+
+@login_required
+@admin_required
 def admin_api_day_schedule(request, service_center_id):
     """JSON: расписание по слотам для выбранного дня"""
     date_str = request.GET.get("date")
@@ -793,7 +926,9 @@ def admin_api_day_schedule(request, service_center_id):
     service_center = get_object_or_404(ServiceCenter, id=service_center_id)
 
     try:
-        working_hours = WorkingHours.objects.get(day_of_week=selected_date.isoweekday())
+        working_hours = WorkingHours.objects.get(
+            day_of_week=selected_date.isoweekday(), service_center=service_center
+        )
     except WorkingHours.DoesNotExist:
         return JsonResponse({"slots": []})
 
@@ -851,7 +986,12 @@ def admin_api_day_schedule(request, service_center_id):
         .select_related("car", "service_type", "car__owner")
         .order_by("scheduled_time")
     )
-    all_slots = generate_time_slots(working_hours.start_time, working_hours.end_time)
+    all_slots = generate_time_slots(
+        working_hours.start_time,
+        working_hours.end_time,
+        lunch_start=working_hours.lunch_start,
+        lunch_end=working_hours.lunch_end,
+    )
     effective_now_time = None
     if is_today_client and client_now_time:
         effective_now_time = client_now_time

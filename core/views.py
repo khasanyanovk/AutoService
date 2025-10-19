@@ -22,7 +22,7 @@ from .forms import (
     CarForm,
 )
 from django.http import JsonResponse
-from datetime import datetime, date, timedelta, time
+from datetime import datetime, date, timedelta
 
 
 def home(request):
@@ -255,7 +255,6 @@ def service_booking(request):
         "service_centers": service_centers,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
-        # значения для восстановления UI
         "selected_service_center": selected_service_center,
         "selected_service_type": selected_service_type,
         "selected_date_val": selected_date_val,
@@ -306,14 +305,20 @@ def get_available_time_slots(request):
 
             day_of_week = selected_date.isoweekday()
             try:
-                working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
+                working_hours = WorkingHours.objects.get(
+                    service_center=service_center, day_of_week=day_of_week
+                )
                 if not working_hours.is_working:
                     return JsonResponse({"available_slots": []})
             except WorkingHours.DoesNotExist:
                 return JsonResponse({"available_slots": []})
 
             all_slots = generate_time_slots(
-                working_hours.start_time, working_hours.end_time
+                working_hours.start_time,
+                working_hours.end_time,
+                slot_duration=30,
+                lunch_start=working_hours.lunch_start,
+                lunch_end=working_hours.lunch_end,
             )
 
             now = timezone.localtime(timezone.now())
@@ -358,21 +363,28 @@ def get_available_time_slots(request):
     return JsonResponse({"error": "Invalid request"}, status=400)
 
 
-def generate_time_slots(start_time, end_time, slot_duration=30):
-    """Генерирует список временных слотов"""
+def generate_time_slots(
+    start_time, end_time, slot_duration=30, lunch_start=None, lunch_end=None
+):
+    """Генерирует список временных слотов, исключая время обеда при наличии"""
     slots = []
     start_datetime = datetime.combine(date.today(), start_time)
     end_datetime = datetime.combine(date.today(), end_time)
 
+    lunch_start_dt = (
+        datetime.combine(date.today(), lunch_start) if lunch_start else None
+    )
+    lunch_end_dt = datetime.combine(date.today(), lunch_end) if lunch_end else None
+
     current_time = start_datetime
-    while current_time + timedelta(minutes=slot_duration) <= end_datetime:
-        lunch_start = datetime.combine(date.today(), time(13, 0))
-        lunch_end = datetime.combine(date.today(), time(14, 0))
-
-        if not (lunch_start <= current_time < lunch_end):
+    step = timedelta(minutes=slot_duration)
+    while current_time + step <= end_datetime:
+        in_lunch = False
+        if lunch_start_dt and lunch_end_dt:
+            in_lunch = lunch_start_dt <= current_time < lunch_end_dt
+        if not in_lunch:
             slots.append(current_time.strftime("%H:%M"))
-
-        current_time += timedelta(minutes=slot_duration)
+        current_time += step
 
     return slots
 

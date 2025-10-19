@@ -29,7 +29,10 @@
       <h1 class="h3 mb-1">Филиалы</h1>
       <p class="text-muted mb-0">Выберите филиал для просмотра расписания и статистики</p>
     </div>
-  <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Панель администратора</a>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_panel:admin_service_center_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Новый филиал</a>
+      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Панель администратора</a>
+    </div>
   </div>
 
   {% if service_centers %}

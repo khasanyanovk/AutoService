@@ -46,7 +46,8 @@
           </div>
         </div>
 
-        <div class="col-12">
+        <div class="col-12 d-flex justify-content-between">
+          <a class="btn btn-outline-danger" href="{% url 'admin_panel:admin_service_center_delete' service_center.id %}">Удалить филиал</a>
           <button class="btn btn-primary">Сохранить</button>
         </div>
       </form>
@@ -57,7 +58,6 @@
 
 {% block extra_js %}
 <script>
-  // превью изображения до загрузки
   document.addEventListener('DOMContentLoaded', function(){
     var input = document.querySelector('input[name="photo"]');
     var img = document.getElementById('photoPreview');
