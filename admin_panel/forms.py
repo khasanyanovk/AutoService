@@ -2,7 +2,7 @@ from django import forms
 from django.core.validators import RegexValidator
 
 from core.models import ServiceCenter
-from core.models import ServiceType
+from core.models import ServiceType, CarBrand, CarModel
 
 
 class ServiceCenterEditForm(forms.ModelForm):
@@ -97,6 +97,26 @@ class ServiceTypeBaseCreateForm(forms.Form):
         max_length=200,
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
+
+
+class CarBrandForm(forms.ModelForm):
+    class Meta:
+        model = CarBrand
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+
+class CarModelForm(forms.ModelForm):
+    class Meta:
+        model = CarModel
+        fields = ["brand", "name"]
+        widgets = {
+            "brand": forms.Select(attrs={"class": "form-select"}),
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
     description = forms.CharField(
         label="Описание",
         required=False,

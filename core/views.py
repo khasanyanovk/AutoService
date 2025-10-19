@@ -85,7 +85,7 @@ def profile_edit(request):
             profile = UserProfile.objects.get(user=request.user)
             if profile.avatar:
                 profile.avatar.delete(save=False)
-                profile.avatar = None
+                profile.avatar = None  # type: ignore[assignment]
                 profile.save()
             return redirect("profile_edit")
         u_form = UserUpdateForm(request.POST, instance=request.user)
@@ -108,7 +108,7 @@ def profile_edit(request):
 @login_required
 def add_car(request):
     if request.method == "POST":
-        form = CarForm(request.POST)
+        form = CarForm(request.POST, request.FILES)
         if form.is_valid():
             try:
                 form.save(request.user)
@@ -132,13 +132,20 @@ def edit_car(request, car_id):
     car = get_object_or_404(Car, id=car_id, owner=request.user)
 
     if request.method == "POST":
-        form = CarForm(request.POST)
+        form = CarForm(request.POST, request.FILES)
         if form.is_valid():
             try:
                 car.year = form.cleaned_data["year"]
                 car.model = form.cleaned_data["model"]
                 car.license_plate = form.cleaned_data["license_plate"]
                 car.vin = form.cleaned_data.get("vin")
+                uploaded = (
+                    getattr(form, "cleaned_data", {}).get("photo")
+                    if hasattr(form, "cleaned_data")
+                    else None
+                ) or (form.files.get("photo") if hasattr(form, "files") else None)
+                if uploaded:
+                    car.photo = uploaded  # type: ignore[assignment]
                 car.save()
 
                 messages.success(request, "Информация об автомобиле обновлена!")
@@ -348,6 +355,14 @@ def get_available_time_slots(request):
                 for appointment in booked_appointments:
                     app_start = appointment.scheduled_time
                     app_end = appointment.end_time
+                    if app_end is None:
+                        try:
+                            app_end = (
+                                datetime.combine(selected_date, app_start)
+                                + timedelta(minutes=appointment.service_type.duration)
+                            ).time()
+                        except Exception:
+                            app_end = app_start
                     if not (slot_end_time <= app_start or slot_time >= app_end):
                         is_available = False
                         break

@@ -49,7 +49,6 @@ class Command(BaseCommand):
                 defaults={
                     "phone": center_data["phone"],
                     "opening_hours": center_data["opening_hours"],
-                    # Файл по умолчанию, если нужен кастом — можно заменить строку ниже
                     "photo": center_data.get(
                         "photo", "service_centers/default_service_center.jpg"
                     ),
@@ -65,7 +64,6 @@ class Command(BaseCommand):
                     self.style.WARNING(f"Сервис-центр уже существует: {center.address}")
                 )
 
-        # Расписание по умолчанию на неделю (Пн-Вс)
         default_working_hours = [
             (1, time(9, 0), time(18, 0), True),  # Пн
             (2, time(9, 0), time(18, 0), True),  # Вт
@@ -88,7 +86,6 @@ class Command(BaseCommand):
                 return time(13, 0), time(13, 30)
             return None, None
 
-        # Создаём рабочие часы для КАЖДОГО филиала (персонально), если отсутствуют
         wh_created_total = 0
         for center in ServiceCenter.objects.all():
             for day, start, end, is_working in default_working_hours:
@@ -108,7 +105,7 @@ class Command(BaseCommand):
                     wh_created_total += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"[{center.address}] добавлен график: {wh.get_day_of_week_display()} {wh.start_time}-{wh.end_time}"
+                            f"[{center.address}] добавлен график для дня {day}"
                         )
                     )
 
@@ -205,3 +202,35 @@ class Command(BaseCommand):
                 f"Успешно создано {len(created_centers)} сервис-центров, {wh_created_total} записей рабочего времени и {total_services_created} услуг!"
             )
         )
+
+        try:
+            from core.models import CarBrand, CarModel
+
+            brands_models = {
+                "Toyota": ["Corolla", "Camry", "RAV4"],
+                "BMW": ["3 Series", "5 Series", "X5"],
+                "Audi": ["A4", "A6", "Q5"],
+                "Lada": ["Vesta", "Granta"],
+                "Hyundai": ["Solaris", "Tucson"],
+            }
+
+            created_brands = 0
+            created_models = 0
+            for brand_name, model_list in brands_models.items():
+                brand, b_created = CarBrand.objects.get_or_create(name=brand_name)
+                if b_created:
+                    created_brands += 1
+                for model_name in model_list:
+                    _, m_created = CarModel.objects.get_or_create(
+                        brand=brand, name=model_name
+                    )
+                    if m_created:
+                        created_models += 1
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Добавлено марок: {created_brands}, моделей: {created_models}"
+                )
+            )
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Блок брендов/моделей пропущен: {e}"))

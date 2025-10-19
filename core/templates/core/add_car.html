@@ -86,7 +86,7 @@
                         {% endfor %}
                     {% endif %}
                     
-                    <form method="post" id="carForm" novalidate>
+                    <form method="post" id="carForm" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
                         
                         {% if form.non_field_errors %}
@@ -163,6 +163,21 @@
                             </div>
                         </div>
                         
+                        <div class="form-group">
+                            <label for="id_photo" class="form-label">Фото автомобиля</label>
+                            {{ form.photo }}
+                            {% if form.photo.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.photo.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.photo.help_text %}
+                                <div class="form-text">{{ form.photo.help_text }}</div>
+                            {% endif %}
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                             <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">
                                 <i class="bi bi-arrow-left me-1"></i> Отмена

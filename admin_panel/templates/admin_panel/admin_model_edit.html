@@ -1,0 +1,37 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{% if create %}Новая модель{% else %}Редактирование модели{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card">
+    <div class="card-header">
+      <h1 class="h5 mb-0">{% if create %}Новая модель{% else %}Редактировать модель{% endif %}</h1>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Марка</label>
+          {{ form.brand }}
+          {% if form.brand.errors %}
+          <div class="text-danger small mt-1">{{ form.brand.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Модель</label>
+          {{ form.name }}
+          {% if form.name.errors %}
+          <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{% url 'admin_panel:admin_cars' %}" class="btn btn-secondary">Отмена</a>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

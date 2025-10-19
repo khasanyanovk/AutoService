@@ -93,4 +93,31 @@ urlpatterns = [
         views.admin_api_overall_statuses,
         name="admin_api_overall_statuses",
     ),
+    path("admin-cars/", views.admin_cars, name="admin_cars"),
+    path(
+        "admin-cars/brand/create/", views.admin_brand_create, name="admin_brand_create"
+    ),
+    path(
+        "admin-cars/brand/<uuid:brand_id>/edit/",
+        views.admin_brand_edit,
+        name="admin_brand_edit",
+    ),
+    path(
+        "admin-cars/brand/<uuid:brand_id>/delete/",
+        views.admin_brand_delete,
+        name="admin_brand_delete",
+    ),
+    path(
+        "admin-cars/model/create/", views.admin_model_create, name="admin_model_create"
+    ),
+    path(
+        "admin-cars/model/<uuid:model_id>/edit/",
+        views.admin_model_edit,
+        name="admin_model_edit",
+    ),
+    path(
+        "admin-cars/model/<uuid:model_id>/delete/",
+        views.admin_model_delete,
+        name="admin_model_delete",
+    ),
 ]

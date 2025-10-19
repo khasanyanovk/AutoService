@@ -22,7 +22,13 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.auth.models import User
 from core.forms import UserUpdateForm, ProfileUpdateForm
-from .forms import ServiceTypeForm, ServiceTypeBaseCreateForm
+from .forms import (
+    ServiceTypeForm,
+    ServiceTypeBaseCreateForm,
+    CarBrandForm,
+    CarModelForm,
+)
+from core.models import CarBrand, CarModel
 
 
 @login_required
@@ -173,8 +179,9 @@ def admin_users(request):
     for u in page_obj.object_list:
         avatar_url = ""
         try:
-            if hasattr(u, "userprofile") and u.userprofile and u.userprofile.avatar:
-                avatar_url = u.userprofile.avatar.url
+            up = getattr(u, "userprofile", None)
+            if up and getattr(up, "avatar", None):
+                avatar_url = up.avatar.url
         except Exception:
             avatar_url = ""
         setattr(u, "avatar_url", avatar_url)
@@ -201,7 +208,7 @@ def admin_users(request):
 @admin_required
 def admin_user_detail(request, user_id):
     """Детальный просмотр пользователя"""
-    user = get_object_or_404(User.objects.select_related("userprofile"), id=user_id)
+    user = get_object_or_404(User.objects.select_related("userprofile"), pk=user_id)
 
     user_appointments = (
         Appointment.objects.filter(car__owner=user)
@@ -214,12 +221,9 @@ def admin_user_detail(request, user_id):
 
     avatar_url = ""
     try:
-        if (
-            hasattr(user, "userprofile")
-            and user.userprofile
-            and user.userprofile.avatar
-        ):
-            avatar_url = user.userprofile.avatar.url
+        up = getattr(user, "userprofile", None)
+        if up and getattr(up, "avatar", None):
+            avatar_url = up.avatar.url
     except Exception:
         avatar_url = ""
 
@@ -241,7 +245,7 @@ def admin_user_detail(request, user_id):
 @admin_required
 def admin_user_edit(request, user_id):
     """Редактирование профиля пользователя (User + UserProfile)"""
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User, pk=user_id)
     profile, _ = UserProfile.objects.get_or_create(user=user)
 
     if request.method == "POST":
@@ -251,7 +255,7 @@ def admin_user_edit(request, user_id):
             u_form.save()
             p_form.save()
             messages.success(request, "Профиль обновлён")
-            return redirect("admin_panel:admin_user_detail", user_id=user.id)
+            return redirect("admin_panel:admin_user_detail", user_id=user.pk)
     else:
         u_form = UserUpdateForm(instance=user)
         p_form = ProfileUpdateForm(instance=profile)
@@ -267,7 +271,7 @@ def admin_user_edit(request, user_id):
 @admin_required
 def admin_user_delete(request, user_id):
     """Удаление пользователя с подтверждением"""
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User, pk=user_id)
 
     if request.method == "POST":
         username = user.username
@@ -286,7 +290,7 @@ def admin_user_delete(request, user_id):
 @admin_required
 def admin_user_stats(request, user_id):
     """Расширенная статистика пользователя: графики и агрегаты"""
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User, pk=user_id)
 
     appts = (
         Appointment.objects.filter(car__owner=user)
@@ -1199,9 +1203,104 @@ def admin_service_create(request):
             return redirect("admin_panel:admin_services")
     else:
         base_form = ServiceTypeBaseCreateForm()
-
     return render(
         request,
         "admin_panel/admin_service_create.html",
         {"base_form": base_form, "centers": centers},
     )
+
+
+@login_required
+@admin_required
+def admin_cars(request):
+    """Список марок и моделей с действиями"""
+    brands = CarBrand.objects.all().order_by("name").prefetch_related("carmodel_set")
+    return render(
+        request,
+        "admin_panel/admin_cars.html",
+        {"brands": brands},
+    )
+
+
+@login_required
+@admin_required
+def admin_brand_create(request):
+    form = CarBrandForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Марка добавлена")
+        return redirect("admin_panel:admin_cars")
+    return render(
+        request, "admin_panel/admin_brand_edit.html", {"form": form, "create": True}
+    )
+
+
+@login_required
+@admin_required
+def admin_brand_edit(request, brand_id):
+    brand = get_object_or_404(CarBrand, id=brand_id)
+    form = CarBrandForm(request.POST or None, instance=brand)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Марка обновлена")
+        return redirect("admin_panel:admin_cars")
+    return render(
+        request, "admin_panel/admin_brand_edit.html", {"form": form, "brand": brand}
+    )
+
+
+@login_required
+@admin_required
+def admin_brand_delete(request, brand_id):
+    brand = get_object_or_404(CarBrand, id=brand_id)
+    if request.method == "POST":
+        brand.delete()
+        messages.success(request, "Марка удалена")
+        return redirect("admin_panel:admin_cars")
+    return render(request, "admin_panel/admin_brand_delete.html", {"brand": brand})
+
+
+@login_required
+@admin_required
+def admin_model_create(request):
+    initial = {}
+    brand_id = request.GET.get("brand")
+    if brand_id:
+        try:
+            brand = CarBrand.objects.get(id=brand_id)
+            initial["brand"] = brand
+        except CarBrand.DoesNotExist:
+            pass
+    form = CarModelForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Модель добавлена")
+        return redirect("admin_panel:admin_cars")
+    return render(
+        request, "admin_panel/admin_model_edit.html", {"form": form, "create": True}
+    )
+
+
+@login_required
+@admin_required
+def admin_model_edit(request, model_id):
+    model = get_object_or_404(CarModel, id=model_id)
+    form = CarModelForm(request.POST or None, instance=model)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Модель обновлена")
+        return redirect("admin_panel:admin_cars")
+    return render(
+        request, "admin_panel/admin_model_edit.html", {"form": form, "model": model}
+    )
+
+
+@login_required
+@admin_required
+def admin_model_delete(request, model_id):
+    model = get_object_or_404(CarModel, id=model_id)
+    if request.method == "POST":
+        model.delete()
+        messages.success(request, "Модель удалена")
+        return redirect("admin_panel:admin_cars")
+    return render(request, "admin_panel/admin_model_delete.html", {"model": model})

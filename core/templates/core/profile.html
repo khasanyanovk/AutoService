@@ -195,7 +195,13 @@
                     <div class="carousel-card">
                         <div class="row g-0">
                             <div class="col-md-6">
-                                <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                {% with photo_url=car.get_photo_url %}
+                                    {% if photo_url %}
+                                        <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                    {% else %}
+                                        <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                    {% endif %}
+                                {% endwith %}
                             </div>
                             <div class="col-md-6">
                                 <div class="car-details h-100 d-flex flex-column justify-content-center">

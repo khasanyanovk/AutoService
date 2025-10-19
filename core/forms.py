@@ -113,6 +113,12 @@ class CarForm(forms.Form):
         required=False,
         label="VIN",
     )
+    photo = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
+        label="Фото автомобиля",
+        help_text="Необязательно. JPG/PNG до 3MB.",
+    )
 
     def clean_license_plate(self):
         """Проверка корректности формата гос. номера (X000XX)"""
@@ -141,16 +147,16 @@ class CarForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         if "brand" in initial and initial["brand"]:
-            self.fields["model"].queryset = CarModel.objects.filter(
-                brand=initial["brand"]
-            )
+            model_field = self.fields.get("model")
+            if isinstance(model_field, forms.ModelChoiceField):
+                model_field.queryset = CarModel.objects.filter(brand=initial["brand"])
 
         if self.data and "brand" in self.data:
             try:
                 brandId = self.data.get("brand")
-                self.fields["model"].queryset = CarModel.objects.filter(
-                    brand_id=brandId
-                )
+                model_field = self.fields.get("model")
+                if isinstance(model_field, forms.ModelChoiceField):
+                    model_field.queryset = CarModel.objects.filter(brand_id=brandId)
             except (ValueError, TypeError):
                 pass
 
@@ -166,6 +172,21 @@ class CarForm(forms.Form):
 
         return cleaned_data
 
+    def clean_photo(self):
+        photo = self.files.get("photo") if hasattr(self, "files") else None
+        if not photo:
+            return None
+        max_size = 3 * 1024 * 1024
+        if getattr(photo, "size", 0) > max_size:
+            raise ValidationError("Размер фото не должен превышать 3MB.")
+        valid_exts = [".jpg", ".jpeg", ".png"]
+        import os
+
+        ext = os.path.splitext(photo.name)[1].lower()
+        if ext not in valid_exts:
+            raise ValidationError("Допустимые форматы: JPG, JPEG, PNG.")
+        return photo
+
     def save(self, user):
         car = Car(
             year=self.cleaned_data["year"],
@@ -174,6 +195,11 @@ class CarForm(forms.Form):
             vin=self.cleaned_data.get("vin"),
             owner=user,
         )
+        uploaded = self.cleaned_data.get("photo") or (
+            self.files.get("photo") if hasattr(self, "files") else None
+        )
+        if uploaded:
+            car.photo = uploaded  # type: ignore[assignment]
         car.save()
         return car
 
@@ -254,7 +280,9 @@ class AppointmentForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["scheduled_time"].choices = self.generate_time_slots()
         if user is not None:
-            self.fields["car"].queryset = Car.objects.filter(owner=user)
+            car_field = self.fields.get("car")
+            if isinstance(car_field, forms.ModelChoiceField):
+                car_field.queryset = Car.objects.filter(owner=user)
 
     def generate_time_slots(self):
         """Генерирует список доступных временных слотов"""

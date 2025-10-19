@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
+import os
 from PIL import Image
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.utils.text import slugify
 
 
 class CarBrand(models.Model):
@@ -32,6 +36,7 @@ class Car(models.Model):
     license_plate = models.CharField(max_length=20, unique=True)
     vin = models.CharField(max_length=17, unique=True, blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    photo = models.ImageField(upload_to="car_models/from_users/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.model} ({self.license_plate})"
@@ -39,6 +44,41 @@ class Car(models.Model):
     class Meta:
         verbose_name = "Автомобиль"
         verbose_name_plural = "Автомобили"
+
+    def _build_default_model_photo_candidates(self):
+        """Return candidate relative paths under MEDIA_ROOT for default model images.
+        Tries several patterns inside 'car_models/'.
+        """
+        if not self.model:
+            return []
+        brand_name = str(self.model.brand.name)
+        model_name = str(self.model.name)
+        parts = [
+            f"{slugify(brand_name)}_{slugify(model_name)}",
+            f"{slugify(brand_name)}/{slugify(model_name)}",
+            f"{brand_name}_{model_name}",
+            f"{brand_name}/{model_name}",
+        ]
+        candidates = []
+        for base in parts:
+            for ext in (".jpg", ".jpeg", ".png"):
+                candidates.append(os.path.join("car_models", base + ext))
+        return candidates
+
+    def get_photo_url(self):
+        """Return URL to the car's photo or a suitable default based on brand/model.
+        Returns None if no suitable image exists so templates can fall back to static.
+        """
+        try:
+            if self.photo and hasattr(self.photo, "url"):
+                return self.photo.url
+        except Exception:
+            pass
+
+        for rel_path in self._build_default_model_photo_candidates():
+            if default_storage.exists(rel_path):
+                return settings.MEDIA_URL + rel_path.replace("\\", "/")
+        return None
 
 
 class ServiceCenter(models.Model):
@@ -72,7 +112,7 @@ class Employee(models.Model):
     salary = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.user.get_full_name()} ({self.get_position_display()})"
+        return f"{self.user.get_full_name()} ({self.get_position_display()})"  # type: ignore[attr-defined]
 
 
 class Part(models.Model):
@@ -264,7 +304,7 @@ class WorkingHours(models.Model):
     is_working = models.BooleanField(default=True, verbose_name="Рабочий день")
 
     def __str__(self):
-        return f"{self.get_day_of_week_display()}: {self.start_time} - {self.end_time}"
+        return f"{self.get_day_of_week_display()}: {self.start_time} - {self.end_time}"  # type: ignore[attr-defined]
 
     class Meta:
         verbose_name = "Рабочее время"
