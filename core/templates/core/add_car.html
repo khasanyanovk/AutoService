@@ -196,7 +196,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
-        function loadModels(brandId) {
+        function loadModels(brandId, selectedModelId) {
             const $modelField = $("#id_model");
             
             if (brandId) {
@@ -210,6 +210,9 @@
                     },
                     success: function (data) {
                         $modelField.html(data.options);
+                        if (selectedModelId) {
+                            $modelField.val(String(selectedModelId));
+                        }
                     },
                     error: function() {
                         $modelField.html('<option value="">Ошибка загрузки моделей</option>');
@@ -222,12 +225,14 @@
 
         $("#id_brand").change(function () {
             const brandId = $(this).val();
-            loadModels(brandId);
+            loadModels(brandId, null);
+            $("#id_model").val("");
         });
         
         const initialBrandId = $("#id_brand").val();
+        const initialModelId = $("#id_model").val();
         if (initialBrandId) {
-            loadModels(initialBrandId);
+            loadModels(initialBrandId, initialModelId);
         }
 
         $('select, input[type="text"], input[type="number"]').addClass('form-control');
