@@ -56,20 +56,17 @@
                 <div class="card-body p-4">
                     <div class="row mb-4">
                         <div class="col-12">
-                            <form method="post" class="d-flex align-items-center">
-                                {% csrf_token %}
+                            <div class="d-flex align-items-center">
                                 <strong class="me-3">Статус:</strong>
-                                <select name="status" class="form-select me-3" style="width: auto;">
+                                <select id="statusSelect" name="status" class="form-select" style="width: auto;">
                                     {% for value, label in status_choices %}
                                     <option value="{{ value }}" {% if appointment.status == value %}selected{% endif %}>
                                         {{ label }}
                                     </option>
                                     {% endfor %}
                                 </select>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-1"></i> Обновить
-                                </button>
-                            </form>
+                                <span id="statusSaved" class="ms-3 text-muted" style="display:none;">Сохранено</span>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -145,4 +142,33 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function(){
+        function getCsrf(){
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';').map(v => v.trim());
+            for (const c of cookies){ if (c.startsWith(name+'=')) return c.slice(name.length+1); }
+            const inp = document.querySelector('input[name=csrfmiddlewaretoken]');
+            return inp ? inp.value : '';
+        }
+        function buildUpdateUrl(id){
+            return '{% url "admin_panel:admin_api_update_appointment" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', '{{ appointment.id }}');
+        }
+        const select = document.getElementById('statusSelect');
+        const saved = document.getElementById('statusSaved');
+        if (select){
+            select.addEventListener('change', function(){
+                const form = new FormData();
+                form.append('status', this.value);
+                fetch(buildUpdateUrl('{{ appointment.id }}'), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
+                    .then(r => r.json()).then(_ => {
+                        if (saved){ saved.style.display = 'inline'; setTimeout(()=> saved.style.display='none', 1500); }
+                    });
+            });
+        }
+    })();
+    </script>
 {% endblock %}

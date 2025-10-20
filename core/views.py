@@ -23,6 +23,7 @@ from .forms import (
 )
 from django.http import JsonResponse
 from datetime import datetime, date, timedelta
+from django.db.models import Q
 
 
 def home(request):
@@ -204,6 +205,7 @@ def load_models(request):
 @login_required
 def service_booking(request):
     """Страница записи на услугу"""
+    auto_update_appointments()
     if request.method == "POST":
         form = AppointmentForm(request.POST, user=request.user)
         if form.is_valid():
@@ -242,31 +244,10 @@ def service_booking(request):
     else:
         form = AppointmentForm(user=request.user)
 
-    selected_service_center = (
-        request.POST.get("service_center") if request.method == "POST" else ""
-    )
-    selected_service_type = (
-        request.POST.get("service_type") if request.method == "POST" else ""
-    )
-    selected_date_val = (
-        request.POST.get("scheduled_date") if request.method == "POST" else ""
-    )
-    selected_time_val = (
-        request.POST.get("scheduled_time") if request.method == "POST" else ""
-    )
-    notes_val = request.POST.get("notes") if request.method == "POST" else ""
-
-    service_centers = ServiceCenter.objects.all()
     context = {
         "form": form,
-        "service_centers": service_centers,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
-        "selected_service_center": selected_service_center,
-        "selected_service_type": selected_service_type,
-        "selected_date_val": selected_date_val,
-        "selected_time_val": selected_time_val,
-        "notes_val": notes_val,
     }
     return render(request, "core/service_booking.html", context)
 
@@ -301,9 +282,12 @@ def get_available_time_slots(request):
         request.method == "GET"
         and request.headers.get("X-Requested-With") == "XMLHttpRequest"
     ):
+        auto_update_appointments()
         selected_date = request.GET.get("date")
         service_type_id = request.GET.get("service_type")
         service_center_id = request.GET.get("service_center")
+        is_today_param = request.GET.get("is_today", "0")
+        client_now_str = request.GET.get("client_now")
 
         try:
             selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
@@ -329,12 +313,22 @@ def get_available_time_slots(request):
             )
 
             now = timezone.localtime(timezone.now())
-            if selected_date == now.date():
+            effective_now_time = None
+            is_today_client = str(is_today_param).lower() in ("1", "true", "yes")
+            if client_now_str:
+                try:
+                    effective_now_time = datetime.strptime(
+                        client_now_str, "%H:%M"
+                    ).time()
+                except ValueError:
+                    effective_now_time = None
+            if effective_now_time is None and selected_date == now.date():
+                effective_now_time = now.time()
+            if effective_now_time and (is_today_client or selected_date == now.date()):
                 all_slots = [
                     slot
                     for slot in all_slots
-                    if datetime.strptime(slot, "%H:%M").time()
-                    > (now + timedelta(minutes=15)).time()
+                    if datetime.strptime(slot, "%H:%M").time() > effective_now_time
                 ]
 
             booked_appointments = Appointment.objects.filter(
@@ -453,18 +447,15 @@ def get_service_details(request):
 
 
 def auto_update_appointments():
+    """Auto-cancel overdue appointments that are still SCHEDULED.
+    Overdue if scheduled_date < today OR (scheduled_date == today and end_time <= now).
+    """
     now = timezone.localtime(timezone.now())
     today = now.date()
     current_time = now.time()
-
-    expired_appointments = Appointment.objects.filter(
-        scheduled_date__lt=today, status__in=["SCHEDULED", "IN_PROGRESS"]
-    ) | Appointment.objects.filter(
-        scheduled_date=today,
-        end_time__lt=current_time,
-        status__in=["SCHEDULED", "IN_PROGRESS"],
+    qs = Appointment.objects.filter(status="SCHEDULED").filter(
+        Q(scheduled_date__lt=today)
+        | Q(scheduled_date=today, end_time__lte=current_time)
     )
-
-    for appointment in expired_appointments:
-        appointment.status = "COMPLETED"
-        appointment.save()
+    if qs.exists():
+        qs.update(status="CANCELLED", updated_at=now)

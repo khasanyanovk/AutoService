@@ -19,7 +19,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" id="appointmentsRoot">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h4 mb-1">Все записи</h1>
@@ -89,14 +89,14 @@
     </div>
   </div>
 
-  <div class="dashboard-card">
+  <div class="dashboard-card" id="appointmentsListCard">
     <div class="card-header d-flex justify-content-between align-items-center">
       <strong>Список записей</strong>
       <div class="text-muted small">Всего: {{ page_obj.paginator.count }}</div>
     </div>
     <div class="p-0">
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+  <table class="table table-hover align-middle mb-0" id="appointmentsTable">
           <thead>
             <tr>
               <th class="nowrap">Дата</th>
@@ -110,7 +110,7 @@
               <th class="text-end"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="appointmentsTableBody">
             {% if page_obj.object_list %}
               {% for a in page_obj.object_list %}
               <tr data-id="{{ a.id }}">
@@ -152,7 +152,7 @@
       </div>
 
       {% if page_obj.paginator.num_pages > 1 %}
-      <nav class="p-3">
+      <nav class="p-3" id="appointmentsPagination">
         <ul class="pagination justify-content-end mb-0">
           {% if page_obj.has_previous %}
           <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.branch %}&branch={{ filters.branch }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}{% for s in filters.statuses %}&status={{ s }}{% endfor %}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.plate %}&plate={{ filters.plate }}{% endif %}">&laquo;</a></li>
@@ -186,42 +186,96 @@
 {% block extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', function(){
+    function buildFiltersUrl(baseUrl){
+      const url = new URL(baseUrl, window.location.origin);
+      const branchSel = document.getElementById('filterBranch');
+      const dateFrom = document.getElementById('filterDateFrom');
+      const dateTo = document.getElementById('filterDateTo');
+      const userInput = document.getElementById('filterUser');
+      const plateInput = document.getElementById('filterPlate');
+
+      if (branchSel && branchSel.value) url.searchParams.set('branch', branchSel.value);
+      if (dateFrom && dateFrom.value) url.searchParams.set('date_from', dateFrom.value);
+      if (dateTo && dateTo.value) url.searchParams.set('date_to', dateTo.value);
+      if (userInput && userInput.value.trim()) url.searchParams.set('user', userInput.value.trim());
+      if (plateInput && plateInput.value.trim()) url.searchParams.set('plate', plateInput.value.trim());
+
+      const currentParams = new URLSearchParams(window.location.search);
+      if (currentParams.has('page')) url.searchParams.set('page', currentParams.get('page'));
+
+      document.querySelectorAll('.status-check').forEach(ch=>{
+        if (ch.checked) url.searchParams.append('status', ch.value);
+      });
+      return url;
+    }
+
+    function replaceAppointmentsFromHtml(html){
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const newBody = doc.querySelector('#appointmentsTableBody');
+      const curBody = document.querySelector('#appointmentsTableBody');
+      if (newBody && curBody){ curBody.innerHTML = newBody.innerHTML; }
+      const newPag = doc.querySelector('#appointmentsPagination');
+      const curPag = document.querySelector('#appointmentsPagination');
+      if (newPag && curPag){ curPag.innerHTML = newPag.innerHTML; }
+      const totalElNew = doc.querySelector('.card-header .text-muted.small');
+      const totalElCur = document.querySelector('.card-header .text-muted.small');
+      if (totalElNew && totalElCur){ totalElCur.textContent = totalElNew.textContent; }
+      bindInlineRowHandlers();
+      bindPaginationLinks();
+    }
+
+    function fetchAndReplace(url){
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+        .then(r => r.text())
+        .then(html => replaceAppointmentsFromHtml(html));
+    }
+
+    function onStatusesChanged(){
+      updateStatusLabel();
+      const url = buildFiltersUrl(window.location.pathname);
+      history.replaceState({}, '', url);
+      fetchAndReplace(url);
+    }
+
     function buildUpdateUrl(id){
       return '{% url "admin_panel:admin_api_update_appointment" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', id);
     }
 
-    document.querySelectorAll('select.appt-status').forEach(function(sel){
-      sel.addEventListener('change', function(){
-        const tr = this.closest('tr');
-        const id = tr.getAttribute('data-id');
-        const form = new FormData();
-        form.append('status', this.value);
-        fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
-          .then(r => r.json()).then(_ => {});
+    function bindInlineRowHandlers(){
+      document.querySelectorAll('select.appt-status').forEach(function(sel){
+        sel.addEventListener('change', function(){
+          const tr = this.closest('tr');
+          const id = tr.getAttribute('data-id');
+          const form = new FormData();
+          form.append('status', this.value);
+          fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
+            .then(r => r.json()).then(_ => {});
+        });
       });
-    });
 
-    document.querySelectorAll('.btn-append-comment').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        const tr = this.closest('tr');
-        const id = tr.getAttribute('data-id');
-        const input = tr.querySelector('.appt-comment');
-        const text = (input.value || '').trim();
-        if (!text) return;
-        const form = new FormData();
-        form.append('comment', text);
-        fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
-          .then(r => r.json()).then(payload => {
-            input.value = '';
-            const notesWrap = tr.querySelector('.notes-cell');
-            if (notesWrap){
-              const prev = notesWrap.querySelector('.small.text-muted');
-              const html = `<div class="small text-muted mt-1">${(payload.notes || '').replace(/\n/g,'<br/>')}</div>`;
-              if (prev) prev.outerHTML = html; else notesWrap.insertAdjacentHTML('beforeend', html);
-            }
-          });
-      })
-    });
+      document.querySelectorAll('.btn-append-comment').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          const tr = this.closest('tr');
+          const id = tr.getAttribute('data-id');
+          const input = tr.querySelector('.appt-comment');
+          const text = (input.value || '').trim();
+          if (!text) return;
+          const form = new FormData();
+          form.append('comment', text);
+          fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
+            .then(r => r.json()).then(payload => {
+              input.value = '';
+              const notesWrap = tr.querySelector('.notes-cell');
+              if (notesWrap){
+                const prev = notesWrap.querySelector('.small.text-muted');
+                const html = `<div class="small text-muted mt-1">${(payload.notes || '').replace(/\n/g,'<br/>')}</div>`;
+                if (prev) prev.outerHTML = html; else notesWrap.insertAdjacentHTML('beforeend', html);
+              }
+            });
+        })
+      });
+    }
 
     function getCsrf(){
       const name = 'csrftoken';
@@ -250,20 +304,20 @@
       statusLabel.textContent = count ? ('Выбрано: ' + count) : 'Все статусы';
     }
 
-    if (branchSel) branchSel.addEventListener('change', submitFilters);
-    if (dateFrom) dateFrom.addEventListener('change', submitFilters);
-    if (dateTo) dateTo.addEventListener('change', submitFilters);
-    statusChecks.forEach(ch => ch.addEventListener('change', function(){ updateStatusLabel(); submitFilters(); }));
+    if (branchSel) branchSel.addEventListener('change', onStatusesChanged);
+    if (dateFrom) dateFrom.addEventListener('change', onStatusesChanged);
+    if (dateTo) dateTo.addEventListener('change', onStatusesChanged);
+    statusChecks.forEach(ch => ch.addEventListener('change', onStatusesChanged));
 
-    function submitOnEnter(e){ if (e.key === 'Enter') { e.preventDefault(); submitFilters(); } }
-    if (userInput) userInput.addEventListener('keydown', submitOnEnter);
-    if (plateInput) plateInput.addEventListener('keydown', submitOnEnter);
+  function submitOnEnter(e){ if (e.key === 'Enter') { e.preventDefault(); onStatusesChanged(); } }
+  if (userInput) userInput.addEventListener('keydown', submitOnEnter);
+  if (plateInput) plateInput.addEventListener('keydown', submitOnEnter);
 
     if (clearStatusesBtn) clearStatusesBtn.addEventListener('click', function(e){
       e.preventDefault();
       statusChecks.forEach(ch => ch.checked = false);
       updateStatusLabel();
-      submitFilters();
+      onStatusesChanged();
     });
 
     if (resetBtn) resetBtn.addEventListener('click', function(){
@@ -274,7 +328,7 @@
       if (plateInput) plateInput.value = '';
       statusChecks.forEach(ch => ch.checked = false);
       updateStatusLabel();
-      submitFilters();
+      onStatusesChanged();
     });
     updateStatusLabel();
 
@@ -282,9 +336,28 @@
       btn.addEventListener('click', function(){
         const targetId = this.getAttribute('data-target');
         const input = document.getElementById(targetId);
-        if (input){ input.value = ''; submitFilters(); }
+        if (input){ input.value = ''; onStatusesChanged(); }
       });
     });
+
+    function bindPaginationLinks(){
+      document.querySelectorAll('#appointmentsPagination a.page-link').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          const href = a.getAttribute('href');
+          const url = new URL(href, window.location.origin);
+          const built = buildFiltersUrl(window.location.pathname);
+          if (url.searchParams.get('page')){
+            built.searchParams.set('page', url.searchParams.get('page'));
+          }
+          history.replaceState({}, '', built);
+          fetchAndReplace(built);
+        });
+      });
+    }
+
+    bindInlineRowHandlers();
+    bindPaginationLinks();
   });
 </script>
 {% endblock %}

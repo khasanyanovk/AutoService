@@ -31,10 +31,28 @@ from .forms import (
 from core.models import CarBrand, CarModel
 
 
+def _auto_cancel_overdue_appointments():
+    """Set status=CANCELLED for overdue appointments that are still SCHEDULED.
+    Overdue means: scheduled_date < today OR (scheduled_date == today and end_time <= now).
+    """
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+    now_time = now.time()
+    (
+        Appointment.objects.filter(status="SCHEDULED")
+        .filter(
+            Q(scheduled_date__lt=today)
+            | Q(scheduled_date=today, end_time__lte=now_time)
+        )
+        .update(status="CANCELLED", updated_at=now)
+    )
+
+
 @login_required
 @admin_required
 def admin_dashboard(request):
     """Главная страница администратора"""
+    _auto_cancel_overdue_appointments()
     service_centers = ServiceCenter.objects.all()
 
     today = timezone.localtime(timezone.now()).date()
@@ -130,6 +148,7 @@ def admin_dashboard(request):
 @admin_required
 def admin_users(request):
     """Список пользователей: поиск по полям и дополнительные фильтры, пагинация"""
+    _auto_cancel_overdue_appointments()
     username = request.GET.get("username", "").strip()
     name = request.GET.get("name", "").strip()
     email = request.GET.get("email", "").strip()
@@ -208,6 +227,7 @@ def admin_users(request):
 @admin_required
 def admin_user_detail(request, user_id):
     """Детальный просмотр пользователя"""
+    _auto_cancel_overdue_appointments()
     user = get_object_or_404(User.objects.select_related("userprofile"), pk=user_id)
 
     user_appointments = (
@@ -245,6 +265,7 @@ def admin_user_detail(request, user_id):
 @admin_required
 def admin_user_edit(request, user_id):
     """Редактирование профиля пользователя (User + UserProfile)"""
+    _auto_cancel_overdue_appointments()
     user = get_object_or_404(User, pk=user_id)
     profile, _ = UserProfile.objects.get_or_create(user=user)
 
@@ -271,6 +292,7 @@ def admin_user_edit(request, user_id):
 @admin_required
 def admin_user_delete(request, user_id):
     """Удаление пользователя с подтверждением"""
+    _auto_cancel_overdue_appointments()
     user = get_object_or_404(User, pk=user_id)
 
     if request.method == "POST":
@@ -290,6 +312,7 @@ def admin_user_delete(request, user_id):
 @admin_required
 def admin_user_stats(request, user_id):
     """Расширенная статистика пользователя: графики и агрегаты"""
+    _auto_cancel_overdue_appointments()
     user = get_object_or_404(User, pk=user_id)
 
     appts = (
@@ -366,6 +389,7 @@ def admin_user_stats(request, user_id):
 @admin_required
 def admin_appointments(request):
     """Страница управления всеми записями: фильтры, список, быстрые действия"""
+    _auto_cancel_overdue_appointments()
     qs = Appointment.objects.select_related(
         "service_center", "car", "car__owner", "service_type"
     ).all()
@@ -424,6 +448,7 @@ def admin_appointments(request):
 @admin_required
 def admin_api_update_appointment(request, appointment_id):
     """AJAX: Обновление статуса и добавление комментария администратора"""
+    _auto_cancel_overdue_appointments()
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -448,6 +473,7 @@ def admin_api_update_appointment(request, appointment_id):
 @admin_required
 def admin_api_overall_statuses(request):
     """AJAX: Статистика по статусам записей за период (неделя/месяц) по всем филиалам"""
+    _auto_cancel_overdue_appointments()
     qs = Appointment.objects.values("status").annotate(count=Count("id"))
     status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
     counts_map = {row["status"]: row["count"] for row in qs}
@@ -466,6 +492,7 @@ def admin_api_overall_statuses(request):
 @admin_required
 def admin_api_overall_visits(request):
     """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц"""
+    _auto_cancel_overdue_appointments()
     today = timezone.localtime(timezone.now()).date()
     period = request.GET.get("period", "week")
     if period == "month":
@@ -498,6 +525,7 @@ def admin_api_overall_visits(request):
 @admin_required
 def admin_service_center_detail(request, service_center_id):
     """Детальная страница автосервиса с календарем, расписанием на сегодня и статистикой"""
+    _auto_cancel_overdue_appointments()
     service_center = get_object_or_404(ServiceCenter, id=service_center_id)
 
     today = timezone.localtime(timezone.now()).date()
@@ -762,6 +790,7 @@ def admin_service_center_detail(request, service_center_id):
 @admin_required
 def admin_service_center_edit(request, service_center_id):
     """Редактирование информации об автосервисе"""
+    _auto_cancel_overdue_appointments()
     service_center = get_object_or_404(ServiceCenter, id=service_center_id)
 
     if request.method == "POST":
@@ -789,6 +818,7 @@ def admin_service_center_edit(request, service_center_id):
 @admin_required
 def admin_service_center_delete(request, service_center_id):
     service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+    _auto_cancel_overdue_appointments()
     if request.method == "POST":
         appts = Appointment.objects.filter(service_center=service_center)
         for a in appts:
@@ -808,6 +838,7 @@ def admin_service_center_delete(request, service_center_id):
 @admin_required
 def admin_service_center_create(request):
     """Создание нового филиала с выбором услуг для него"""
+    _auto_cancel_overdue_appointments()
     base_services = (
         ServiceType.objects.values("name")
         .annotate(default_duration=Min("duration"), default_price=Min("price"))
@@ -917,6 +948,7 @@ def admin_service_center_create(request):
 @admin_required
 def admin_api_day_schedule(request, service_center_id):
     """JSON: расписание по слотам для выбранного дня"""
+    _auto_cancel_overdue_appointments()
     date_str = request.GET.get("date")
     is_today_param = request.GET.get("is_today", "0")
     client_now_str = request.GET.get("client_now")
@@ -1058,6 +1090,7 @@ def admin_api_day_schedule(request, service_center_id):
 @admin_required
 def admin_appointment_detail(request, appointment_id):
     """Детальная информация о записи"""
+    _auto_cancel_overdue_appointments()
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
     if request.method == "POST":
@@ -1078,6 +1111,7 @@ def admin_appointment_detail(request, appointment_id):
 @admin_required
 def admin_api_appointments(request):
     """API для получения записей (для календаря)"""
+    _auto_cancel_overdue_appointments()
     start_date = request.GET.get("start")
     end_date = request.GET.get("end")
     service_center_id = request.GET.get("service_center")
@@ -1117,6 +1151,7 @@ def admin_api_appointments(request):
 @user_passes_test(lambda u: u.is_staff)
 def admin_branches(request):
     """Список филиалов (автосервисов) в виде карточек с фото"""
+    _auto_cancel_overdue_appointments()
     service_centers = ServiceCenter.objects.all().annotate(
         appointments_count=Count("appointment", distinct=False)
     )
@@ -1131,6 +1166,7 @@ def admin_branches(request):
 @admin_required
 def admin_services(request):
     """Список всех услуг по всем филиалам"""
+    _auto_cancel_overdue_appointments()
     services = (
         ServiceType.objects.select_related("service_center")
         .all()
@@ -1147,6 +1183,7 @@ def admin_services(request):
 @admin_required
 def admin_service_edit(request, service_id):
     """Редактирование конкретной услуги (в рамках одного филиала)"""
+    _auto_cancel_overdue_appointments()
     service = get_object_or_404(ServiceType, id=service_id)
     if request.method == "POST":
         form = ServiceTypeForm(request.POST, instance=service)
@@ -1167,6 +1204,7 @@ def admin_service_edit(request, service_id):
 @admin_required
 def admin_service_create(request):
     """Создание новой услуги: выбрать филиалы и задать цену для каждого"""
+    _auto_cancel_overdue_appointments()
     centers = ServiceCenter.objects.all().order_by("address")
     if request.method == "POST":
         base_form = ServiceTypeBaseCreateForm(request.POST)
@@ -1214,6 +1252,7 @@ def admin_service_create(request):
 @admin_required
 def admin_cars(request):
     """Список марок и моделей с действиями"""
+    _auto_cancel_overdue_appointments()
     brands = CarBrand.objects.all().order_by("name").prefetch_related("carmodel_set")
     return render(
         request,

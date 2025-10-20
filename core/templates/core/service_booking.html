@@ -533,7 +533,9 @@
                 data: {
                     'service_center': selectedServiceCenter,
                     'service_type': selectedService,
-                    'date': selectedDate
+                    'date': selectedDate,
+                    'is_today': (new Date(selectedDate)).toDateString() === (new Date()).toDateString() ? '1' : '0',
+                    'client_now': new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false })
                 },
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
