@@ -34,13 +34,39 @@ def about(request):
     return render(request, "core/about.html")
 
 
+def branches(request):
+    """Публичная страница со списком филиалов без редактирования."""
+    centers = (
+        ServiceCenter.objects.all()
+        .prefetch_related("working_hours")
+        .order_by("address")
+    )
+    return render(request, "core/branches.html", {"centers": centers})
+
+
+def branch_detail(request, service_center_id):
+    """Детальная страница филиала (только просмотр)."""
+    sc = get_object_or_404(
+        ServiceCenter.objects.prefetch_related("working_hours"),
+        id=service_center_id,
+    )
+    services = ServiceType.objects.filter(service_center=sc, is_active=True).order_by(
+        "name"
+    )
+    context = {
+        "service_center": sc,
+        "services": services,
+    }
+    return render(request, "core/branch_detail.html", context)
+
+
 def register(request):
     if request.method == "POST":
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect("admin_panel:admin_branches" if user.is_staff else "home")
+            return redirect("admin_panel:admin_dashboard" if user.is_staff else "home")
     else:
         form = UserRegisterForm()
     return render(request, "core/register.html", {"form": form})
@@ -49,14 +75,14 @@ def register(request):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect(
-            "admin_panel:admin_branches" if request.user.is_staff else "home"
+            "admin_panel:admin_dashboard" if request.user.is_staff else "home"
         )
     if request.method == "POST":
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect("admin_panel:admin_branches" if user.is_staff else "home")
+            return redirect("admin_panel:admin_dashboard" if user.is_staff else "home")
     else:
         form = AuthenticationForm()
     return render(request, "core/login.html", {"form": form})
@@ -69,8 +95,15 @@ def logout_view(request):
 
 @login_required
 def profile(request):
+
+    auto_update_appointments()
     user_profile = UserProfile.objects.get(user=request.user)
     user_cars = Car.objects.filter(owner=request.user)
+    appointments = (
+        Appointment.objects.filter(car__owner=request.user)
+        .select_related("car", "service_type", "service_center")
+        .order_by("-scheduled_date", "scheduled_time")
+    )
 
     today = timezone.localtime(timezone.now()).date()
     start_date = today - timedelta(days=89)
@@ -129,6 +162,7 @@ def profile(request):
     context = {
         "profile": user_profile,
         "cars": user_cars,
+        "appointments": appointments,
         "labels": labels,
         "data": data,
         "visits_count_90": sum(data),
@@ -248,6 +282,7 @@ def delete_car(request, car_id):
     return render(request, "core/delete_car.html", {"car": car})
 
 
+@login_required
 def load_models(request):
     brand_id = request.GET.get("brand_id")
     if brand_id:
@@ -502,6 +537,7 @@ def cancel_appointment(request, appointment_id):
     return redirect("appointment_list")
 
 
+@login_required
 def get_service_details(request):
     service_id = request.GET.get("service_id")
 

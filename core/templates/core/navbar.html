@@ -12,6 +12,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'home' %}">Главная</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'branches' %}">Филиалы</a>
+                </li>
                 {% if user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'service_booking' %}">Запись на услугу</a>
@@ -19,10 +22,10 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'appointment_list' %}">Мои записи</a>
                 </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'about' %}">О нас</a>
                 </li>
-                {% endif %}
                 {% if user.is_staff %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'admin_panel:admin_dashboard' %}">
