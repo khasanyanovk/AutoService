@@ -46,7 +46,7 @@
                         {% endif %}
                         {{ user.get_short_name|default:user.username }}
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-gray" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="{% url 'profile' %}">Профиль</a></li>
                         <li><a class="dropdown-item" href="{% url 'profile_edit' %}">Редактировать профиль</a></li>
                         <li><a class="dropdown-item" href="{% url 'add_car' %}">Добавить автомобиль</a></li>

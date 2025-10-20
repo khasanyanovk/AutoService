@@ -1,5 +1,4 @@
 from django.contrib.auth import login, logout
-from django.contrib.auth.forms import AuthenticationForm
 from django.db import IntegrityError
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -20,6 +19,7 @@ from .forms import (
     UserUpdateForm,
     ProfileUpdateForm,
     CarForm,
+    LoginForm,
 )
 from django.http import JsonResponse
 from datetime import datetime, date, timedelta
@@ -78,13 +78,13 @@ def login_view(request):
             "admin_panel:admin_dashboard" if request.user.is_staff else "home"
         )
     if request.method == "POST":
-        form = AuthenticationForm(data=request.POST)
+        form = LoginForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             return redirect("admin_panel:admin_dashboard" if user.is_staff else "home")
     else:
-        form = AuthenticationForm()
+        form = LoginForm()
     return render(request, "core/login.html", {"form": form})
 
 

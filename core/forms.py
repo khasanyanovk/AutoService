@@ -1,15 +1,34 @@
 import os
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from .models import ServiceCenter, UserProfile, Car, CarBrand, CarModel
 from datetime import datetime, date, timedelta
 from django.forms import ValidationError
 from .models import ServiceType, Appointment, WorkingHours
 import re
+from typing import cast
 
 
-class UserRegisterForm(UserCreationForm):
+class BootstrapInvalidMixin:
+    """Adds 'is-invalid' CSS class to fields that have validation errors when form is validated."""
+
+    def add_invalid_css_classes(self) -> None:
+        form = cast(forms.Form, self)
+        for name, field in form.fields.items():
+            if name in form.errors:
+                css = field.widget.attrs.get("class", "")
+                if "is-invalid" not in css:
+                    field.widget.attrs["class"] = (css + " is-invalid").strip()
+
+    def is_valid(self) -> bool:
+        valid = super().is_valid()  # type: ignore[misc]
+        if not valid:
+            self.add_invalid_css_classes()
+        return valid
+
+
+class UserRegisterForm(BootstrapInvalidMixin, UserCreationForm):
     email = forms.EmailField()
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
@@ -24,6 +43,40 @@ class UserRegisterForm(UserCreationForm):
             "password1",
             "password2",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        placeholders = {
+            "username": "Логин",
+            "first_name": "Имя",
+            "last_name": "Фамилия",
+            "email": "Email",
+            "password1": "Пароль",
+            "password2": "Подтверждение пароля",
+        }
+        for name, field in self.fields.items():
+            css = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = (css + " form-control").strip()
+            if name in placeholders:
+                field.widget.attrs["placeholder"] = placeholders[name]
+
+
+class LoginForm(BootstrapInvalidMixin, AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Логин",
+            }
+        )
+        self.fields["password"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Пароль",
+                "id": "passwordInput",
+            }
+        )
 
 
 class ServiceCenterChoiceForm(forms.Form):
