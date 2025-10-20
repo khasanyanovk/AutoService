@@ -11,6 +11,7 @@ from .models import (
     WorkingHours,
     ServiceCenter,
 )
+from django.db.models import Avg
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .forms import (
@@ -159,6 +160,27 @@ def profile(request):
     weekday_labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
     hour_data = hour_counts
 
+    top_service_name = top_services_labels[0] if top_services_labels else "—"
+    avg_cost = (
+        appt_qs.filter(status="COMPLETED")
+        .aggregate(avg=Avg("service_type__price"))
+        .get("avg")
+        or 0
+    )
+    now_local = timezone.localtime(timezone.now())
+    upcoming_appt = (
+        Appointment.objects.filter(
+            car__owner=request.user, status__in=["SCHEDULED", "IN_PROGRESS"]
+        )
+        .filter(
+            Q(scheduled_date__gt=today)
+            | Q(scheduled_date=today, scheduled_time__gte=now_local.time())
+        )
+        .select_related("service_type", "service_center", "car")
+        .order_by("scheduled_date", "scheduled_time")
+        .first()
+    )
+
     context = {
         "profile": user_profile,
         "cars": user_cars,
@@ -167,6 +189,9 @@ def profile(request):
         "data": data,
         "visits_count_90": sum(data),
         "total_cost": total_cost,
+        "top_service_name": top_service_name,
+        "avg_cost": avg_cost,
+        "upcoming_appt": upcoming_appt,
         "top_services_labels": top_services_labels,
         "top_services_data": top_services_data,
         "top_centers_labels": top_centers_labels,
@@ -438,7 +463,6 @@ def get_available_time_slots(request):
                     for slot in all_slots
                     if datetime.strptime(slot, "%H:%M").time() > effective_now_time
                 ]
-
             booked_appointments = Appointment.objects.filter(
                 scheduled_date=selected_date,
                 status__in=["SCHEDULED", "IN_PROGRESS"],
