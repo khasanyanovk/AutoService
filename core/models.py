@@ -59,6 +59,13 @@ class Car(models.Model):
             f"{brand_name}_{model_name}",
             f"{brand_name}/{model_name}",
         ]
+        model_compact = "".join(ch for ch in model_name if ch.isalnum())
+        if model_compact:
+            variants = {model_compact, model_compact.lower(), model_compact.upper()}
+            for variant in variants:
+                parts.append(variant)
+                parts.append(f"{brand_name}/{variant}")
+                parts.append(f"{slugify(brand_name)}/{variant}")
         candidates = []
         for base in parts:
             for ext in (".jpg", ".jpeg", ".png"):

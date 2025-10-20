@@ -198,10 +198,8 @@
                     </div>
                 </div>
             </div>
-            <!-- Removed old edit profile button (header has the new one) -->
         </div>
     </div>
-    <!-- Tabs: Cars and Statistics -->
     <ul class="nav nav-tabs mb-3" id="profileTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="cars-tab" data-bs-toggle="tab" data-bs-target="#cars-pane" type="button" role="tab" aria-controls="cars-pane" aria-selected="true">
@@ -219,8 +217,8 @@
         <div class="tab-pane fade show active" id="cars-pane" role="tabpanel" aria-labelledby="cars-tab">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="section-title mb-0">Мои автомобили</h2>
-                <a href="{% url 'add_car' %}" class="btn btn-success btn-action">
-                    <i class="bi bi-plus-circle me-1"></i> Добавить автомобиль
+                <a href="{% url 'add_car' %}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-circle me-1"></i> Добавить
                 </a>
             </div>
             {% if cars %}
@@ -235,7 +233,7 @@
                         <div class="carousel-item {% if forloop.first %}active{% endif %}">
                             <div class="carousel-card">
                                 <div class="row g-0">
-                                    <div class="col-md-7"> <!-- widen image column -->
+                                    <div class="col-md-7">
                                         {% with photo_url=car.get_photo_url %}
                                             {% if photo_url %}
                                                 <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
@@ -256,8 +254,15 @@
                                                 <p class="car-info"><strong>Цвет:</strong> {{ car.color }}</p>
                                             {% endif %}
                                             <div class="car-actions">
-                                                <a href="{% url 'edit_car' car.id %}" class="btn btn-outline-primary">Редактировать</a>
-                                                <a href="{% url 'service_booking' %}?car={{ car.id }}" class="btn btn-primary">Записаться на сервис</a>
+                                                <a href="{% url 'edit_car' car.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-pencil"></i> Редактировать
+                                                </a>
+                                                <form action="{% url 'delete_car' car.id %}" method="post" class="d-inline" onsubmit="return confirm('Удалить этот автомобиль?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
@@ -289,7 +294,6 @@
             {% endif %}
         </div>
         <div class="tab-pane fade" id="stats-pane" role="tabpanel" aria-labelledby="stats-tab">
-            <!-- Statistics content (adapted from admin_user_stats) -->
             <div class="row g-3">
                 <div class="col-xl-8">
                     <div class="stats-card mb-3">
