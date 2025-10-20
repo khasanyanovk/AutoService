@@ -77,14 +77,7 @@
                     <h4 class="mb-0"><i class="bi bi-car-front me-2"></i>Добавление автомобиля</h4>
                 </div>
                 <div class="card-body p-4">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
+
                     
                     <form method="post" id="carForm" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
