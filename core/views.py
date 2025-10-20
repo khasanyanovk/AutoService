@@ -23,7 +23,7 @@ from .forms import (
 )
 from django.http import JsonResponse
 from datetime import datetime, date, timedelta
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
 
 
 def home(request):
@@ -72,9 +72,74 @@ def profile(request):
     user_profile = UserProfile.objects.get(user=request.user)
     user_cars = Car.objects.filter(owner=request.user)
 
+    today = timezone.localtime(timezone.now()).date()
+    start_date = today - timedelta(days=89)
+    appt_qs = Appointment.objects.filter(
+        car__owner=request.user,
+        scheduled_date__gte=start_date,
+        scheduled_date__lte=today,
+    ).select_related("service_type", "service_center")
+
+    counts_by_date = {
+        row["scheduled_date"]: row["c"]
+        for row in appt_qs.values("scheduled_date").annotate(c=Count("id"))
+    }
+    labels = [(start_date + timedelta(days=i)).isoformat() for i in range(90)]
+    data = [counts_by_date.get(start_date + timedelta(days=i), 0) for i in range(90)]
+
+    total_cost = (
+        appt_qs.filter(status="COMPLETED").aggregate(total=Sum("service_type__price"))[
+            "total"
+        ]
+        or 0
+    )
+
+    top_services_qs = (
+        appt_qs.values("service_type__name").annotate(c=Count("id")).order_by("-c")[:5]
+    )
+    top_services_labels = [row["service_type__name"] or "—" for row in top_services_qs]
+    top_services_data = [row["c"] for row in top_services_qs]
+
+    top_centers_qs = (
+        appt_qs.values("service_center__address")
+        .annotate(c=Count("id"))
+        .order_by("-c")[:5]
+    )
+    top_centers_labels = [
+        row["service_center__address"] or "—" for row in top_centers_qs
+    ]
+    top_centers_data = [row["c"] for row in top_centers_qs]
+
+    weekday_counts = [0] * 7  # Mon=0 .. Sun=6
+    hour_counts = [0] * 24
+    for ap in appt_qs:
+        try:
+            wd = ap.scheduled_date.weekday()
+            weekday_counts[wd] += 1
+        except Exception:
+            pass
+        try:
+            hr = ap.scheduled_time.hour
+            hour_counts[hr] += 1
+        except Exception:
+            pass
+    weekday_labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    hour_data = hour_counts
+
     context = {
         "profile": user_profile,
         "cars": user_cars,
+        "labels": labels,
+        "data": data,
+        "visits_count_90": sum(data),
+        "total_cost": total_cost,
+        "top_services_labels": top_services_labels,
+        "top_services_data": top_services_data,
+        "top_centers_labels": top_centers_labels,
+        "top_centers_data": top_centers_data,
+        "weekday_labels": weekday_labels,
+        "weekday_data": weekday_counts,
+        "hour_data": hour_data,
     }
     return render(request, "core/profile.html", context)
 
@@ -206,6 +271,7 @@ def load_models(request):
 def service_booking(request):
     """Страница записи на услугу"""
     auto_update_appointments()
+    preselect_car_id = request.GET.get("car")
     if request.method == "POST":
         form = AppointmentForm(request.POST, user=request.user)
         if form.is_valid():
@@ -242,7 +308,14 @@ def service_booking(request):
                 for error in errors:
                     messages.error(request, f"{error}")
     else:
-        form = AppointmentForm(user=request.user)
+        initial = {}
+        if preselect_car_id:
+            try:
+                if Car.objects.filter(id=preselect_car_id, owner=request.user).exists():
+                    initial["car"] = int(preselect_car_id)
+            except Exception:
+                pass
+        form = AppointmentForm(user=request.user, initial=initial)
 
     context = {
         "form": form,

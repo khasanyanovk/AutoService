@@ -12,11 +12,30 @@
         background: white;
     }
     .profile-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
         color: white;
-        padding: 2rem;
-        text-align: center;
+        padding: 2rem 1.5rem;
+        position: relative;
+        overflow: hidden;
     }
+    .profile-header:before {
+        content: "";
+        position: absolute;
+        right: -100px;
+        top: -100px;
+        width: 320px;
+        height: 320px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.06);
+        filter: blur(4px);
+    }
+    .profile-header .row { align-items: center; }
+    .avatar-wrapper {
+        display: flex; align-items: center; gap: 16px;
+    }
+    .profile-identity h2 { font-size: 1.6rem; margin: 0; }
+    .profile-identity .username { opacity: .85; font-size: .95rem; }
+    .profile-actions { text-align: right; }
     .profile-avatar {
         width: 120px;
         height: 120px;
@@ -30,11 +49,11 @@
         border: none;
         box-shadow: 0 8px 30px rgba(0,0,0,0.2);
         margin: 0 auto;
-        max-width: 1000px;
+        max-width: 1100px; /* slightly wider */
         background: white;
     }
     .car-image {
-        height: 450px;
+        height: 480px; /* a bit taller for better fit */
         object-fit: cover;
         width: 100%;
     }
@@ -58,7 +77,8 @@
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        height: 100%;
+        position: relative;
+        overflow: hidden;
     }
     .stat-value {
         font-size: 2rem;
@@ -71,17 +91,17 @@
         font-weight: 500;
     }
     .car-details {
-        padding: 2.5rem;
+        padding: 1.5rem; /* reduce info padding to give more space to image */
         background: white;
     }
     .car-title {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         margin-bottom: 1.2rem;
         color: #333;
         font-weight: 600;
     }
     .car-info {
-        font-size: 1.1rem;
+        font-size: 1rem;
         margin-bottom: 0.6rem;
         color: #555;
     }
@@ -96,9 +116,7 @@
         font-size: 0.9rem;
         border-radius: 6px;
     }
-    .carousel-indicators {
-        bottom: -40px;
-    }
+    .carousel-indicators { bottom: -40px; }
     .carousel-indicators button {
         width: 10px;
         height: 10px;
@@ -121,24 +139,40 @@
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
+    /* Chart containers can be simple; canvas heights set via attribute like in admin */
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4 min-vh-80">
-    <div class="profile-card mb-5">
+    <div class="profile-card mb-4">
         <div class="profile-header">
-            <div class="mb-3">
-                {% if user.userprofile.avatar %}
-                    <img src="{{ user.userprofile.avatar.url }}" class="profile-avatar rounded-circle" alt="Аватар">
-                {% else %}
-                    <img src="{% static 'core/img/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
-                {% endif %}
+            <div class="container-fluid">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <div class="avatar-wrapper">
+                            {% if user.userprofile.avatar %}
+                                <img src="{{ user.userprofile.avatar.url }}" class="profile-avatar rounded-circle" alt="Аватар">
+                            {% else %}
+                                <img src="{% static 'core/img/default-avatar.png' %}" class="profile-avatar rounded-circle" alt="Аватар по умолчанию">
+                            {% endif %}
+                            <div class="profile-identity">
+                                <h2>{{ user.get_full_name|default:user.username }}</h2>
+                                <div class="username">@{{ user.username }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="profile-actions">
+                            <a href="{% url 'profile_edit' %}" class="btn btn-primary btn-action">
+                                <i class="bi bi-pencil me-1"></i> Редактировать профиль
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <h2>{{ user.get_full_name }}</h2>
-            <p class="mb-0">@{{ user.username }}</p>
         </div>
-        <div class="p-4">
+    <div class="p-4">
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <h5>Контактная информация</h5>
@@ -151,101 +185,213 @@
                     {% endif %}
                 </div>
                 <div class="col-md-6 mb-3">
-                    <h5>Статистика</h5>
+                    <h5>Краткая статистика</h5>
                     <div class="row">
                         <div class="col-6 text-center">
                             <div class="stat-value">{{ cars.count }}</div>
                             <div class="text-muted">Автомобилей</div>
                         </div>
                         <div class="col-6 text-center">
-                            <div class="stat-value">0</div>
-                            <div class="text-muted">Заявок</div>
+                            <div class="stat-value">{{ visits_count_90 }}</div>
+                            <div class="text-muted">Записей (90 дн.)</div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="d-flex justify-content-end">
-                <a href="{% url 'profile_edit' %}" class="btn btn-primary btn-action">
-                    <i class="bi bi-pencil me-1"></i> Редактировать профиль
-                </a>
-            </div>
+            <!-- Removed old edit profile button (header has the new one) -->
         </div>
     </div>
+    <!-- Tabs: Cars and Statistics -->
+    <ul class="nav nav-tabs mb-3" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cars-tab" data-bs-toggle="tab" data-bs-target="#cars-pane" type="button" role="tab" aria-controls="cars-pane" aria-selected="true">
+                <i class="bi bi-car-front me-1"></i> Автомобили
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats-pane" type="button" role="tab" aria-controls="stats-pane" aria-selected="false">
+                <i class="bi bi-graph-up me-1"></i> Статистика
+            </button>
+        </li>
+    </ul>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="section-title">Мои автомобили</h2>
-        <a href="{% url 'add_car' %}" class="btn btn-success btn-action">
-            <i class="bi bi-plus-circle me-1"></i> Добавить автомобиль
-        </a>
-    </div>
-    
-    {% if cars %}
-        <div id="carCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
-            <div class="carousel-indicators">
-                {% for car in cars %}
-                <button type="button" data-bs-target="#carCarousel" data-bs-slide-to="{{ forloop.counter0 }}" 
-                        class="{% if forloop.first %}active{% endif %}" aria-current="{% if forloop.first %}true{% endif %}" 
-                        aria-label="Slide {{ forloop.counter }}"></button>
-                {% endfor %}
+    <div class="tab-content" id="profileTabsContent">
+        <div class="tab-pane fade show active" id="cars-pane" role="tabpanel" aria-labelledby="cars-tab">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="section-title mb-0">Мои автомобили</h2>
+                <a href="{% url 'add_car' %}" class="btn btn-success btn-action">
+                    <i class="bi bi-plus-circle me-1"></i> Добавить автомобиль
+                </a>
             </div>
-            
-            <div class="carousel-inner">
-                {% for car in cars %}
-                <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                    <div class="carousel-card">
-                        <div class="row g-0">
-                            <div class="col-md-6">
-                                {% with photo_url=car.get_photo_url %}
-                                    {% if photo_url %}
-                                        <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
-                                    {% else %}
-                                        <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
-                                    {% endif %}
-                                {% endwith %}
-                            </div>
-                            <div class="col-md-6">
-                                <div class="car-details h-100 d-flex flex-column justify-content-center">
-                                    <h3 class="car-title">{{ car.model.brand }} {{ car.model.name }}</h3>
-                                    <p class="car-info"><strong>Год выпуска:</strong> {{ car.year }}</p>
-                                    <p class="car-info"><strong>Гос. номер:</strong> {{ car.license_plate }}</p>
-                                    {% if car.vin %}
-                                        <p class="car-info"><strong>VIN:</strong> {{ car.vin }}</p>
-                                    {% endif %}
-                                    {% if car.color %}
-                                        <p class="car-info"><strong>Цвет:</strong> {{ car.color }}</p>
-                                    {% endif %}
-                                    <div class="car-actions">
-                                        <a href="{% url 'edit_car' car.id %}" class="btn btn-outline-primary">Редактировать</a>
-                                        <a href="#" class="btn btn-primary">Записаться на сервис</a>
+            {% if cars %}
+                <div id="carCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
+                    <div class="carousel-indicators">
+                        {% for car in cars %}
+                        <button type="button" data-bs-target="#carCarousel" data-bs-slide-to="{{ forloop.counter0 }}" class="{% if forloop.first %}active{% endif %}" aria-current="{% if forloop.first %}true{% endif %}" aria-label="Slide {{ forloop.counter }}"></button>
+                        {% endfor %}
+                    </div>
+                    <div class="carousel-inner">
+                        {% for car in cars %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <div class="carousel-card">
+                                <div class="row g-0">
+                                    <div class="col-md-7"> <!-- widen image column -->
+                                        {% with photo_url=car.get_photo_url %}
+                                            {% if photo_url %}
+                                                <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                            {% else %}
+                                                <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                            {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="car-details h-100 d-flex flex-column justify-content-center">
+                                            <h3 class="car-title">{{ car.model.brand }} {{ car.model.name }}</h3>
+                                            <p class="car-info"><strong>Год выпуска:</strong> {{ car.year }}</p>
+                                            <p class="car-info"><strong>Гос. номер:</strong> {{ car.license_plate }}</p>
+                                            {% if car.vin %}
+                                                <p class="car-info"><strong>VIN:</strong> {{ car.vin }}</p>
+                                            {% endif %}
+                                            {% if car.color %}
+                                                <p class="car-info"><strong>Цвет:</strong> {{ car.color }}</p>
+                                            {% endif %}
+                                            <div class="car-actions">
+                                                <a href="{% url 'edit_car' car.id %}" class="btn btn-outline-primary">Редактировать</a>
+                                                <a href="{% url 'service_booking' %}?car={{ car.id }}" class="btn btn-primary">Записаться на сервис</a>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        {% endfor %}
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Предыдущий</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#carCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Следующий</span>
+                    </button>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-car-front" style="font-size: 3rem; color: #6c757d;"></i>
+                    </div>
+                    <h4 class="section-title">У вас нет добавленных автомобилей</h4>
+                    <p class="text-muted">Добавьте свой первый автомобиль, чтобы начать пользоваться услугами сервиса</p>
+                    <a href="{% url 'add_car' %}" class="btn btn-primary btn-action">
+                        <i class="bi bi-plus-circle me-1"></i> Добавить автомобиль
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        <div class="tab-pane fade" id="stats-pane" role="tabpanel" aria-labelledby="stats-tab">
+            <!-- Statistics content (adapted from admin_user_stats) -->
+            <div class="row g-3">
+                <div class="col-xl-8">
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Посещения (90 дней)</h6>
+                        <div style="height:180px">
+                            <canvas id="visitsChart"></canvas>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
+                <div class="col-xl-4">
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Сумма завершённых услуг</h6>
+                        <div class="h4 mb-0">{{ total_cost }} ₽</div>
+                    </div>
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Активность по дням недели</h6>
+                        <div style="height:240px">
+                            <canvas id="weekdayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Топ услуг</h6>
+                        <div style="height:240px">
+                            <canvas id="servicesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Топ филиалов</h6>
+                        <div style="height:240px">
+                            <canvas id="centersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="stats-card mb-3">
+                        <h6 class="mb-2">Активность по часам</h6>
+                        <div style="height:180px">
+                            <canvas id="hoursChart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <button class="carousel-control-prev" type="button" data-bs-target="#carCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Предыдущий</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#carCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Следующий</span>
-            </button>
         </div>
-    {% else %}
-        <div class="text-center py-5">
-            <div class="mb-4">
-                <i class="bi bi-car-front" style="font-size: 3rem; color: #6c757d;"></i>
-            </div>
-            <h4 class="section-title">У вас нет добавленных автомобилей</h4>
-            <p class="text-muted">Добавьте свой первый автомобиль, чтобы начать пользоваться услугами сервиса</p>
-            <a href="{% url 'add_car' %}" class="btn btn-primary btn-action">
-                <i class="bi bi-plus-circle me-1"></i> Добавить автомобиль
-            </a>
-        </div>
-    {% endif %}
+    </div>
 </div>
 {% endblock %} 
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  const visits = { labels: {{ labels|safe }}, data: {{ data|safe }} };
+  const services = { labels: {{ top_services_labels|safe }}, data: {{ top_services_data|safe }} };
+  const centers = { labels: {{ top_centers_labels|safe }}, data: {{ top_centers_data|safe }} };
+  const weekday = { labels: {{ weekday_labels|safe }}, data: {{ weekday_data|safe }} };
+  const hours = { labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), data: {{ hour_data|safe }} };
+
+        function makeLine(ctx, labels, data, color){
+            return new Chart(ctx, { type:'line', data:{ labels, datasets:[{ data, label:'Записей', borderColor: color, backgroundColor: 'rgba(13,110,253,.1)', tension:.3, pointRadius: 2 }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+        }
+        function makeBar(ctx, labels, data, color){
+            return new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, label:'Кол-во', backgroundColor: color }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+        }
+        function makeDoughnut(ctx, labels, data){
+            return new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data, backgroundColor:['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } } });
+        }
+
+    let chartsInitialized = false;
+    let charts = [];
+  function initCharts(){
+    if (chartsInitialized) return;
+    chartsInitialized = true;
+                const dpr = window.devicePixelRatio || 1;
+                function init(id, builder){
+                        const canvas = document.getElementById(id);
+                        const parent = canvas.parentElement;
+                        const width = parent.clientWidth;
+                        const height = parent.clientHeight;
+                        canvas.width = Math.floor(width * dpr);
+                        canvas.height = Math.floor(height * dpr);
+                        canvas.style.width = width + 'px';
+                        canvas.style.height = height + 'px';
+                        const ctx = canvas.getContext('2d');
+                        return builder(ctx);
+                }
+                charts.push(init('visitsChart', (ctx)=> makeLine(ctx, visits.labels, visits.data, '#0d6efd')));
+                charts.push(init('servicesChart', (ctx)=> makeDoughnut(ctx, services.labels, services.data)));
+                charts.push(init('centersChart', (ctx)=> makeDoughnut(ctx, centers.labels, centers.data)));
+                charts.push(init('weekdayChart', (ctx)=> makeBar(ctx, weekday.labels, weekday.data, '#198754')));
+                charts.push(init('hoursChart', (ctx)=> makeBar(ctx, hours.labels, hours.data, '#6c757d')));
+  }
+
+  const statsTab = document.getElementById('stats-tab');
+  if (statsTab){
+        statsTab.addEventListener('shown.bs.tab', function(){
+            requestAnimationFrame(()=> setTimeout(initCharts, 0));
+        });
+  }
+})();
+</script>
+{% endblock %}
