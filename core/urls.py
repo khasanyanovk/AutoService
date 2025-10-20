@@ -19,6 +19,11 @@ urlpatterns = [
         views.cancel_appointment,
         name="cancel_appointment",
     ),
+    path(
+        "ajax/get-time-slots/",
+        views.get_available_time_slots,
+        name="get_time_slots",
+    ),
     path("about/", views.about, name="about"),
     path("branches/", views.branches, name="branches"),
     path(
