@@ -6,6 +6,7 @@ from .models import ServiceCenter, UserProfile, Car, CarBrand, CarModel
 from datetime import datetime, date, timedelta
 from django.forms import ValidationError
 from .models import ServiceType, Appointment, WorkingHours
+from .models import Review
 import re
 from typing import cast
 
@@ -441,3 +442,48 @@ class AppointmentForm(forms.Form):
                 )
 
         return cleaned_data
+
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ["rating", "comment"]
+        widgets = {
+            "rating": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 5}
+            ),
+            "comment": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": "Расскажите о вашем опыте обслуживания (минимум 20 символов)",
+                }
+            ),
+        }
+
+    def clean_rating(self):
+        rating = self.cleaned_data.get("rating")
+        if rating is None or rating < 1 or rating > 5:
+            raise ValidationError("Оценка должна быть от 1 до 5.")
+        return rating
+
+    def clean_comment(self):
+        comment = (self.cleaned_data.get("comment") or "").strip()
+        if len(comment) < 20:
+            raise ValidationError("Комментарий должен содержать минимум 20 символов.")
+        return comment
+
+
+class AdminReplyForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ["admin_reply"]
+        widgets = {
+            "admin_reply": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Ответ администратора",
+                }
+            ),
+        }

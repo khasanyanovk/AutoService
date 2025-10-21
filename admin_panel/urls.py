@@ -93,6 +93,21 @@ urlpatterns = [
         views.admin_api_overall_statuses,
         name="admin_api_overall_statuses",
     ),
+    path(
+        "admin-reviews/",
+        views.admin_reviews,
+        name="admin_reviews",
+    ),
+    path(
+        "admin-reviews/<uuid:review_id>/reply/",
+        views.admin_review_reply,
+        name="admin_review_reply",
+    ),
+    path(
+        "admin-reviews/<uuid:review_id>/delete/",
+        views.admin_review_delete,
+        name="admin_review_delete",
+    ),
     path("admin-cars/", views.admin_cars, name="admin_cars"),
     path(
         "admin-cars/brand/create/", views.admin_brand_create, name="admin_brand_create"

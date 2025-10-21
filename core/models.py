@@ -319,6 +319,29 @@ class WorkingHours(models.Model):
         unique_together = ("service_center", "day_of_week")
 
 
+class Review(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service_center = models.ForeignKey(
+        ServiceCenter, on_delete=models.CASCADE, related_name="reviews"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField()
+    admin_reply = models.TextField(blank=True, null=True)
+    admin_reply_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("service_center", "user")
+        ordering = ["-created_at"]
+        verbose_name = "Отзыв"
+        verbose_name_plural = "Отзывы"
+
+    def __str__(self) -> str:
+        return f"{self.service_center} — {self.user} ({self.rating})"
+
+
 class AdminDashboard(models.Model):
     """Модель для хранения настроек админ-панели"""
 

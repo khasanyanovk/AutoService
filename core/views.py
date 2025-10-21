@@ -1,6 +1,6 @@
 from django.contrib.auth import login, logout
 from django.db import IntegrityError
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from .models import (
     CarModel,
@@ -21,6 +21,7 @@ from .forms import (
     ProfileUpdateForm,
     CarForm,
     LoginForm,
+    ReviewForm,
 )
 from django.http import JsonResponse
 from datetime import datetime, date, timedelta
@@ -46,7 +47,7 @@ def branches(request):
 
 
 def branch_detail(request, service_center_id):
-    """Детальная страница филиала (только просмотр)."""
+    """Детальная страница филиала: услуги, график, отзывы и форма отзыва (если доступна)."""
     sc = get_object_or_404(
         ServiceCenter.objects.prefetch_related("working_hours"),
         id=service_center_id,
@@ -54,9 +55,44 @@ def branch_detail(request, service_center_id):
     services = ServiceType.objects.filter(service_center=sc, is_active=True).order_by(
         "name"
     )
+    from .models import Review
+
+    reviews = (
+        Review.objects.filter(service_center=sc)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+    avg_rating = reviews.aggregate(avg=Avg("rating")).get("avg") or 0
+
+    review_form = None
+    can_review = False
+    if request.user.is_authenticated:
+        has_completed = Appointment.objects.filter(
+            car__owner=request.user,
+            service_center=sc,
+            status="COMPLETED",
+        ).exists()
+        already = Review.objects.filter(service_center=sc, user=request.user).exists()
+        can_review = has_completed and not already
+        if request.method == "POST" and can_review:
+            review_form = ReviewForm(request.POST)
+            if review_form.is_valid():
+                r = review_form.save(commit=False)
+                r.user = request.user
+                r.service_center = sc
+                r.save()
+                messages.success(request, "Спасибо за отзыв!")
+                return redirect("branch_detail", service_center_id=sc.id)
+        else:
+            review_form = ReviewForm()
+
     context = {
         "service_center": sc,
         "services": services,
+        "reviews": reviews,
+        "avg_rating": avg_rating,
+        "can_review": can_review,
+        "review_form": review_form,
     }
     return render(request, "core/branch_detail.html", context)
 
@@ -592,3 +628,34 @@ def auto_update_appointments():
     )
     if qs.exists():
         qs.update(status="CANCELLED", updated_at=now)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_reply_review(request, review_id):
+    from .models import Review
+
+    review = get_object_or_404(Review, id=review_id)
+    if request.method == "POST":
+        reply = (request.POST.get("admin_reply") or "").strip()
+        review.admin_reply = reply if reply else None
+        review.admin_reply_at = timezone.localtime(timezone.now()) if reply else None
+        review.save(update_fields=["admin_reply", "admin_reply_at", "updated_at"])
+        messages.success(request, "Ответ сохранён")
+    return redirect(
+        "admin_panel:admin_service_center_detail",
+        service_center_id=review.service_center.id,
+    )
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_delete_review(request, review_id):
+    from .models import Review
+
+    review = get_object_or_404(Review, id=review_id)
+    sc_id = review.service_center.id
+    if request.method == "POST":
+        review.delete()
+        messages.success(request, "Отзыв удалён")
+    return redirect("admin_panel:admin_service_center_detail", service_center_id=sc_id)

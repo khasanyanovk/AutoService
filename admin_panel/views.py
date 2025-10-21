@@ -11,6 +11,7 @@ from core.models import (
     WorkingHours,
     ServiceCenter,
     UserProfile,
+    Review,
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -29,6 +30,106 @@ from .forms import (
     CarModelForm,
 )
 from core.models import CarBrand, CarModel
+from django.template.loader import render_to_string
+
+
+@login_required
+@admin_required
+def admin_reviews(request):
+    """Управление отзывами: список с фильтрами, быстрый ответ/удаление."""
+    _auto_cancel_overdue_appointments()
+    reviews = Review.objects.select_related("user", "service_center").all()
+
+    branch = request.GET.get("branch", "").strip()
+    rating = request.GET.get("rating", "").strip()
+    has_reply = request.GET.get("has_reply", "").strip()
+    q = request.GET.get("q", "").strip()
+
+    if branch:
+        reviews = reviews.filter(service_center_id=branch)
+    if rating:
+        try:
+            r_int = int(rating)
+            reviews = reviews.filter(rating=r_int)
+        except ValueError:
+            pass
+    if has_reply == "yes":
+        reviews = reviews.exclude(admin_reply__isnull=True).exclude(
+            admin_reply__exact=""
+        )
+    elif has_reply == "no":
+        reviews = reviews.filter(Q(admin_reply__isnull=True) | Q(admin_reply__exact=""))
+    if q:
+        reviews = reviews.filter(
+            Q(comment__icontains=q)
+            | Q(user__username__icontains=q)
+            | Q(user__first_name__icontains=q)
+            | Q(user__last_name__icontains=q)
+        )
+
+    reviews = reviews.order_by("-created_at")
+
+    page = request.GET.get("page", 1)
+    paginator = Paginator(reviews, 20)
+    page_obj = paginator.get_page(page)
+
+    branches = ServiceCenter.objects.all().order_by("address")
+
+    context = {
+        "page_obj": page_obj,
+        "branches": branches,
+        "filters": {
+            "branch": branch,
+            "rating": rating,
+            "has_reply": has_reply,
+            "q": q,
+        },
+    }
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        html = render_to_string(
+            "admin_panel/partials/_reviews_table.html",
+            context=context,
+            request=request,
+        )
+        return JsonResponse({"html": html, "count": page_obj.paginator.count})
+
+    return render(request, "admin_panel/admin_reviews.html", context)
+
+
+@login_required
+@admin_required
+def admin_review_reply(request, review_id):
+    """POST: ответ администратора на отзыв"""
+    _auto_cancel_overdue_appointments()
+    review = get_object_or_404(Review, id=review_id)
+    if request.method != "POST":
+        return redirect("admin_panel:admin_reviews")
+
+    reply_text = request.POST.get("admin_reply", "").strip()
+    review.admin_reply = reply_text
+    review.admin_reply_at = timezone.localtime(timezone.now()) if reply_text else None
+    review.save(update_fields=["admin_reply", "admin_reply_at"])
+    messages.success(request, "Ответ сохранен.")
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True})
+    referer = request.META.get("HTTP_REFERER")
+    return redirect(referer or "admin_panel:admin_reviews")
+
+
+@login_required
+@admin_required
+def admin_review_delete(request, review_id):
+    """POST: удаление отзыва администратором"""
+    _auto_cancel_overdue_appointments()
+    review = get_object_or_404(Review, id=review_id)
+    if request.method == "POST":
+        review.delete()
+        messages.success(request, "Отзыв удален.")
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": True})
+        referer = request.META.get("HTTP_REFERER")
+        return redirect(referer or "admin_panel:admin_reviews")
+    return redirect("admin_panel:admin_reviews")
 
 
 def _auto_cancel_overdue_appointments():
