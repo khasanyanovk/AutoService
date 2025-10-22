@@ -1,0 +1,8 @@
+Здравствуйте, {{ user.get_full_name|default:user.username }}!
+
+Статус вашей записи изменился на: {{ status }}.
+
+- Филиал: {{ service_center.address }}
+- Услуга: {{ service.name }}
+- Дата и время: {{ scheduled_date }} {{ scheduled_time }}
+- Авто: {{ car }}

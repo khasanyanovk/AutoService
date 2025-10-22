@@ -173,8 +173,6 @@
                 <div class="row mt-2">
                     <div class="col-12">
                         <div class="info-pills">
-                            {% if user.userprofile.phone %}<span class="info-pill"><i class="bi bi-telephone"></i>{{ user.userprofile.phone }}</span>{% endif %}
-                            {% if user.userprofile.address %}<span class="info-pill"><i class="bi bi-geo-alt"></i>{{ user.userprofile.address }}</span>{% endif %}
                             <span class="info-pill"><i class="bi bi-envelope"></i>{{ user.email }}</span>
                             <span class="info-pill"><i class="bi bi-car-front"></i>{{ cars.count }} авто</span>
                             <span class="info-pill"><i class="bi bi-graph-up"></i>{{ visits_count_90 }} записей / 90 дн.</span>

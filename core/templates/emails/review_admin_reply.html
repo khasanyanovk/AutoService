@@ -1,0 +1,11 @@
+{% extends 'emails/base_email.html' %}
+{% block subject %}Ответ на ваш отзыв{% endblock %}
+{% block header_note %}Ответ администратора{% endblock %}
+{% block content %}
+  <p>Здравствуйте, {{ user.get_full_name|default:user.username }}!</p>
+  <p>Вы оставляли отзыв о филиале <strong>{{ service_center.address }}</strong>.</p>
+  <p>Ваш отзыв:</p>
+  <blockquote style="margin:0; padding:10px 12px; background:#f8f9fa; border-radius:8px;">{{ comment }}</blockquote>
+  <p class="mt-2">Ответ администратора:</p>
+  <blockquote style="margin:0; padding:10px 12px; background:#eef6ff; border-radius:8px;">{{ admin_reply }}</blockquote>
+{% endblock %}

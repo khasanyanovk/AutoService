@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block subject %}{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; margin:0; padding:20px; }
+    .container { max-width: 640px; margin: 0 auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.06);} 
+    .header { background:#0d6efd; color:#fff; padding:16px 20px; }
+    .content { padding:20px; color:#212529; }
+    .footer { padding:16px 20px; color:#6c757d; font-size:12px; border-top:1px solid #f0f2f4; }
+    .btn { display:inline-block; background:#0d6efd; color:#fff !important; text-decoration:none; padding:10px 16px; border-radius:6px; }
+    .muted { color:#6c757d; }
+  </style>
+  {% block extra_head %}{% endblock %}
+  
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <strong>AutoService</strong>
+      <div style="font-size:12px; opacity:.9">{% block header_note %}{% endblock %}</div>
+    </div>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+    <div class="footer">
+      Это автоматическое уведомление. Пожалуйста, не отвечайте на это письмо.
+    </div>
+  </div>
+</body>
+</html>
