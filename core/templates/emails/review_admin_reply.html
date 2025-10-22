@@ -4,8 +4,10 @@
 {% block content %}
   <p>Здравствуйте, {{ user.get_full_name|default:user.username }}!</p>
   <p>Вы оставляли отзыв о филиале <strong>{{ service_center.address }}</strong>.</p>
-  <p>Ваш отзыв:</p>
-  <blockquote style="margin:0; padding:10px 12px; background:#f8f9fa; border-radius:8px;">{{ comment }}</blockquote>
-  <p class="mt-2">Ответ администратора:</p>
-  <blockquote style="margin:0; padding:10px 12px; background:#eef6ff; border-radius:8px;">{{ admin_reply }}</blockquote>
+  <div class="card">
+    <div style="font-size:13px; color:#6c757d; margin-bottom:6px;">Ваш отзыв</div>
+    <blockquote style="margin:0; padding:10px 12px; background:#f8f9fa; border-radius:8px;">{{ comment }}</blockquote>
+    <div style="font-size:13px; color:#6c757d; margin:12px 0 6px;">Ответ администратора</div>
+    <blockquote style="margin:0; padding:10px 12px; background:#eef6ff; border-radius:8px;">{{ admin_reply }}</blockquote>
+  </div>
 {% endblock %}

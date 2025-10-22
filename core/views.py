@@ -27,7 +27,6 @@ from django.http import JsonResponse
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Sum
 from .email_service import (
-    send_appointment_created_email,
     send_appointment_cancelled_email,
     send_review_reply_email,
 )
@@ -396,10 +395,7 @@ def service_booking(request):
                 )
                 appointment.save()
 
-                try:
-                    send_appointment_created_email(appointment)
-                except Exception:
-                    pass
+                # Creation email is handled by signals (post_save)
 
                 messages.success(
                     request,
@@ -600,10 +596,6 @@ def cancel_appointment(request, appointment_id):
         if appointment.status == "SCHEDULED":
             appointment.status = "CANCELLED"
             appointment.save()
-            try:
-                send_appointment_cancelled_email(appointment)
-            except Exception:
-                pass
             messages.success(request, "Запись успешно отменена")
         else:
             messages.error(request, "Невозможно отменить запись в текущем статусе")

@@ -3,11 +3,26 @@
 {% block header_note %}Изменение статуса{% endblock %}
 {% block content %}
   <p>Здравствуйте, {{ user.get_full_name|default:user.username }}!</p>
-  <p>Статус вашей записи изменился на <strong>{{ status }}</strong>.</p>
-  <ul>
-    <li>Филиал: <strong>{{ service_center.address }}</strong></li>
-    <li>Услуга: <strong>{{ service.name }}</strong></li>
-    <li>Дата и время: <strong>{{ scheduled_date }} {{ scheduled_time }}</strong></li>
-    <li>Авто: <strong>{{ car }}</strong></li>
-  </ul>
+  <p>Статус вашей записи изменился:&nbsp; <span class="badge">{{ status }}</span></p>
+  <div class="card">
+    <table class="kv">
+      <tr>
+        <th>Филиал</th>
+        <td><strong>{{ service_center.address }}</strong></td>
+      </tr>
+      <tr>
+        <th>Услуга</th>
+        <td><strong>{{ service.name }}</strong></td>
+      </tr>
+      <tr>
+        <th>Дата и время</th>
+        <td><strong>{{ scheduled_date }} {{ scheduled_time }}</strong></td>
+      </tr>
+      <tr>
+        <th>Автомобиль</th>
+        <td><strong>{{ car }}</strong></td>
+      </tr>
+    </table>
+  </div>
+  <p class="muted" style="margin-top:12px;">Вы всегда можете посмотреть детали в личном кабинете.</p>
 {% endblock %}
