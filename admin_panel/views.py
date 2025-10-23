@@ -901,10 +901,7 @@ def admin_service_center_edit(request, service_center_id):
         if form.is_valid():
             form.save()
             messages.success(request, "Информация о филиале обновлена")
-            return redirect(
-                "admin_panel:admin_service_center_detail",
-                service_center_id=service_center.id,
-            )
+            return redirect("admin_panel:admin_branches")
     else:
         form = ServiceCenterEditForm(instance=service_center)
 
