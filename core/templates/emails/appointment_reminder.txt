@@ -1,0 +1,9 @@
+Здравствуйте, {{ user.get_full_name|default:user.username }}!
+
+Напоминаем о вашей записи завтра:
+- Филиал: {{ service_center.address }}
+- Услуга: {{ service.name }}
+- Дата и время: {{ scheduled_date }} {{ scheduled_time }}
+- Авто: {{ car }}
+
+Если планы изменились, пожалуйста, заранее отмените запись.

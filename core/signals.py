@@ -1,7 +1,11 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
-from .models import UserProfile
+from .models import UserProfile, Appointment
+from .email_service import (
+    send_appointment_status_changed_email,
+    send_appointment_created_email,
+)
 
 
 @receiver(post_save, sender=User)
@@ -16,3 +20,29 @@ def save_user_profile(sender, instance, **kwargs):
         instance.userprofile.save()
     else:
         UserProfile.objects.create(user=instance)
+
+
+@receiver(pre_save, sender=Appointment)
+def capture_old_status(sender, instance: Appointment, **kwargs):
+    """Store previous status on the instance for comparison in post_save."""
+    if instance.pk:
+        try:
+            old = Appointment.objects.get(pk=instance.pk)
+            instance._old_status = old.status  # type: ignore[attr-defined]
+        except Appointment.DoesNotExist:
+            instance._old_status = None  # type: ignore[attr-defined]
+    else:
+        instance._old_status = None  # type: ignore[attr-defined]
+
+
+@receiver(post_save, sender=Appointment)
+def notify_on_changes(sender, instance: Appointment, created: bool, **kwargs):
+    try:
+        if created:
+            send_appointment_created_email(instance)
+            return
+        old_status = getattr(instance, "_old_status", None)
+        if old_status and old_status != instance.status:
+            send_appointment_status_changed_email(instance)
+    except Exception:
+        pass
