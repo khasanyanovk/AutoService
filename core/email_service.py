@@ -18,8 +18,13 @@ def _render_template(template_base: str, context: dict) -> tuple[str, str | None
     Expects files: emails/{template_base}.txt and optional emails/{template_base}.html
     """
     text_body = render_to_string(f"emails/{template_base}.txt", context)
+    ctx = dict(context)
     try:
-        html_body = render_to_string(f"emails/{template_base}.html", context)
+        static_url = getattr(settings, "STATIC_URL", "/static/")
+        logo_url = f"{static_url}core/img/logo.png"
+        if "logo_url" not in ctx:
+            ctx["logo_url"] = logo_url
+        html_body = render_to_string(f"emails/{template_base}.html", ctx)
     except Exception:
         html_body = None
     return text_body, html_body
@@ -50,8 +55,10 @@ def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | 
                 getattr(settings, "DEFAULT_FROM_EMAIL", None),
             )
         except Exception as exc:
+            # Ensure visibility even in threads
             logger.error("Email send failed: %s", exc, exc_info=True)
             if getattr(settings, "DEBUG", False):
+                # Best-effort console output during development
                 print(f"[email_service] send failed: {exc}")
 
     threading.Thread(target=_runner, daemon=True).start()
