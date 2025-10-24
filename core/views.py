@@ -28,7 +28,6 @@ from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Sum
 from .email_service import (
     send_appointment_cancelled_email,
-    send_review_reply_email,
 )
 
 
@@ -394,9 +393,6 @@ def service_booking(request):
                     notes=notes,
                 )
                 appointment.save()
-
-                # Creation email is handled by signals (post_save)
-
                 messages.success(
                     request,
                     f'Запись на услугу "{appointment.service_type}" успешно создана в {appointment.service_center} на {appointment.scheduled_date} в {appointment.scheduled_time}',
@@ -656,10 +652,6 @@ def admin_reply_review(request, review_id):
         review.admin_reply = reply if reply else None
         review.admin_reply_at = timezone.localtime(timezone.now()) if reply else None
         review.save(update_fields=["admin_reply", "admin_reply_at", "updated_at"])
-        try:
-            send_review_reply_email(review)
-        except Exception:
-            pass
         messages.success(request, "Ответ сохранён")
     return redirect(
         "admin_panel:admin_service_center_detail",
