@@ -24,6 +24,7 @@ from .forms import (
     ReviewForm,
 )
 from django.http import JsonResponse
+from django.template.loader import render_to_string
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Sum
 from .email_service import (
@@ -84,8 +85,25 @@ def branch_detail(request, service_center_id):
                 r.user = request.user
                 r.service_center = sc
                 r.save()
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    html = render_to_string(
+                        "core/_review_thanks.html",
+                        {"service_center": sc, "review": r},
+                        request=request,
+                    )
+                    return JsonResponse({"success": True, "html": html})
                 messages.success(request, "Спасибо за отзыв!")
                 return redirect("branch_detail", service_center_id=sc.id)
+            else:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    form_html = render_to_string(
+                        "core/_review_form.html",
+                        {"review_form": review_form},
+                        request=request,
+                    )
+                    return JsonResponse(
+                        {"success": False, "form_html": form_html}, status=400
+                    )
         else:
             review_form = ReviewForm()
 
