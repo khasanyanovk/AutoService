@@ -47,7 +47,18 @@ def branches(request):
         .prefetch_related("working_hours")
         .order_by("address")
     )
-    return render(request, "core/branches.html", {"centers": centers})
+    today_dow = timezone.localtime(timezone.now()).isoweekday()
+    center_cards = []
+    for c in centers:
+        try:
+            wh = WorkingHours.objects.filter(
+                service_center=c, day_of_week=today_dow
+            ).first()
+        except Exception:
+            wh = None
+        center_cards.append({"center": c, "today_wh": wh})
+
+    return render(request, "core/branches.html", {"center_cards": center_cards})
 
 
 def branch_detail(request, service_center_id):
@@ -533,6 +544,12 @@ def get_available_time_slots(request):
                     + timedelta(minutes=service_type.duration)
                 ).time()
 
+                try:
+                    if slot_end_time > working_hours.end_time:
+                        continue
+                except Exception:
+                    pass
+
                 is_available = True
                 for appointment in booked_appointments:
                     app_start = appointment.scheduled_time
@@ -590,8 +607,10 @@ def generate_time_slots(
 def appointment_list(request):
     """Список записей пользователя"""
     auto_update_appointments()
-    appointments = Appointment.objects.filter(car__owner=request.user).order_by(
-        "-scheduled_date", "scheduled_time"
+    appointments = (
+        Appointment.objects.filter(car__owner=request.user)
+        .select_related("service_center", "service_type", "car")
+        .order_by("-scheduled_date", "scheduled_time")
     )
 
     context = {"appointments": appointments}

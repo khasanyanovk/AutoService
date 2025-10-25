@@ -24,9 +24,10 @@
  </div>
 
 <div class="container mb-4">
-  {% if centers %}
+  {% if center_cards %}
     <div class="row g-3">
-      {% for c in centers %}
+      {% for item in center_cards %}
+      {% with c=item.center wh=item.today_wh %}
       <div class="col-md-6 col-lg-4">
         <div class="card branch-card h-100">
           {% if c.photo %}
@@ -36,7 +37,17 @@
             <div class="branch-title mb-1">{{ c.address }}</div>
             <div class="branch-meta mb-2">
               {% if c.phone %}<div><i class="bi bi-telephone me-1"></i>{{ c.phone }}</div>{% endif %}
-              {% if c.opening_hours %}<div><i class="bi bi-clock me-1"></i>{{ c.opening_hours }}</div>{% endif %}
+              <div>
+                <i class="bi bi-clock me-1"></i>
+                {% if wh and wh.is_working %}
+                  Сегодня: {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
+                  {% if wh.lunch_start and wh.lunch_end %}
+                    <span class="text-muted small">(обед {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }})</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Сегодня: выходной</span>
+                {% endif %}
+              </div>
             </div>
             <div class="branch-actions">
               <a href="{% url 'branch_detail' c.id %}" class="btn btn-primary btn-sm">
@@ -46,6 +57,7 @@
           </div>
         </div>
       </div>
+      {% endwith %}
       {% endfor %}
     </div>
   {% else %}

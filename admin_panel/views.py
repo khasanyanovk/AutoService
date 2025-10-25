@@ -179,7 +179,8 @@ def admin_dashboard(request):
 
     upcoming_appointments = (
         Appointment.objects.filter(
-            scheduled_date__gte=timezone.localtime(timezone.now()).date()
+            scheduled_date__gte=timezone.localtime(timezone.now()).date(),
+            status__in=["SCHEDULED", "IN_PROGRESS"],
         )
         .select_related("service_center", "car", "service_type", "car__owner")
         .order_by("scheduled_date", "scheduled_time")[:5]
