@@ -1,0 +1,507 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ service_center.address }} - Панель управления{% endblock %}
+
+{% block extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .dashboard-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+        background: white;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    .service-center-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    /* Стили для FullCalendar */
+    #calendar {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .fc-toolbar {
+        padding: 1rem;
+        margin-bottom: 0 !important;
+    }
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 600;
+    }
+
+    .fc .fc-daygrid-day-number {
+        display: inline-flex;
+        width: 2rem;
+        height: 2rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: 600;
+        margin: .25rem auto .25rem .25rem;
+    }
+
+    .fc .fc-day-today .fc-daygrid-day-number {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+
+    .fc-selected-day .fc-daygrid-day-number {
+        background: #0d6efd;
+        color: #fff;
+    }
+    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; }
+    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; }
+    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; }
+    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .small-chart {
+        height: 250px;
+    }
+    .schedule-list .slot { display:flex; justify-content:space-between; align-items:center; padding:.6rem .9rem; border-bottom:1px solid #f1f3f5; }
+    .slot.free { background:#f8f9fa; }
+    .slot.busy { background:#fff5f5; }
+    .slot-time { font-weight:600; }
+    .slot-title { color:#495057; }
+    .slot-status { font-size:.85rem; }
+    .empty-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#6c757d; font-size:.95rem; text-align:center; padding:0 1rem; }
+    @media (max-width: 991.98px) {
+        .chart-container { height: 240px; }
+        .small-chart { height: 200px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="service-center-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h2 mb-2">Автосервис</h1>
+                <p class="mb-2">
+                    <i class="bi bi-geo-alt me-1"></i>{{ service_center.address }}
+                </p>
+                <p class="mb-0">
+                    <i class="bi bi-clock me-1"></i>{{ service_center.opening_hours }} | 
+                    <i class="bi bi-telephone me-1"></i>{{ service_center.phone }}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'admin_panel:admin_branches' %}" class="btn btn-light">
+                    <i class="bi bi-arrow-left me-1"></i> Назад к списку
+                </a>
+                <a href="{% url 'admin_panel:admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
+                    <i class="bi bi-pencil-square me-1"></i> Редактировать
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Календарь записей</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="dashboard-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Расписание на день</h4>
+                    <form class="d-flex" method="get">
+                        <input type="date" class="form-control form-control-sm me-2" name="date" value="{{ selected_date }}">
+                        <button class="btn btn-light btn-sm">OK</button>
+                    </form>
+                </div>
+                <div class="card-body p-0 schedule-list">
+                    {% if todays_schedule %}
+                        {% for s in todays_schedule %}
+                        <div class="slot {% if s.busy %}busy{% else %}free{% endif %}">
+                            <div>
+                                <div class="slot-time">
+                                    {% if s.busy %}
+                                        {% if s.start and s.end %}{{ s.start }}–{{ s.end }}{% else %}{{ s.time }}{% endif %}
+                                    {% else %}
+                                        {{ s.time }}
+                                    {% endif %}
+                                </div>
+                                {% if s.busy %}
+                                    <div class="slot-title small">{{ s.title }}</div>
+                                {% else %}
+                                    <div class="text-muted small">Свободно</div>
+                                {% endif %}
+                            </div>
+                            {% if s.busy %}
+                            <a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/{{ s.appointment_id }}/">Открыть</a>
+                            {% else %}
+                            <span class="badge bg-success slot-status">Свободно</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Статистика по услугам</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="serviceStatsChart"></canvas>
+                        {% if not has_service_stats %}
+                        <div class="empty-overlay">Нет данных по услугам</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Нагрузка по дням недели</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container small-chart">
+                        <canvas id="weekdayStatsChart"></canvas>
+                        {% if not has_weekday_stats %}
+                            <div class="empty-overlay">Нет данных по дням недели</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Посещаемость</h4>
+                    <div>
+                        <button type="button" class="btn btn-light btn-sm me-1 btn-period-toggle" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-light btn-sm btn-period-toggle" data-period="month">Месяц</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="visitsChart"></canvas>
+                        <div id="visitsEmpty" class="empty-overlay" style="{% if has_visits_data %}display:none{% endif %}">Нет посещений за выбранный период</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
+                </div>
+                <div class="card-body" style="min-height:300px; position:relative;">
+                    {% if status_total > 0 %}
+                        {% for stat in status_stats %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge 
+                                {% if stat.status == 'SCHEDULED' %}bg-primary
+                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
+                                {% elif stat.status == 'COMPLETED' %}bg-success
+                                {% elif stat.status == 'CANCELLED' %}bg-danger
+                                {% endif %}">
+                                {{ stat.label }}
+                            </span>
+                            <strong class="text-dark">{{ stat.count }}</strong>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-overlay">Нет записей со статусами за выбранный период</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ru.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'ru',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: '{% url "admin_panel:admin_api_appointments" %}?service_center={{ service_center.id }}',
+            dateClick: function(info) {
+                var y = info.date.getFullYear();
+                var m = String(info.date.getMonth()+1).padStart(2,'0');
+                var d = String(info.date.getDate()).padStart(2,'0');
+                var iso = y + '-' + m + '-' + d;
+                var dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) { dateInput.value = iso; }
+                document.querySelectorAll('.fc-selected-day').forEach(function(el){ el.classList.remove('fc-selected-day'); });
+                var cell = document.querySelector('.fc-daygrid-day[data-date="'+iso+'"]');
+                if (cell) cell.classList.add('fc-selected-day');
+                
+                var now = new Date();
+                var isToday = (new Date().toDateString() === info.date.toDateString());
+                var clientNow = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+                fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=' + (isToday ? '1' : '0') + '&client_now=' + encodeURIComponent(clientNow), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function(r){ return r.json(); }).then(function(data){
+                    var container = document.querySelector('.schedule-list');
+                    if (!container) return;
+                    var html = '';
+                    if (data.slots && data.slots.length) {
+                        data.slots.forEach(function(s){
+                            if (s.busy) {
+                                var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
+                                html += '<div class="slot busy">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+ timeLabel +'</div>'+
+                                        '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                    '</div>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
+                                '</div>';
+                            } else {
+                                html += '<div class="slot free">' +
+                                    '<div><div class="slot-time">'+s.time+'</div>'+
+                                    '<div class="text-muted small">Свободно</div></div>'+
+                                    '<span class="badge bg-success slot-status">Свободно</span>'+
+                                '</div>';
+                            }
+                        });
+                    } else {
+                        html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                    }
+                    container.innerHTML = html;
+                });
+            },
+            dayCellDidMount: function(arg) {
+                var selected = '{{ selected_date }}';
+                var y = arg.date.getFullYear();
+                var m = String(arg.date.getMonth()+1).padStart(2,'0');
+                var dd = String(arg.date.getDate()).padStart(2,'0');
+                var d = y+'-'+m+'-'+dd;
+                if (d === selected) {
+                    arg.el.classList.add('fc-selected-day');
+                }
+            },
+            eventClick: function(info) {
+                window.location.href = '/admin-dashboard/appointment/' + info.event.id + '/';
+            },
+            eventClassNames: function(arg) {
+                return ['appointment-status-' + arg.event.extendedProps.status.toLowerCase()];
+            },
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: false
+            }
+        });
+        calendar.render();
+
+        (function initialTodayLoad(){
+            var selected = '{{ selected_date }}';
+            try {
+                var parts = selected.split('-');
+                var selDate = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+                var today = new Date();
+                if (selDate.toDateString() === today.toDateString()) {
+                    var y = selDate.getFullYear();
+                    var m = String(selDate.getMonth()+1).padStart(2,'0');
+                    var d = String(selDate.getDate()).padStart(2,'0');
+                    var iso = y + '-' + m + '-' + d;
+                    var clientNow = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
+                    fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=1&client_now=' + encodeURIComponent(clientNow), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    }).then(function(r){ return r.json(); }).then(function(data){
+                        var container = document.querySelector('.schedule-list');
+                        if (!container) return;
+                        var html = '';
+                        if (data.slots && data.slots.length) {
+                            data.slots.forEach(function(s){
+                                if (s.busy) {
+                                    var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
+                                    html += '<div class="slot busy">' +
+                                        '<div>'+
+                                            '<div class="slot-time">'+ timeLabel +'</div>'+
+                                            '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                        '</div>'+
+                                        '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
+                                    '</div>';
+                                } else {
+                                    html += '<div class="slot free">' +
+                                        '<div><div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-muted small">Свободно</div></div>'+
+                                        '<span class="badge bg-success slot-status">Свободно</span>'+
+                                    '</div>';
+                                }
+                            });
+                        } else {
+                            html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                        }
+                        container.innerHTML = html;
+                    });
+                }
+            } catch(e) {}
+        })();
+
+        var ctxService = document.getElementById('serviceStatsChart').getContext('2d');
+        var serviceStatsChart = new Chart(ctxService, {
+            type: 'doughnut',
+            data: {
+                labels: JSON.parse('{{ stats_labels|escapejs }}'),
+                datasets: [{
+                    data: JSON.parse('{{ stats_data|escapejs }}'),
+                    backgroundColor: [
+                        '#0d6efd', '#6610f2', '#6f42c1', '#d63384', 
+                        '#dc3545', '#fd7e14', '#ffc107', '#198754'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        var ctxWeekday = document.getElementById('weekdayStatsChart').getContext('2d');
+        var weekdayStatsChart = new Chart(ctxWeekday, {
+            type: 'bar',
+            data: {
+                labels: JSON.parse('{{ weekday_labels|escapejs }}'),
+                datasets: [{
+                    label: 'Количество записей',
+                    data: JSON.parse('{{ weekday_data|escapejs }}'),
+                    backgroundColor: '#0d6efd',
+                    borderColor: '#0b5ed7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        var ctxVisits = document.getElementById('visitsChart').getContext('2d');
+        var visitsChart = new Chart(ctxVisits, {
+            type: 'line',
+            data: {
+                labels: JSON.parse('{{ visits_labels|escapejs }}'),
+                datasets: [{
+                    label: 'Записей',
+                    data: JSON.parse('{{ visits_data|escapejs }}'),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13,110,253,0.15)',
+                    tension: 0.3,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+
+        document.querySelectorAll('.btn-period-toggle').forEach(function(button) {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const period = this.getAttribute('data-period');
+                fetch(`?period=${period}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const chartInstance = Chart.getChart('visitsChart');
+                    const emptyEl = document.getElementById('visitsEmpty');
+                    const sum = (data.visits_data || []).reduce((a,b) => a+b, 0);
+                    if (emptyEl) emptyEl.style.display = sum > 0 ? 'none' : '';
+                    if (chartInstance) {
+                        chartInstance.data.labels = data.visits_labels;
+                        chartInstance.data.datasets[0].data = data.visits_data;
+                        chartInstance.update();
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

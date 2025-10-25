@@ -1,0 +1,14 @@
+{% extends 'emails/base_email.html' %}
+{% block subject %}Добро пожаловать в AutoService{% endblock %}
+{% block header_note %}Регистрация завершена{% endblock %}
+{% block content %}
+  <p>Здравствуйте, {{ user.get_full_name|default:user.username }}!</p>
+  <p>Спасибо за регистрацию в <strong>AutoService</strong>. Теперь вы можете:
+  </p>
+  <ul>
+    <li>Записываться на диагностику и сервисные работы онлайн;</li>
+    <li>Отслеживать статус ваших записей и историю посещений;</li>
+    <li>Управлять данными профиля и автомобилями.</li>
+  </ul>
+  <p class="muted" style="margin-top:12px;">Если вы не создавали учетную запись, проигнорируйте это письмо.</p>
+{% endblock %}

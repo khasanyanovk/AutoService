@@ -1,0 +1,6 @@
+Здравствуйте, {{ user.get_full_name|default:user.username }}!
+
+Вы оставляли отзыв о филиале: {{ service_center.address }}.
+Ваш отзыв: {{ comment }}
+
+Ответ администратора: {{ admin_reply }}

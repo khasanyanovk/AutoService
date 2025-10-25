@@ -1,0 +1,9 @@
+Здравствуйте, {{ user.get_full_name|default:user.username }}!
+
+Ваша запись создана:
+- Филиал: {{ service_center.address }}
+- Услуга: {{ service.name }}
+- Дата и время: {{ scheduled_date }} {{ scheduled_time }}
+- Авто: {{ car }}
+
+Если вы не создавали эту запись, свяжитесь с нами.

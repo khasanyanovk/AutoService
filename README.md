@@ -26,3 +26,51 @@ A full-stack web application designed for "Pochinim Vse" auto repair shop. This 
 ## Project Goal
 
 This project aims to enhance transparency, efficiency, and customer satisfaction for automotive service management.
+
+## Usage
+
+### 1. Clone a repository
+```bash
+git clone https://github.com/khasanyanovk/AutoService.git
+cd AutoService
+```
+### 2. Create virtual environment
+```bash
+python -m venv venv
+
+# For Windows:
+venv\Scripts\activate
+
+# For Linux/macOS:
+source venv/bin/activate
+```
+### 3. Install dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+### 4. Performing migrations
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+### 5. Set initial data
+```bash
+python manage.py fill_car_data
+python manage.py seed_data
+```
+### 6. Run server
+```bash
+python manage.py runserver
+```
+### 7. Run tests
+```bash
+# Run
+python manage.py test
+
+# Debug
+python manage.py test --verbosity=2
+
+# Coverage
+python manage.py test --coverage
+```

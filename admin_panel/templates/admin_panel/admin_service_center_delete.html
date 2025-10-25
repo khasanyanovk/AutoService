@@ -1,0 +1,16 @@
+{% extends 'core/base.html' %}
+{% block title %}Удалить филиал{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="h4 mb-3">Удалить филиал</h1>
+  <div class="alert alert-warning">
+    Вы действительно хотите удалить филиал «{{ service_center.address }}»?
+    <br>Все записи, привязанные к этому филиалу, будут помечены как «Отменено».
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <a href="{% url 'admin_panel:admin_service_center_edit' service_center.id %}" class="btn btn-outline-secondary">Отмена</a>
+    <button type="submit" class="btn btn-danger">Удалить филиал</button>
+  </form>
+</div>
+{% endblock %}

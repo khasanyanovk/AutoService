@@ -1,0 +1,231 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .form-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+    }
+    .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        border: none;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(13, 110, 253, 0.4);
+    }
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        border: none;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .section-title {
+        color: #333;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        font-size: 1.3rem;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 0.5rem;
+    }
+    .avatar-preview {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #e9ecef;
+    margin-bottom: 1rem;
+    display: block;
+    }
+
+
+    .text-center .position-relative.d-inline-block {
+        position: relative;
+        display: inline-block;
+    }
+
+    .avatar-remove-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(35%, -35%);
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-preview-container {
+        position: relative;
+        display: inline-block;
+    }
+    
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 min-vh-80">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card form-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-person-gear me-2"></i>Редактирование профиля</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="text-center mb-4">
+                            <div class="position-relative d-inline-block">
+                                {% if user.userprofile.avatar %}
+                                    <img src="{{ user.userprofile.avatar.url }}" class="avatar-preview" id="avatarPreview" alt="Текущий аватар">
+                                    <button type="submit" name="delete_avatar" value="1"
+                                            class="btn btn-sm btn-danger rounded-circle avatar-remove-btn"
+                                            title="Удалить аватар">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                {% else %}
+                                    <img src="{% static 'core/img/default-avatar.png' %}" class="avatar-preview" id="avatarPreview" alt="Аватар по умолчанию">
+                                {% endif %}
+                            </div>
+                        </div>
+
+
+                        
+                        <fieldset class="mb-4">
+                            <h5 class="section-title">Личная информация</h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ u_form.first_name.id_for_label }}" class="form-label">Имя</label>
+                                        {{ u_form.first_name }}
+                                        {% if u_form.first_name.errors %}
+                                            <div class="text-danger small mt-1">{{ u_form.first_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ u_form.last_name.id_for_label }}" class="form-label">Фамилия</label>
+                                        {{ u_form.last_name }}
+                                        {% if u_form.last_name.errors %}
+                                            <div class="text-danger small mt-1">{{ u_form.last_name.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ u_form.email.id_for_label }}" class="form-label">Email</label>
+                                {{ u_form.email }}
+                                {% if u_form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ u_form.email.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </fieldset>
+                        
+                        <fieldset class="mb-4">
+                            <h5 class="section-title">Контактная информация</h5>
+                            
+                            <div class="form-group">
+                                <label for="{{ p_form.phone.id_for_label }}" class="form-label">Телефон</label>
+                                {{ p_form.phone }}
+                                {% if p_form.phone.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.phone.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ p_form.address.id_for_label }}" class="form-label">Адрес</label>
+                                {{ p_form.address }}
+                                {% if p_form.address.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.address.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ p_form.avatar.id_for_label }}" class="form-label">Аватар</label>
+                                {{ p_form.avatar }}
+                                {% if p_form.avatar.errors %}
+                                    <div class="text-danger small mt-1">{{ p_form.avatar.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">Максимальный размер: 2MB. Поддерживаемые форматы: JPG, PNG.</div>
+                            </div>
+                        </fieldset>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">
+                                <i class="bi bi-arrow-left me-1"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Сохранить изменения
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('{{ p_form.avatar.id_for_label }}').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('avatarPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (!input.classList.contains('btn')) {
+                input.classList.add('form-control');
+            }
+        });
+    });
+</script>
+{% endblock %}

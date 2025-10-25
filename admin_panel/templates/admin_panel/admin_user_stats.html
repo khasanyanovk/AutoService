@@ -1,0 +1,102 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Расширенная статистика — Администратор{% endblock %}
+{% block extra_css %}
+<style>
+  .dashboard-card { border-radius: 12px; background:#fff; border:1px solid #e9ecef; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+  .card-header { background: linear-gradient(135deg, #495057 0%, #6c757d 100%); color: white; padding: 1rem 1.25rem; border-bottom: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Статистика пользователя</h1>
+      <div class="text-muted">{{ user_obj.get_full_name|default:user_obj.username }} (@{{ user_obj.username }})</div>
+    </div>
+    <div>
+      <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Назад к профилю</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-8">
+      <div class="dashboard-card">
+        <div class="card-header"><strong>Посещения (90 дней)</strong></div>
+        <div class="card-body"><canvas id="visitsChart" height="120"></canvas></div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="dashboard-card mb-3">
+        <div class="card-header"><strong>Сумма завершённых услуг</strong></div>
+        <div class="card-body h4 mb-0">{{ total_cost }} ₽</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="card-header"><strong>Активность по дням недели</strong></div>
+        <div class="card-body"><canvas id="weekdayChart" height="200"></canvas></div>
+      </div>
+    </div>
+
+    <div class="col-xl-6">
+      <div class="dashboard-card">
+        <div class="card-header"><strong>Топ услуг</strong></div>
+        <div class="card-body"><canvas id="servicesChart" height="200"></canvas></div>
+      </div>
+    </div>
+    <div class="col-xl-6">
+      <div class="dashboard-card">
+        <div class="card-header"><strong>Топ филиалов</strong></div>
+        <div class="card-body"><canvas id="centersChart" height="200"></canvas></div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="dashboard-card">
+        <div class="card-header"><strong>Активность по часам</strong></div>
+        <div class="card-body"><canvas id="hoursChart" height="120"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  const visits = {
+    labels: {{ labels|safe }},
+    data: {{ data|safe }}
+  };
+  const services = { labels: {{ top_services_labels|safe }}, data: {{ top_services_data|safe }} };
+  const centers = { labels: {{ top_centers_labels|safe }}, data: {{ top_centers_data|safe }} };
+  const weekday = { labels: {{ weekday_labels|safe }}, data: {{ weekday_data|safe }} };
+  const hours = { labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), data: {{ hour_data|safe }} };
+
+  function makeLine(ctx, labels, data, color){
+    return new Chart(ctx, { type:'line', data:{ labels, datasets:[{ data, label:'Записей', borderColor: color, backgroundColor: 'rgba(13,110,253,.1)', tension:.3, pointRadius: 2 }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+  }
+  function makeBar(ctx, labels, data, color){
+    return new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, label:'Кол-во', backgroundColor: color }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+  }
+  function makeDoughnut(ctx, labels, data){
+    return new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data, backgroundColor:['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } } });
+  }
+
+  const visitsCtx = document.getElementById('visitsChart').getContext('2d');
+  makeLine(visitsCtx, visits.labels, visits.data, '#0d6efd');
+
+  const servicesCtx = document.getElementById('servicesChart').getContext('2d');
+  makeDoughnut(servicesCtx, services.labels, services.data);
+
+  const centersCtx = document.getElementById('centersChart').getContext('2d');
+  makeDoughnut(centersCtx, centers.labels, centers.data);
+
+  const weekdayCtx = document.getElementById('weekdayChart').getContext('2d');
+  makeBar(weekdayCtx, weekday.labels, weekday.data, '#198754');
+
+  const hoursCtx = document.getElementById('hoursChart').getContext('2d');
+  makeBar(hoursCtx, hours.labels, hours.data, '#6c757d');
+})();
+</script>
+{% endblock %}

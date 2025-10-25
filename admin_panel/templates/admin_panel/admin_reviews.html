@@ -1,0 +1,156 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Отзывы — Админ{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-card { border-radius: 12px; background:#fff; box-shadow:0 8px 30px rgba(0,0,0,.08); border:none; }
+  .card-header { background: linear-gradient(135deg, #495057 0%, #6c757d 100%); color:#fff; border:none; padding:1rem 1.25rem; }
+  .filters .form-select, .filters .form-control { border-radius: 8px; }
+  .review-row { border-bottom:1px solid #f1f3f5; padding:1rem 0; }
+  .rating i { margin-right:2px; }
+  .reply-box { background:#f8f9fa; border-radius:8px; padding:.5rem .75rem; }
+  .table thead th { background:#f8f9fa; }
+  .sticky-actions { white-space:nowrap; }
+  .badge-outline { border: 1px solid #dee2e6; color:#6c757d; }
+  .filters .btn { border-radius:8px; }
+  .search-input { max-width: 260px; }
+  .reply-input { min-width: 280px; }
+  .compact-btn { padding: .25rem .5rem; line-height: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Отзывы клиентов</h1>
+      <div class="text-muted small">Модерация, ответы и удаление</div>
+    </div>
+    <div>
+      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Панель администратора
+      </a>
+    </div>
+  </div>
+
+  <div class="dashboard-card mb-3">
+    <div class="card-header">Фильтры</div>
+    <div class="card-body">
+  <form method="get" class="row g-2 filters align-items-end" id="reviewsFilters">
+        <div class="col-sm-3 col-lg-2">
+          <label class="form-label">Филиал</label>
+          <select name="branch" class="form-select filter-input">
+            <option value="">Все</option>
+            {% for b in branches %}
+            <option value="{{ b.id }}" {% if filters.branch == b.id|stringformat:'s' %}selected{% endif %}>{{ b.address }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2 col-lg-1">
+          <label class="form-label">Оценка</label>
+          <select name="rating" class="form-select filter-input">
+            <option value="">Все</option>
+            {% for r in '12345' %}
+            <option value="{{ forloop.counter }}" {% if filters.rating == forloop.counter|stringformat:'s' %}selected{% endif %}>{{ forloop.counter }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3 col-lg-2">
+          <label class="form-label">Ответ администратора</label>
+          <select name="has_reply" class="form-select filter-input">
+            <option value="" {% if not filters.has_reply %}selected{% endif %}>Все</option>
+            <option value="yes" {% if filters.has_reply == 'yes' %}selected{% endif %}>Есть</option>
+            <option value="no" {% if filters.has_reply == 'no' %}selected{% endif %}>Нет</option>
+          </select>
+        </div>
+        <div class="col-sm-4 col-lg-3">
+          <label class="form-label">Поиск</label>
+          <input type="text" class="form-control search-input filter-input" name="q" value="{{ filters.q }}" placeholder="Текст отзыва или имя пользователя">
+        </div>
+        <div class="col-sm-12 col-lg-4 text-sm-end">
+          <a class="btn btn-outline-secondary" href="{% url 'admin_panel:admin_reviews' %}"><i class="bi bi-x-circle me-1"></i>Сбросить</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>Все отзывы</div>
+      <div class="text-muted small">Всего: {{ page_obj.paginator.count }}</div>
+    </div>
+    <div class="card-body p-0" id="reviewsTableContainer">
+      {% include 'admin_panel/partials/_reviews_table.html' %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const container = document.getElementById('reviewsTableContainer');
+    const form = document.getElementById('reviewsFilters');
+    const inputs = form ? form.querySelectorAll('.filter-input') : [];
+
+    function buildQuery(extra){
+      const params = new URLSearchParams(new FormData(form));
+      if (extra && extra.page) params.set('page', extra.page);
+      return params.toString();
+    }
+
+    function fetchTable(extra){
+      const qs = buildQuery(extra);
+      fetch(window.location.pathname + '?' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+        .then(r => r.json())
+        .then(data => { if (container) container.innerHTML = data.html || ''; attachRowHandlers(); attachPagerHandlers(); });
+    }
+
+    let typingTimer = null;
+    inputs.forEach(el => {
+      const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(evt, () => {
+        if (typingTimer) clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => fetchTable({ page: 1 }), el.tagName === 'SELECT' ? 0 : 350);
+      });
+    });
+
+    function attachPagerHandlers(){
+      container.querySelectorAll('.page-link-nav').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const page = a.getAttribute('data-page');
+          fetchTable({ page });
+        });
+      });
+    }
+
+    function attachRowHandlers(){
+        
+      container.querySelectorAll('form.ajax-reply-form').forEach(f => {
+        f.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const fd = new FormData(f);
+          fetch(f.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(() => fetchTable());
+        });
+      });
+
+      container.querySelectorAll('form.ajax-delete-form').forEach(f => {
+        f.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (!confirm('Удалить отзыв?')) return;
+          const fd = new FormData(f);
+          fetch(f.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(() => fetchTable());
+        });
+      });
+    }
+
+    attachRowHandlers();
+    attachPagerHandlers();
+  })();
+</script>
+{% endblock %}
