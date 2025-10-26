@@ -37,7 +37,6 @@ class Command(BaseCommand):
                 status="SCHEDULED", scheduled_date=target_dt.date()
             ).select_related("car", "car__owner", "service_type", "service_center")
 
-            # Filter by time window
             def in_window(appt):
                 try:
                     appt_dt = datetime.combine(appt.scheduled_date, appt.scheduled_time)
@@ -61,7 +60,6 @@ class Command(BaseCommand):
             )
             return
 
-        # Default: send for all appointments scheduled tomorrow (day-before reminder)
         tomorrow = now.date() + timedelta(days=1)
         qs = (
             Appointment.objects.filter(status="SCHEDULED", scheduled_date=tomorrow)
