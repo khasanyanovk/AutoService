@@ -126,20 +126,3 @@ class CarModelForm(forms.ModelForm):
             "brand": forms.Select(attrs={"class": "form-select"}),
             "name": forms.TextInput(attrs={"class": "form-control"}),
         }
-
-    description = forms.CharField(
-        label="Описание",
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-    )
-    duration = forms.IntegerField(
-        label="Продолжительность (мин)",
-        min_value=1,
-        widget=forms.NumberInput(attrs={"class": "form-control"}),
-    )
-    is_active = forms.BooleanField(
-        label="Активна",
-        required=False,
-        initial=True,
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    )

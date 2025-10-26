@@ -4,8 +4,8 @@ from PIL import Image
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
-from django.conf import settings
-from django.core.files.storage import default_storage
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.utils.text import slugify
 
 
@@ -36,7 +36,7 @@ class Car(models.Model):
     license_plate = models.CharField(max_length=20, unique=True)
     vin = models.CharField(max_length=17, unique=True, blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    photo = models.ImageField(upload_to="car_models/", blank=True, null=True)
+    photo = models.ImageField(upload_to="car_models/from_users/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.model} ({self.license_plate})"
@@ -46,8 +46,8 @@ class Car(models.Model):
         verbose_name_plural = "Автомобили"
 
     def _build_default_model_photo_candidates(self):
-        """Return candidate relative paths under MEDIA_ROOT for default model images.
-        Tries several patterns inside 'car_models/'.
+        """Return candidate relative paths under STATIC for default model images.
+        Tries several patterns inside 'core/car_models/'.
         """
         if not self.model:
             return []
@@ -69,12 +69,15 @@ class Car(models.Model):
         candidates = []
         for base in parts:
             for ext in (".jpg", ".jpeg", ".png"):
-                candidates.append(os.path.join("car_models", base + ext))
+                candidates.append(os.path.join("core", "car_models", base + ext))
         return candidates
 
     def get_photo_url(self):
-        """Return URL to the car's photo or a suitable default based on brand/model.
-        Returns None if no suitable image exists so templates can fall back to static.
+        """Return URL to the car's photo or a suitable default from STATIC based on brand/model.
+        Fallback order:
+        1) Uploaded user photo (media)
+        2) Static brand/model image under core/car_models/
+        3) Static placeholder core/img/car-placeholder.png (if exists) else core/img/car-placeholder.svg
         """
         try:
             if self.photo and hasattr(self.photo, "url"):
@@ -82,10 +85,18 @@ class Car(models.Model):
         except Exception:
             pass
 
+        # Search in STATIC for a brand/model image
         for rel_path in self._build_default_model_photo_candidates():
-            if default_storage.exists(rel_path):
-                return settings.MEDIA_URL + rel_path.replace("\\", "/")
-        return None
+            # rel_path like 'core/car_models/<pattern>.ext'
+            if finders.find(rel_path):
+                return static(rel_path.replace("\\", "/"))
+
+        # Fallback to placeholder PNG if available, otherwise SVG
+        placeholder_png = "core/img/car-placeholder.png"
+        placeholder_svg = "core/img/car-placeholder.svg"
+        if finders.find(placeholder_png):
+            return static(placeholder_png)
+        return static(placeholder_svg)
 
 
 class ServiceCenter(models.Model):
