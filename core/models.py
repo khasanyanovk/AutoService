@@ -36,7 +36,7 @@ class Car(models.Model):
     license_plate = models.CharField(max_length=20, unique=True)
     vin = models.CharField(max_length=17, unique=True, blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    photo = models.ImageField(upload_to="car_models/from_users/", blank=True, null=True)
+    photo = models.ImageField(upload_to="car_models/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.model} ({self.license_plate})"
@@ -102,6 +102,20 @@ class ServiceCenter(models.Model):
 
     def __str__(self):
         return self.address
+
+    def get_photo_url(self):
+        """Return URL to an uploaded photo if present, else None.
+        Treat the built-in media default as missing so templates can use static fallback.
+        """
+        try:
+            if self.photo and hasattr(self.photo, "url"):
+                default_name = "service_centers/default_service_center.jpg"
+                if str(self.photo.name) == default_name:
+                    return None
+                return self.photo.url
+        except Exception:
+            pass
+        return None
 
 
 class Employee(models.Model):

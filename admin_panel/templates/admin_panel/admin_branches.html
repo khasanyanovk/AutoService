@@ -35,31 +35,45 @@
     </div>
   </div>
 
-  {% if service_centers %}
+  {% if center_cards %}
   <div class="row grid-gap">
-    {% for sc in service_centers %}
+    {% for item in center_cards %}
+    {% with sc=item.center wh=item.today_wh %}
     <div class="col-xl-3 col-lg-4 col-md-6">
         <div class="card branch-card h-100" role="button" onclick="window.location.href='{% url 'admin_panel:admin_service_center_detail' sc.id %}'">
           <a href="{% url 'admin_panel:admin_service_center_edit' sc.id %}" class="btn btn-sm btn-light edit-btn" title="Редактировать" onclick="event.stopPropagation();">
             <i class="bi bi-pencil"></i>
           </a>
           <div class="branch-photo">
-            {% if sc.photo %}
-              <img src="{{ sc.photo.url }}" alt="{{ sc.address }}" class="branch-photo">
-            {% else %}
-              <div class="branch-photo"><i class="bi bi-building placeholder-icon"></i></div>
-            {% endif %}
+            {% with url=sc.get_photo_url %}
+              {% if url %}
+                <img src="{{ url }}" alt="{{ sc.address }}" class="branch-photo">
+              {% else %}
+                <img src="{% static 'core/img/service-center-placeholder.svg' %}" alt="{{ sc.address }}" class="branch-photo">
+              {% endif %}
+            {% endwith %}
           </div>
           <div class="branch-info">
             <h5 class="card-title mb-1 address">{{ sc.address }}</h5>
             <p class="card-text mb-2"><i class="bi bi-telephone me-1"></i>{{ sc.phone }}</p>
             <div class="d-flex justify-content-between align-items-center">
               <span class="stat-pill"><i class="bi bi-calendar-event me-1"></i>{{ sc.appointments_count|default:0 }}</span>
-              <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ sc.opening_hours }}</span>
+              <span class="text-muted small">
+                <i class="bi bi-clock me-1"></i>
+                {% if wh and wh.is_working %}
+                  Сегодня: {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
+                  {% if wh.lunch_start and wh.lunch_end %}
+                    <span class="text-muted small">(обед {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }})</span>
+                  {% endif %}
+                {% else %}
+                  Сегодня: выходной
+                {% endif %}
+              </span>
             </div>
           </div>
         </div>
     </div>
+    {% endwith %}
     {% endfor %}
   </div>
   {% else %}

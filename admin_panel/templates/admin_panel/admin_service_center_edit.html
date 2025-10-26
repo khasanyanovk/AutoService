@@ -27,22 +27,20 @@
           {{ form.phone }}
           {{ form.phone.errors }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label">{{ form.opening_hours.label }}</label>
-          {{ form.opening_hours }}
-          {{ form.opening_hours.errors }}
-        </div>
+        
 
         <div class="col-12">
           <label class="form-label">{{ form.photo.label }}</label>
           {{ form.photo }}
           {{ form.photo.errors }}
           <div class="mt-2">
-            {% if service_center.photo %}
-              <img id="photoPreview" src="{{ service_center.photo.url }}" alt="" style="max-height:160px; border-radius:8px;">
-            {% else %}
-              <img id="photoPreview" alt="" style="display:none; max-height:160px; border-radius:8px;">
-            {% endif %}
+            {% with url=service_center.get_photo_url %}
+              {% if url %}
+                <img id="photoPreview" src="{{ url }}" alt="" style="max-height:160px; border-radius:8px;">
+              {% else %}
+                <img id="photoPreview" src="{% static 'core/img/service-center-placeholder.svg' %}" alt="" style="max-height:160px; border-radius:8px;">
+              {% endif %}
+            {% endwith %}
           </div>
         </div>
 

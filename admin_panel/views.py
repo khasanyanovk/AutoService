@@ -15,7 +15,7 @@ from core.models import (
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from admin_panel.forms import ServiceCenterEditForm
+from admin_panel.forms import ServiceCenterEditForm, ServiceCenterCreateForm
 from django.http import JsonResponse
 from datetime import datetime, timedelta
 from .decorators import admin_required
@@ -953,7 +953,7 @@ def admin_service_center_create(request):
     )
 
     if request.method == "POST":
-        form = ServiceCenterEditForm(request.POST, request.FILES)
+        form = ServiceCenterCreateForm(request.POST, request.FILES)
         if form.is_valid():
             center = form.save()
 
@@ -1012,7 +1012,7 @@ def admin_service_center_create(request):
             )
             return redirect("admin_panel:admin_branches")
     else:
-        form = ServiceCenterEditForm()
+        form = ServiceCenterCreateForm()
 
     services_rows = []
     for idx, row in enumerate(base_services):
@@ -1259,13 +1259,26 @@ def admin_api_appointments(request):
 def admin_branches(request):
     """Список филиалов (автосервисов) в виде карточек с фото"""
     _auto_cancel_overdue_appointments()
-    service_centers = ServiceCenter.objects.all().annotate(
-        appointments_count=Count("appointment", distinct=False)
+    today_dow = timezone.localtime(timezone.now()).isoweekday()
+    centers = (
+        ServiceCenter.objects.all()
+        .prefetch_related("working_hours")
+        .annotate(appointments_count=Count("appointment", distinct=False))
+        .order_by("address")
     )
+    center_cards = []
+    for c in centers:
+        try:
+            wh = WorkingHours.objects.filter(
+                service_center=c, day_of_week=today_dow
+            ).first()
+        except Exception:
+            wh = None
+        center_cards.append({"center": c, "today_wh": wh})
     return render(
         request,
         "admin_panel/admin_branches.html",
-        {"service_centers": service_centers},
+        {"center_cards": center_cards},
     )
 
 
