@@ -31,6 +31,8 @@ from .forms import (
 )
 from core.models import CarBrand, CarModel
 from django.template.loader import render_to_string
+from django.conf import settings
+from django.core.files.storage import default_storage
 
 
 @login_required
@@ -297,15 +299,18 @@ def admin_users(request):
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(page)
 
+    default_avatar = settings.STATIC_URL.rstrip("/") + "/core/img/default-avatar.png"
     for u in page_obj.object_list:
         avatar_url = ""
         try:
             up = getattr(u, "userprofile", None)
-            if up and getattr(up, "avatar", None):
-                avatar_url = up.avatar.url
+            avatar_field = getattr(up, "avatar", None) if up else None
+            if avatar_field and getattr(avatar_field, "name", ""):
+                if default_storage.exists(avatar_field.name):
+                    avatar_url = avatar_field.url
         except Exception:
             avatar_url = ""
-        setattr(u, "avatar_url", avatar_url)
+        setattr(u, "avatar_url", avatar_url or default_avatar)
 
     filters = {
         "username": username,
@@ -341,13 +346,16 @@ def admin_user_detail(request, user_id):
     last_appointment = user_appointments.first()
     recent_appointments = list(user_appointments[:5])
 
-    avatar_url = ""
+    default_avatar = settings.STATIC_URL.rstrip("/") + "/core/img/default-avatar.png"
+    avatar_url = default_avatar
     try:
         up = getattr(user, "userprofile", None)
-        if up and getattr(up, "avatar", None):
-            avatar_url = up.avatar.url
+        avatar_field = getattr(up, "avatar", None) if up else None
+        if avatar_field and getattr(avatar_field, "name", ""):
+            if default_storage.exists(avatar_field.name):
+                avatar_url = avatar_field.url
     except Exception:
-        avatar_url = ""
+        avatar_url = default_avatar
 
     resp = render(
         request,

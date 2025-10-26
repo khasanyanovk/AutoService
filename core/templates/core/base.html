@@ -49,6 +49,7 @@
             }
 
             document.querySelectorAll('.alert').forEach(function (alertEl) {
+                if (alertEl.classList.contains('alert-sticky') || alertEl.dataset.keep === 'true') return;
                 autoDismissAlert(alertEl);
             });
 
@@ -58,9 +59,15 @@
                         m.addedNodes && m.addedNodes.forEach(function (node) {
                             if (node.nodeType === 1) {
                                 if (node.classList && node.classList.contains('alert')) {
-                                    autoDismissAlert(node);
+                                    if (!(node.classList.contains('alert-sticky') || node.dataset.keep === 'true')) {
+                                        autoDismissAlert(node);
+                                    }
                                 } else if (node.querySelectorAll) {
-                                    node.querySelectorAll('.alert').forEach(function (a) { autoDismissAlert(a); });
+                                    node.querySelectorAll('.alert').forEach(function (a) {
+                                        if (!(a.classList.contains('alert-sticky') || a.dataset.keep === 'true')) {
+                                            autoDismissAlert(a);
+                                        }
+                                    });
                                 }
                             }
                         });
