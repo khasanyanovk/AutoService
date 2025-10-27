@@ -47,27 +47,45 @@ class Car(models.Model):
 
     def _build_default_model_photo_candidates(self):
         """Return candidate relative paths under STATIC for default model images.
-        Tries several patterns inside 'core/car_models/'.
+        Tries numerous brand/model naming variants inside 'core/car_models/'.
         """
         if not self.model:
             return []
         brand_name = str(self.model.brand.name)
         model_name = str(self.model.name)
-        parts = [
-            f"{slugify(brand_name)}_{slugify(model_name)}",
-            f"{slugify(brand_name)}/{slugify(model_name)}",
-            f"{brand_name}_{model_name}",
-            f"{brand_name}/{model_name}",
-        ]
+
+        brand_variants = {
+            brand_name,
+            brand_name.lower(),
+            brand_name.upper(),
+            slugify(brand_name),
+            brand_name.title(),
+        }
+
         model_compact = "".join(ch for ch in model_name if ch.isalnum())
+        model_variants = {
+            model_name,
+            model_name.lower(),
+            model_name.upper(),
+            model_name.title(),
+            slugify(model_name),
+        }
         if model_compact:
-            variants = {model_compact, model_compact.lower(), model_compact.upper()}
-            for variant in variants:
-                parts.append(variant)
-                parts.append(f"{brand_name}/{variant}")
-                parts.append(f"{slugify(brand_name)}/{variant}")
+            model_variants.update(
+                {model_compact, model_compact.lower(), model_compact.upper()}
+            )
+
+        bases = set()
+        for b in brand_variants:
+            for m in model_variants:
+                bases.add(f"{b}/{m}")
+                bases.add(f"{b}_{m}")
+
+        for m in model_variants:
+            bases.add(m)
+
         candidates = []
-        for base in parts:
+        for base in bases:
             for ext in (".jpg", ".jpeg", ".png"):
                 candidates.append(os.path.join("core", "car_models", base + ext))
         return candidates
@@ -77,7 +95,7 @@ class Car(models.Model):
         Fallback order:
         1) Uploaded user photo (media)
         2) Static brand/model image under core/car_models/
-        3) Static placeholder core/img/car-placeholder.png (if exists) else core/img/car-placeholder.svg
+        3) Static placeholder (jpg/png/svg)
         """
         try:
             if self.photo and hasattr(self.photo, "url"):
@@ -85,18 +103,18 @@ class Car(models.Model):
         except Exception:
             pass
 
-        # Search in STATIC for a brand/model image
         for rel_path in self._build_default_model_photo_candidates():
-            # rel_path like 'core/car_models/<pattern>.ext'
             if finders.find(rel_path):
                 return static(rel_path.replace("\\", "/"))
 
-        # Fallback to placeholder PNG if available, otherwise SVG
-        placeholder_png = "core/img/car-placeholder.png"
-        placeholder_svg = "core/img/car-placeholder.svg"
-        if finders.find(placeholder_png):
-            return static(placeholder_png)
-        return static(placeholder_svg)
+        for p in (
+            "core/img/car-placeholder.jpg",
+            "core/img/car-placeholder.png",
+            "core/img/car-placeholder.svg",
+        ):
+            if finders.find(p):
+                return static(p)
+        return static("core/img/car-placeholder.jpg")
 
 
 class ServiceCenter(models.Model):
@@ -115,18 +133,31 @@ class ServiceCenter(models.Model):
         return self.address
 
     def get_photo_url(self):
-        """Return URL to an uploaded photo if present, else None.
-        Treat the built-in media default as missing so templates can use static fallback.
+        """Return a safe URL to the photo or a static default if missing.
+        If media file exists (and is not the legacy default name) return it; otherwise use static default image.
         """
         try:
-            if self.photo and hasattr(self.photo, "url"):
-                default_name = "service_centers/default_service_center.jpg"
-                if str(self.photo.name) == default_name:
-                    return None
-                return self.photo.url
+            default_name = "service_centers/default_service_center.jpg"
+            if self.photo and getattr(self.photo, "name", None):
+                storage = getattr(self.photo, "storage", None)
+                if str(self.photo.name) != default_name and storage:
+                    try:
+                        if storage.exists(self.photo.name):
+                            return self.photo.url
+                    except Exception:
+                        pass
+                basename = os.path.basename(str(self.photo.name))
+                if basename:
+                    for rel in (
+                        f"core/img/service_centers/{basename}",
+                        f"core/img/{basename}",
+                    ):
+                        if finders.find(rel):
+                            return static(rel)
         except Exception:
             pass
-        return None
+
+        return static("core/img/default_service_center.jpg")
 
 
 class Employee(models.Model):

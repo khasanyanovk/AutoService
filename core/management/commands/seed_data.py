@@ -1,4 +1,7 @@
+import os
 from django.core.management.base import BaseCommand
+from django.contrib.staticfiles import finders
+from django.core.files import File
 from core.models import ServiceCenter, ServiceType, WorkingHours
 from datetime import time
 
@@ -14,31 +17,37 @@ class Command(BaseCommand):
                 "address": "ул. Ленина, 123, Москва",
                 "phone": "+7 (495) 123-45-67",
                 "opening_hours": "09:00-18:00 (Пн-Пт), 10:00-16:00 (Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_moscow.png",
             },
             {
                 "address": "пр. Мира, 45, Санкт-Петербург",
                 "phone": "+7 (812) 987-65-43",
                 "opening_hours": "08:00-19:00 (Пн-Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_spb.png",
             },
             {
                 "address": "ул. Гагарина, 78, Казань",
                 "phone": "+7 (843) 555-12-34",
                 "opening_hours": "09:00-17:00 (Пн-Пт)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_kazan.png",
             },
             {
                 "address": "ул. Советская, 56, Новосибирск",
                 "phone": "+7 (383) 444-55-66",
                 "opening_hours": "08:00-20:00 (Пн-Вс)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_novosibirsk.png",
             },
             {
                 "address": "пр. Победы, 89, Екатеринбург",
                 "phone": "+7 (343) 777-88-99",
                 "opening_hours": "09:00-19:00 (Пн-Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_ekb.png",
+            },
+            {
+                "address": "ул. Ломоносова, 52, Нижний Новгород",
+                "phone": "+7 (343) 777-88-99",
+                "opening_hours": "09:00-19:00 (Пн-Сб)",
+                "photo": "service_centers/service_center_nn.png",
             },
         ]
 
@@ -63,6 +72,53 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.WARNING(f"Сервис-центр уже существует: {center.address}")
                 )
+
+            desired_rel = center_data.get("photo")
+            if desired_rel:
+                basename = os.path.basename(desired_rel)
+                media_target_rel = os.path.join("service_centers", basename)
+                try:
+                    if center.photo and getattr(center.photo, "storage", None):
+                        storage = center.photo.storage
+                        if center.photo.name == media_target_rel and storage.exists(
+                            center.photo.name
+                        ):
+                            pass
+                        else:
+                            candidate_static_paths = [
+                                os.path.join(
+                                    "core", "img", "service_centers", basename
+                                ),
+                                os.path.join("core", "img", basename),
+                                os.path.join("core", basename),
+                            ]
+                            abs_src = None
+                            for rel in candidate_static_paths:
+                                found = finders.find(rel)
+                                if found:
+                                    abs_src = (
+                                        found[0]
+                                        if isinstance(found, (list, tuple))
+                                        else found
+                                    )
+                                    break
+                            if (
+                                abs_src
+                                and isinstance(abs_src, str)
+                                and os.path.exists(abs_src)
+                            ):
+                                with open(abs_src, "rb") as fh:
+                                    center.photo.save(
+                                        media_target_rel, File(fh), save=True
+                                    )
+                            else:
+                                pass
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"Не удалось скопировать фото для {center.address}: {e}"
+                        )
+                    )
 
         default_working_hours = [
             (1, time(9, 0), time(18, 0), True),  # Пн
