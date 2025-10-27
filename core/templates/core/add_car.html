@@ -77,6 +77,7 @@
                     <h4 class="mb-0"><i class="bi bi-car-front me-2"></i>Добавление автомобиля</h4>
                 </div>
                 <div class="card-body p-4">
+                    <div id="formAlerts"></div>
 
                     
                     <form method="post" id="carForm" enctype="multipart/form-data" novalidate>
@@ -189,6 +190,15 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
+        function showAlert(messagesHtml) {
+            const $alerts = $('#formAlerts');
+            $alerts.html(
+                '<div class="alert alert-danger" role="alert">' +
+                messagesHtml +
+                '</div>'
+            );
+        }
+
         function loadModels(brandId, selectedModelId) {
             const $modelField = $("#id_model");
             
@@ -229,6 +239,26 @@
         }
 
         $('select, input[type="text"], input[type="number"]').addClass('form-control');
+
+        // Client-side guard: prevent submit without brand/model and show alert
+        $('#carForm').on('submit', function(e) {
+            const brandVal = $('#id_brand').val();
+            const modelVal = $('#id_model').val();
+            const errors = [];
+            if (!brandVal) {
+                errors.push('Пожалуйста, выберите марку автомобиля.');
+            }
+            if (!modelVal) {
+                errors.push('Пожалуйста, выберите модель автомобиля.');
+            }
+            if (errors.length > 0) {
+                e.preventDefault();
+                showAlert(errors.map(e => '<div>' + e + '</div>').join(''));
+                // Scroll to alerts for visibility
+                const top = $('#formAlerts').offset().top - 80;
+                window.scrollTo({ top: top < 0 ? 0 : top, behavior: 'smooth' });
+            }
+        });
     });
 </script>
 {% endblock %}

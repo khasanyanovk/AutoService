@@ -30,9 +30,13 @@
       {% with c=item.center wh=item.today_wh %}
       <div class="col-md-6 col-lg-4">
         <div class="card branch-card h-100">
-          {% if c.photo %}
-            <img class="branch-photo" src="{{ c.photo.url }}" alt="{{ c.address }}">
-          {% endif %}
+          {% with url=c.get_photo_url %}
+            {% if url %}
+              <img class="branch-photo" src="{{ url }}" alt="{{ c.address }}">
+            {% else %}
+              <img class="branch-photo" src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ c.address }}">
+            {% endif %}
+          {% endwith %}
           <div class="card-body">
             <div class="branch-title mb-1">{{ c.address }}</div>
             <div class="branch-meta mb-2">

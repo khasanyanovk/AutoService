@@ -33,11 +33,13 @@
 
 <div class="container mb-4">
   <div class="card sc-card p-3 mb-3">
-    {% if service_center.photo %}
-      <img class="photo" src="{{ service_center.photo.url }}" alt="{{ service_center.address }}">
-    {% else %}
-      <div class="p-5 text-center text-muted">Фото не загружено</div>
-    {% endif %}
+    {% with url=service_center.get_photo_url %}
+      {% if url %}
+        <img class="photo" src="{{ url }}" alt="{{ service_center.address }}">
+      {% else %}
+        <img class="photo" src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ service_center.address }}">
+      {% endif %}
+    {% endwith %}
   </div>
 
   <div class="row g-3">

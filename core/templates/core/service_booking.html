@@ -196,7 +196,7 @@
                             <h5 class="section-title"><span class="badge bg-primary me-2">2</span>Выберите услугу</h5>
                             <div class="row" id="serviceCardsContainer">
                                 <div class="col-12">
-                                    <div class="alert alert-info">
+                                    <div class="alert alert-info alert-sticky" data-keep="true">
                                         <i class="bi bi-info-circle me-2"></i>
                                         Сначала выберите автосервис для отображения доступных услуг
                                     </div>
@@ -237,7 +237,7 @@
                         <div class="mb-5">
                             <h5 class="section-title"><span class="badge bg-primary me-2">5</span>Выберите время</h5>
                             <div id="timeSlotsContainer">
-                                <div class="alert alert-info">
+                                <div class="alert alert-info alert-sticky" data-keep="true">
                                     <i class="bi bi-info-circle me-2"></i>
                                     Сначала выберите автосервис, услугу и дату для отображения доступного времени
                                 </div>
@@ -302,7 +302,7 @@
             } else {
                 $('#serviceCardsContainer').html(
                     '<div class="col-12">' +
-                    '<div class="alert alert-info">' +
+                    '<div class="alert alert-info alert-sticky" data-keep="true">' +
                     '<i class="bi bi-info-circle me-2"></i>' +
                     'Сначала выберите автосервис для отображения доступных услуг' +
                     '</div>' +
@@ -513,7 +513,7 @@
         function updateTimeSlots() {
             if (!selectedServiceCenter || !selectedService || !selectedDate) {
                 $('#timeSlotsContainer').html(
-                    '<div class="alert alert-info">' +
+                    '<div class="alert alert-info alert-sticky" data-keep="true">' +
                     '<i class="bi bi-info-circle me-2"></i>' +
                     'Сначала выберите автосервис, услугу и дату для отображения доступного времени' +
                     '</div>'

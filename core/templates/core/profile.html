@@ -252,13 +252,13 @@
                             <div class="carousel-card">
                                 <div class="row g-0">
                                     <div class="col-md-7">
-                                        {% with photo_url=car.get_photo_url %}
-                                            {% if photo_url %}
-                                                <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
-                                            {% else %}
-                                                <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
-                                            {% endif %}
-                                        {% endwith %}
+                                            {% with photo_url=car.get_photo_url %}
+                                                {% if photo_url %}
+                                                    <img src="{{ photo_url }}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                                {% else %}
+                                                    <img src="{% static 'core/img/car-placeholder.jpg' %}" class="car-image w-100" alt="{{ car.model.brand }} {{ car.model.name }}">
+                                                {% endif %}
+                                            {% endwith %}
                                     </div>
                                     <div class="col-md-5">
                                         <div class="car-details h-100 d-flex flex-column justify-content-center">
@@ -315,7 +315,7 @@
             <div class="row g-3">
                 <div class="col-xl-8">
                     <div class="stats-card mb-3">
-                        <h6 class="mb-2">Посещения (90 дней)</h6>
+                        <h6 class="mb-2">Посещения (12 месяцев)</h6>
                         <div style="height:240px">
                             <canvas id="visitsChart"></canvas>
                         </div>

@@ -175,6 +175,7 @@ def profile(request):
     )
 
     today = timezone.localtime(timezone.now()).date()
+    # Базовый queryset за последние 90 дней для остальных виджетов (как было)
     start_date = today - timedelta(days=89)
     appt_qs = Appointment.objects.filter(
         car__owner=request.user,
@@ -182,12 +183,40 @@ def profile(request):
         scheduled_date__lte=today,
     ).select_related("service_type", "service_center")
 
-    counts_by_date = {
-        row["scheduled_date"]: row["c"]
-        for row in appt_qs.values("scheduled_date").annotate(c=Count("id"))
-    }
-    labels = [(start_date + timedelta(days=i)).isoformat() for i in range(90)]
-    data = [counts_by_date.get(start_date + timedelta(days=i), 0) for i in range(90)]
+    def month_iter(end_date, months_back=11):
+        y = end_date.year
+        m = end_date.month
+        seq = []
+        total = months_back + 1
+        for i in range(total - 1, -1, -1):
+            yy = y
+            mm = m - i
+            while mm <= 0:
+                yy -= 1
+                mm += 12
+            seq.append((yy, mm))
+        return seq
+
+    def first_day_of_month(y, m):
+        return date(y, m, 1)
+
+    months = month_iter(today, months_back=11)
+    start_month = first_day_of_month(months[0][0], months[0][1])
+
+    appt_qs_12m = Appointment.objects.filter(
+        car__owner=request.user,
+        scheduled_date__gte=start_month,
+        scheduled_date__lte=today,
+    )
+    by_month = (
+        appt_qs_12m.values("scheduled_date__year", "scheduled_date__month")
+        .annotate(c=Count("id"))
+        .values_list("scheduled_date__year", "scheduled_date__month", "c")
+    )
+    month_map = {(y, m): c for (y, m, c) in by_month}
+
+    labels = [f"{mm:02d}.{yy}" for (yy, mm) in months]
+    data = [month_map.get((yy, mm), 0) for (yy, mm) in months]
 
     total_cost = (
         appt_qs.filter(status="COMPLETED").aggregate(total=Sum("service_type__price"))[
