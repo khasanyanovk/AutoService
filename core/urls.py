@@ -1,7 +1,5 @@
 from django.urls import path
 from . import views
-from django.conf.urls.static import static
-from django.conf import settings
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -21,34 +19,15 @@ urlpatterns = [
         views.cancel_appointment,
         name="cancel_appointment",
     ),
-    path("ajax/get-time-slots/", views.get_available_time_slots, name="get_time_slots"),
+    path(
+        "ajax/get-time-slots/",
+        views.get_available_time_slots,
+        name="get_time_slots",
+    ),
     path("about/", views.about, name="about"),
-    path("admin-branches/", views.admin_branches, name="admin_branches"),
-    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("branches/", views.branches, name="branches"),
     path(
-        "admin-dashboard/service-center/<uuid:service_center_id>/",
-        views.admin_service_center_detail,
-        name="admin_service_center_detail",
-    ),
-    path(
-        "admin-dashboard/service-center/<uuid:service_center_id>/edit/",
-        views.admin_service_center_edit,
-        name="admin_service_center_edit",
-    ),
-    path(
-        "admin-api/service-center/<uuid:service_center_id>/day-schedule/",
-        views.admin_api_day_schedule,
-        name="admin_api_day_schedule",
-    ),
-    path(
-        "admin-dashboard/appointment/<uuid:appointment_id>/",
-        views.admin_appointment_detail,
-        name="admin_appointment_detail",
-    ),
-    path(
-        "admin-api/appointments/",
-        views.admin_api_appointments,
-        name="admin_api_appointments",
+        "branches/<uuid:service_center_id>/", views.branch_detail, name="branch_detail"
     ),
     path(
         "get-available-services/",

@@ -196,7 +196,7 @@
                             <h5 class="section-title"><span class="badge bg-primary me-2">2</span>Выберите услугу</h5>
                             <div class="row" id="serviceCardsContainer">
                                 <div class="col-12">
-                                    <div class="alert alert-info">
+                                    <div class="alert alert-info alert-sticky" data-keep="true">
                                         <i class="bi bi-info-circle me-2"></i>
                                         Сначала выберите автосервис для отображения доступных услуг
                                     </div>
@@ -237,7 +237,7 @@
                         <div class="mb-5">
                             <h5 class="section-title"><span class="badge bg-primary me-2">5</span>Выберите время</h5>
                             <div id="timeSlotsContainer">
-                                <div class="alert alert-info">
+                                <div class="alert alert-info alert-sticky" data-keep="true">
                                     <i class="bi bi-info-circle me-2"></i>
                                     Сначала выберите автосервис, услугу и дату для отображения доступного времени
                                 </div>
@@ -287,6 +287,14 @@
         let selectedDate = null;
         let selectedTime = null;
 
+        const restore = {
+            sc: '{{ selected_service_center|default:"" }}',
+            st: '{{ selected_service_type|default:"" }}',
+            date: '{{ selected_date_val|default:"" }}',
+            time: '{{ selected_time_val|default:"" }}',
+            notes: '{{ notes_val|escapejs|default:"" }}'
+        };
+
         $('#id_service_center').change(function() {
             selectedServiceCenter = $(this).val();
             if (selectedServiceCenter) {
@@ -294,7 +302,7 @@
             } else {
                 $('#serviceCardsContainer').html(
                     '<div class="col-12">' +
-                    '<div class="alert alert-info">' +
+                    '<div class="alert alert-info alert-sticky" data-keep="true">' +
                     '<i class="bi bi-info-circle me-2"></i>' +
                     'Сначала выберите автосервис для отображения доступных услуг' +
                     '</div>' +
@@ -473,6 +481,13 @@
                     updateTimeSlots();
                     checkFormCompletion();
                 });
+
+                if (restore.st) {
+                    const card = document.querySelector(`.service-card[data-service-id="${restore.st}"]`);
+                    if (card) {
+                        $(card).trigger('click');
+                    }
+                }
             }
         }
 
@@ -498,7 +513,7 @@
         function updateTimeSlots() {
             if (!selectedServiceCenter || !selectedService || !selectedDate) {
                 $('#timeSlotsContainer').html(
-                    '<div class="alert alert-info">' +
+                    '<div class="alert alert-info alert-sticky" data-keep="true">' +
                     '<i class="bi bi-info-circle me-2"></i>' +
                     'Сначала выберите автосервис, услугу и дату для отображения доступного времени' +
                     '</div>'
@@ -518,7 +533,9 @@
                 data: {
                     'service_center': selectedServiceCenter,
                     'service_type': selectedService,
-                    'date': selectedDate
+                    'date': selectedDate,
+                    'is_today': (new Date(selectedDate)).toDateString() === (new Date()).toDateString() ? '1' : '0',
+                    'client_now': new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false })
                 },
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -555,6 +572,13 @@
                             $('#id_scheduled_time').val(selectedTime);
                             checkFormCompletion();
                         });
+
+                        if (restore.time) {
+                            const slotEl = document.querySelector(`.time-slot[data-time="${restore.time}"]`);
+                            if (slotEl) {
+                                $(slotEl).trigger('click');
+                            }
+                        }
                     } else {
                         $('#timeSlotsContainer').html(
                             '<div class="alert alert-warning">' +
@@ -588,6 +612,18 @@
         });
 
         $('#id_notes').addClass('form-control notes-textarea');
+
+        (function restoreState(){
+            if (restore.sc) {
+                $('#id_service_center').val(restore.sc).trigger('change');
+            }
+            if (restore.date) {
+                $('#datePicker').val(restore.date).trigger('change');
+            }
+            if (restore.notes) {
+                $('#id_notes').val(restore.notes);
+            }
+        })();
     });
 </script>
 {% endblock %}

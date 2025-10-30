@@ -1,0 +1,57 @@
+name: Build Docker image artifact
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-and-upload-image:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    name: Build and upload Docker image artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout merged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
+          fetch-depth: 0
+
+      - name: Compute image version tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prefer an exact tag on this commit if present
+          if git describe --tags --exact-match >/dev/null 2>&1; then
+            VERSION=$(git describe --tags --exact-match)
+          else
+            VERSION="$(date -u +%Y%m%d).${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_NAME=autoservice" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:${{ steps.meta.outputs.version }} .
+
+      - name: Save image to tarball
+        id: save
+        run: |
+          TARBALL=${IMAGE_NAME}-${{ steps.meta.outputs.version }}.tar
+          docker save $IMAGE_NAME:${{ steps.meta.outputs.version }} -o "$TARBALL"
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}-image-${{ steps.meta.outputs.version }}
+          path: ${{ steps.save.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7

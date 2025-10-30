@@ -12,6 +12,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'home' %}">Главная</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'branches' %}">Филиалы</a>
+                </li>
                 {% if user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'service_booking' %}">Запись на услугу</a>
@@ -19,13 +22,13 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'appointment_list' %}">Мои записи</a>
                 </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'about' %}">О нас</a>
                 </li>
-                {% endif %}
                 {% if user.is_staff %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'admin_dashboard' %}">
+                    <a class="nav-link" href="{% url 'admin_panel:admin_dashboard' %}">
                         <i class="bi bi-speedometer2 me-1"></i>Админ-панель
                     </a>
                 </li>
@@ -43,7 +46,7 @@
                         {% endif %}
                         {{ user.get_short_name|default:user.username }}
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-gray" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="{% url 'profile' %}">Профиль</a></li>
                         <li><a class="dropdown-item" href="{% url 'profile_edit' %}">Редактировать профиль</a></li>
                         <li><a class="dropdown-item" href="{% url 'add_car' %}">Добавить автомобиль</a></li>

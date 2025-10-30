@@ -1,0 +1,71 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Филиалы{% endblock %}
+
+{% block extra_css %}
+<style>
+  .branch-card { border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.08); overflow:hidden; border:none; background:#fff; }
+  .branch-photo { height: 180px; object-fit: cover; width:100%; }
+  .branch-title { font-weight: 600; }
+  .branch-meta { color:#6c757d; font-size:.95rem; }
+  .branch-actions .btn { border-radius: 20px; }
+  body { background:#f8f9fa; }
+  .page-header { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color:#fff; padding:1.75rem 0; margin-bottom:1.25rem; }
+  .page-header h2 { margin:0; font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h2><i class="bi me-2"></i>Наши филиалы</h2>
+  </div>
+ </div>
+
+<div class="container mb-4">
+  {% if center_cards %}
+    <div class="row g-3">
+      {% for item in center_cards %}
+      {% with c=item.center wh=item.today_wh %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card branch-card h-100">
+          {% with url=c.get_photo_url %}
+            {% if url %}
+              <img class="branch-photo" src="{{ url }}" alt="{{ c.address }}">
+            {% else %}
+              <img class="branch-photo" src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ c.address }}">
+            {% endif %}
+          {% endwith %}
+          <div class="card-body">
+            <div class="branch-title mb-1">{{ c.address }}</div>
+            <div class="branch-meta mb-2">
+              {% if c.phone %}<div><i class="bi bi-telephone me-1"></i>{{ c.phone }}</div>{% endif %}
+              <div>
+                <i class="bi bi-clock me-1"></i>
+                {% if wh and wh.is_working %}
+                  Сегодня: {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
+                  {% if wh.lunch_start and wh.lunch_end %}
+                    <span class="text-muted small">(обед {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }})</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Сегодня: выходной</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="branch-actions">
+              <a href="{% url 'branch_detail' c.id %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-arrow-right-circle me-1"></i> Подробнее
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">Филиалы пока не добавлены.</div>
+  {% endif %}
+</div>
+{% endblock %}

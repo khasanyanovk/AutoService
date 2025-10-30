@@ -1,0 +1,363 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Все записи — Администратор{% endblock %}
+{% block extra_css %}
+<style>
+  .dashboard-card { border-radius: 12px; background:#fff; border:1px solid #e9ecef; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+  .card-header { background: linear-gradient(135deg, #495057 0%, #6c757d 100%); color: white; padding: 1rem 1.25rem; border-bottom: none; }
+  .filter-chip { border-radius:8px; border:1px solid #e9ecef; background:#fff; padding:.5rem .75rem; }
+  .status-badge { font-size:.8rem }
+  .table thead th { background:#f8f9fa; }
+  .notes-cell { max-width:280px; }
+  .nowrap { white-space: nowrap; }
+  .filter-date { max-width: 150px; }
+  .filters-wrap { position: relative; }
+  .filters-reset { position: absolute; top: .5rem; right: .75rem; }
+  .filter-label-normal { font-size: .95rem; }
+  /* Inline status change feedback */
+  .inline-indicator { font-size: .85rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4" id="appointmentsRoot">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Все записи</h1>
+      <div class="text-muted">Просмотр и управление записями по всем филиалам</div>
+    </div>
+    <div>
+      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Назад к дашборду</a>
+    </div>
+  </div>
+
+  <div class="dashboard-card mb-3">
+    <div class="card-header"><strong>Фильтры</strong></div>
+    <div class="p-3 filters-wrap">
+      <button class="btn btn-outline-secondary btn-sm filters-reset" type="button" id="resetFilters" title="Сбросить фильтры"><i class="bi bi-x-circle me-1"></i> Сбросить</button>
+      <form id="filtersForm" class="row g-2 align-items-end" method="get">
+        <div class="col-md-3">
+          <label class="form-label">Филиал</label>
+          <select name="branch" class="form-select form-select-sm" id="filterBranch">
+            <option value="">Все филиалы</option>
+            {% for b in branches %}
+              <option value="{{ b.id }}" {% if filters.branch == b.id|stringformat:'s' %}selected{% endif %}>{{ b.address }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label d-block">Статусы</label>
+          <div class="dropdown w-100">
+            <button class="btn btn-light btn-sm w-100 text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="statusDropdown" data-bs-auto-close="outside">
+              <span id="statusDropdownLabel">{% if filters.statuses %}Выбрано: {{ filters.statuses|length }}{% else %}Все статусы{% endif %}</span>
+            </button>
+            <div class="dropdown-menu p-2 w-100">
+              {% for value, label in status_choices %}
+              <div class="form-check">
+                <input class="form-check-input status-check" type="checkbox" name="status" value="{{ value }}" id="st_{{ forloop.counter }}" {% if value in filters.statuses %}checked{% endif %}>
+                <label class="form-check-label" for="st_{{ forloop.counter }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+              <div class="d-flex justify-content-between mt-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="clearStatuses">Сбросить статусы</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-auto">
+          <label class="form-label filter-label-normal">Дата с</label>
+          <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control form-control-sm filter-date" id="filterDateFrom" placeholder="Без ограничений" />
+        </div>
+        <div class="col-md-auto">
+          <label class="form-label filter-label-normal">Дата по</label>
+          <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control form-control-sm filter-date" id="filterDateTo" placeholder="Без ограничений" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Пользователь</label>
+          <div class="input-group input-group-sm">
+            <input type="text" name="user" value="{{ filters.user }}" class="form-control" id="filterUser" placeholder="Все пользователи" />
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterUser" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Номер авто</label>
+          <div class="input-group input-group-sm">
+            <input type="text" name="plate" value="{{ filters.plate }}" class="form-control" id="filterPlate" placeholder="Все номера" />
+            <button class="btn btn-outline-secondary btn-clear-input" type="button" data-target="filterPlate" title="Очистить"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="dashboard-card" id="appointmentsListCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Список записей</strong>
+      <div class="text-muted small">Всего: {{ page_obj.paginator.count }}</div>
+    </div>
+    <div class="p-0">
+      <div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="appointmentsTable">
+          <thead>
+            <tr>
+              <th class="nowrap">Дата</th>
+              <th class="nowrap">Время</th>
+              <th>Клиент</th>
+              <th>Автомобиль</th>
+              <th>Услуга</th>
+              <th>Филиал</th>
+              <th>Статус</th>
+              <th class="notes-cell">Комментарий</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody id="appointmentsTableBody">
+            {% if page_obj.object_list %}
+              {% for a in page_obj.object_list %}
+              <tr data-id="{{ a.id }}">
+                <td class="nowrap">{{ a.scheduled_date|date:'d.m.Y' }}</td>
+                <td class="nowrap">{{ a.scheduled_time|time:'H:i' }}</td>
+                <td>
+                  {{ a.car.owner.get_full_name|default:a.car.owner.username }}<br />
+                  <small class="text-muted">{{ a.car.owner.email }}</small>
+                </td>
+                <td>{{ a.car }}</td>
+                <td>{{ a.service_type.name }}</td>
+                <td class="text-muted small">{{ a.service_center.address }}</td>
+                <td>
+                  <select class="form-select form-select-sm appt-status">
+                    {% for value, label in status_choices %}
+                      <option value="{{ value }}" {% if a.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="notes-cell">
+                  <div class="input-group input-group-sm">
+                    <input type="text" class="form-control appt-comment" placeholder="Добавить комментарий" />
+                    <button class="btn btn-outline-secondary btn-append-comment" type="button">Добавить</button>
+                  </div>
+                  {% if a.notes %}
+                    <div class="small text-muted mt-1">{{ a.notes|linebreaksbr }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_panel:admin_appointment_detail' a.id %}"><i class="bi bi-box-arrow-up-right"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="9" class="text-center text-muted py-4">Записей не найдено</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="p-3" id="appointmentsPagination">
+        <ul class="pagination justify-content-end mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.branch %}&branch={{ filters.branch }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}{% for s in filters.statuses %}&status={{ s }}{% endfor %}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.plate %}&plate={{ filters.plate }}{% endif %}">&laquo;</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+
+          {% for i in page_obj.paginator.page_range %}
+            {% if i >= page_obj.number|add:'-2' and i <= page_obj.number|add:'2' %}
+              {% if page_obj.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+              {% else %}
+                <li class="page-item"><a class="page-link" href="?page={{ i }}{% if filters.branch %}&branch={{ filters.branch }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}{% for s in filters.statuses %}&status={{ s }}{% endfor %}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.plate %}&plate={{ filters.plate }}{% endif %}">{{ i }}</a></li>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filters.branch %}&branch={{ filters.branch }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}{% for s in filters.statuses %}&status={{ s }}{% endfor %}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.plate %}&plate={{ filters.plate }}{% endif %}">&raquo;</a></li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    function buildFiltersUrl(baseUrl){
+      const url = new URL(baseUrl, window.location.origin);
+      const branchSel = document.getElementById('filterBranch');
+      const dateFrom = document.getElementById('filterDateFrom');
+      const dateTo = document.getElementById('filterDateTo');
+      const userInput = document.getElementById('filterUser');
+      const plateInput = document.getElementById('filterPlate');
+
+      if (branchSel && branchSel.value) url.searchParams.set('branch', branchSel.value);
+      if (dateFrom && dateFrom.value) url.searchParams.set('date_from', dateFrom.value);
+      if (dateTo && dateTo.value) url.searchParams.set('date_to', dateTo.value);
+      if (userInput && userInput.value.trim()) url.searchParams.set('user', userInput.value.trim());
+      if (plateInput && plateInput.value.trim()) url.searchParams.set('plate', plateInput.value.trim());
+
+      const currentParams = new URLSearchParams(window.location.search);
+      if (currentParams.has('page')) url.searchParams.set('page', currentParams.get('page'));
+
+      document.querySelectorAll('.status-check').forEach(ch=>{
+        if (ch.checked) url.searchParams.append('status', ch.value);
+      });
+      return url;
+    }
+
+    function replaceAppointmentsFromHtml(html){
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const newBody = doc.querySelector('#appointmentsTableBody');
+      const curBody = document.querySelector('#appointmentsTableBody');
+      if (newBody && curBody){ curBody.innerHTML = newBody.innerHTML; }
+      const newPag = doc.querySelector('#appointmentsPagination');
+      const curPag = document.querySelector('#appointmentsPagination');
+      if (newPag && curPag){ curPag.innerHTML = newPag.innerHTML; }
+      const totalElNew = doc.querySelector('.card-header .text-muted.small');
+      const totalElCur = document.querySelector('.card-header .text-muted.small');
+      if (totalElNew && totalElCur){ totalElCur.textContent = totalElNew.textContent; }
+      bindInlineRowHandlers();
+      bindPaginationLinks();
+    }
+
+    function fetchAndReplace(url){
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+        .then(r => r.text())
+        .then(html => replaceAppointmentsFromHtml(html));
+    }
+
+    function onStatusesChanged(){
+      updateStatusLabel();
+      const url = buildFiltersUrl(window.location.pathname);
+      history.replaceState({}, '', url);
+      fetchAndReplace(url);
+    }
+
+    function buildUpdateUrl(id){
+      return '{% url "admin_panel:admin_api_update_appointment" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', id);
+    }
+
+    function bindInlineRowHandlers(){
+      document.querySelectorAll('select.appt-status').forEach(function(sel){
+        sel.addEventListener('change', function(){
+          const tr = this.closest('tr');
+          const id = tr.getAttribute('data-id');
+          const form = new FormData();
+          form.append('status', this.value);
+          fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
+            .then(r => r.json()).then(_ => {});
+        });
+      });
+
+      document.querySelectorAll('.btn-append-comment').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          const tr = this.closest('tr');
+          const id = tr.getAttribute('data-id');
+          const input = tr.querySelector('.appt-comment');
+          const text = (input.value || '').trim();
+          if (!text) return;
+          const form = new FormData();
+          form.append('comment', text);
+          fetch(buildUpdateUrl(id), { method: 'POST', headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken': getCsrf() }, body: form })
+            .then(r => r.json()).then(payload => {
+              input.value = '';
+              const notesWrap = tr.querySelector('.notes-cell');
+              if (notesWrap){
+                const prev = notesWrap.querySelector('.small.text-muted');
+                const html = `<div class="small text-muted mt-1">${(payload.notes || '').replace(/\n/g,'<br/>')}</div>`;
+                if (prev) prev.outerHTML = html; else notesWrap.insertAdjacentHTML('beforeend', html);
+              }
+            });
+        })
+      });
+    }
+
+    function getCsrf(){
+      const name = 'csrftoken';
+      const cookies = document.cookie.split(';').map(v => v.trim());
+      for (const c of cookies){
+        if (c.startsWith(name+'=')) return c.slice(name.length+1);
+      }
+      const inp = document.querySelector('input[name=csrfmiddlewaretoken]');
+      return inp ? inp.value : '';
+    }
+
+    const form = document.getElementById('filtersForm');
+    const branchSel = document.getElementById('filterBranch');
+    const dateFrom = document.getElementById('filterDateFrom');
+    const dateTo = document.getElementById('filterDateTo');
+    const userInput = document.getElementById('filterUser');
+    const plateInput = document.getElementById('filterPlate');
+    const statusChecks = document.querySelectorAll('.status-check');
+    const statusLabel = document.getElementById('statusDropdownLabel');
+    const clearStatusesBtn = document.getElementById('clearStatuses');
+    const resetBtn = document.getElementById('resetFilters');
+
+    function submitFilters(){ form.submit(); }
+    function updateStatusLabel(){
+      const count = Array.from(statusChecks).filter(c => c.checked).length;
+      statusLabel.textContent = count ? ('Выбрано: ' + count) : 'Все статусы';
+    }
+
+    if (branchSel) branchSel.addEventListener('change', onStatusesChanged);
+    if (dateFrom) dateFrom.addEventListener('change', onStatusesChanged);
+    if (dateTo) dateTo.addEventListener('change', onStatusesChanged);
+    statusChecks.forEach(ch => ch.addEventListener('change', onStatusesChanged));
+
+  function submitOnEnter(e){ if (e.key === 'Enter') { e.preventDefault(); onStatusesChanged(); } }
+  if (userInput) userInput.addEventListener('keydown', submitOnEnter);
+  if (plateInput) plateInput.addEventListener('keydown', submitOnEnter);
+
+    if (clearStatusesBtn) clearStatusesBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      statusChecks.forEach(ch => ch.checked = false);
+      updateStatusLabel();
+      onStatusesChanged();
+    });
+
+    if (resetBtn) resetBtn.addEventListener('click', function(){
+      if (branchSel) branchSel.value = '';
+      if (dateFrom) dateFrom.value = '';
+      if (dateTo) dateTo.value = '';
+      if (userInput) userInput.value = '';
+      if (plateInput) plateInput.value = '';
+      statusChecks.forEach(ch => ch.checked = false);
+      updateStatusLabel();
+      onStatusesChanged();
+    });
+    updateStatusLabel();
+
+    document.querySelectorAll('.btn-clear-input').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input){ input.value = ''; onStatusesChanged(); }
+      });
+    });
+
+    function bindPaginationLinks(){
+      document.querySelectorAll('#appointmentsPagination a.page-link').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          const href = a.getAttribute('href');
+          const url = new URL(href, window.location.origin);
+          const built = buildFiltersUrl(window.location.pathname);
+          if (url.searchParams.get('page')){
+            built.searchParams.set('page', url.searchParams.get('page'));
+          }
+          history.replaceState({}, '', built);
+          fetchAndReplace(built);
+        });
+      });
+    }
+
+    bindInlineRowHandlers();
+    bindPaginationLinks();
+  });
+</script>
+{% endblock %}

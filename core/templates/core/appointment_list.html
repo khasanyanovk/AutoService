@@ -31,6 +31,7 @@
                             </div>
                             <div class="card-body">
                                 <p><strong>Автомобиль:</strong> {{ appointment.car }}</p>
+                                <p><strong>Филиал:</strong> {{ appointment.service_center.address }}</p>
                                 <p><strong>Дата и время:</strong> {{ appointment.scheduled_date }} в {{ appointment.scheduled_time }}</p>
                                 <p><strong>Продолжительность:</strong> {{ appointment.service_type.duration }} минут</p>
                                 <p><strong>Стоимость:</strong> {{ appointment.service_type.price }} руб.</p>

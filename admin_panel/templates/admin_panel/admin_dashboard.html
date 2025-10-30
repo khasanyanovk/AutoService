@@ -1,0 +1,310 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .dashboard-card {
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border: none;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+    .quick-action {
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        transition: all .2s ease;
+    }
+    .quick-action:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
+    .stats-card { background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:.9rem 1rem; }
+    .stat-number { font-size:1.25rem; font-weight:700; margin:0; }
+    .stat-label { font-size:.8rem; color:#6c757d; margin-top:.2rem; }
+    .card-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    .btn-admin {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .table thead th { background:#f8f9fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">Панель администратора</h1>
+                    <p class="text-muted">Управление автосервисами и записями</p>
+                </div>
+                <div class="text-end">
+                    <div class="text-muted small">Сегодня: {% now "d.m.Y" %}</div>
+                    <div class="mt-2 d-inline-flex align-items-center gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-admin dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Действия
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'service_booking' %}"><i class="bi bi-plus-circle me-1"></i> Новая запись</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-check me-1"></i> Все записи</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_branches' %}"><i class="bi bi-building me-1"></i> Филиалы</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_reviews' %}"><i class="bi bi-chat-dots me-1"></i> Отзывы</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_users' %}"><i class="bi bi-people me-1"></i> Пользователи</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_services' %}"><i class="bi bi-wrench me-1"></i> Услуги</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_cars' %}"><i class="bi bi-car-front me-1"></i> Автомобили</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stats-card text-center py-2">
+                <div class="stat-number">{{ total_appointments }}</div>
+                <div class="stat-label">Всего записей</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stats-card text-center py-2">
+                <div class="stat-number">{{ active_services }}</div>
+                <div class="stat-label">Активные услуги</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stats-card text-center py-2">
+                <div class="stat-number">{{ customers_count }}</div>
+                <div class="stat-label">Клиентов</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stats-card text-center py-2">
+                <div class="stat-number">{{ branches_count }}</div>
+                <div class="stat-label">Филиалы</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-8 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Ближайшие записи</h4>
+                    <div>
+                        <a class="btn btn-light btn-sm" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-ul me-1"></i> Все записи</a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="text-nowrap">Дата</th>
+                                    <th class="text-nowrap">Время</th>
+                                    <th>Клиент</th>
+                                    <th>Авто</th>
+                                    <th>Услуга</th>
+                                    <th class="text-nowrap">Филиал</th>
+                                    <th class="text-end"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if upcoming_appointments %}
+                                    {% for a in upcoming_appointments %}
+                                    <tr>
+                                        <td>{{ a.scheduled_date|date:'d.m.Y' }}</td>
+                                        <td>{{ a.scheduled_time|time:'H:i' }}</td>
+                                        <td>{{ a.car.owner.get_full_name|default:a.car.owner.username }}</td>
+                                        <td>{{ a.car }}</td>
+                                        <td>{{ a.service_type.name }}</td>
+                                        <td class="text-muted small">{{ a.service_center.address }}</td>
+                                        <td class="text-end">
+                                            <a href="{% url 'admin_panel:admin_appointment_detail' a.id %}" class="btn btn-sm btn-outline-primary">Открыть</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="7" class="text-center text-muted py-4">Нет ближайших записей</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 mb-4">
+            <div class="dashboard-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="status-period">
+                        <button type="button" class="btn btn-light btn-status-period" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-light btn-status-period" data-period="month">Месяц</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Статус</th>
+                                    <th class="text-end">Количество</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overallStatusTableBody">
+                                {% if overall_statuses %}
+                                    {% for s in overall_statuses %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge 
+                                                {% if s.status == 'SCHEDULED' %}bg-primary
+                                                {% elif s.status == 'IN_PROGRESS' %}bg-warning
+                                                {% elif s.status == 'COMPLETED' %}bg-success
+                                                {% elif s.status == 'CANCELLED' %}bg-danger
+                                                {% endif %}">
+                                                {{ s.label }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end"><strong>{{ s.count }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12 col-xl-8 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Посещаемость (все филиалы)</h4>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="period">
+                        <button type="button" class="btn btn-light btn-overall-period" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-light btn-overall-period" data-period="month">Месяц</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div style="height:320px"><canvas id="overallVisitsChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Популярность услуг</h4>
+                </div>
+                <div class="card-body">
+                    <div style="height:320px"><canvas id="overallServicesChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function(){
+        const visitsCtx = document.getElementById('overallVisitsChart');
+        let visitsChart = null;
+        if (visitsCtx) {
+            visitsChart = new Chart(visitsCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: {{ overall_visits_labels|safe }},
+                    datasets: [{
+                        label: 'Записей',
+                        data: {{ overall_visits_data|safe }},
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,.15)',
+                        tension: .3,
+                        pointRadius: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        document.querySelectorAll('.btn-overall-period').forEach(btn => {
+            btn.addEventListener('click', function(){
+                const period = this.getAttribute('data-period');
+                fetch('{% url "admin_panel:admin_api_overall_visits" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(payload => {
+                        if (!visitsChart) return;
+                        visitsChart.data.labels = payload.labels;
+                        visitsChart.data.datasets[0].data = payload.data;
+                        visitsChart.update();
+                    });
+            })
+        });
+
+        document.querySelectorAll('.btn-status-period').forEach(btn => {
+            btn.addEventListener('click', function(){
+                const period = this.getAttribute('data-period');
+                fetch('{% url "admin_panel:admin_api_overall_statuses" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(payload => {
+                        const tbody = document.getElementById('overallStatusTableBody');
+                        if (!tbody) return;
+                        const rows = (payload.items || []).map(item => {
+                            const badgeClass = item.status === 'SCHEDULED' ? 'bg-primary' :
+                                               item.status === 'IN_PROGRESS' ? 'bg-warning' :
+                                               item.status === 'COMPLETED' ? 'bg-success' :
+                                               item.status === 'CANCELLED' ? 'bg-danger' : 'bg-secondary';
+                            return `<tr>
+                                <td><span class="badge ${badgeClass}">${item.label}</span></td>
+                                <td class="text-end"><strong>${item.count}</strong></td>
+                            </tr>`;
+                        });
+                        tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>';
+                    });
+            })
+        });
+
+        const serviceCtx = document.getElementById('overallServicesChart');
+        if (serviceCtx) {
+            new Chart(serviceCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: {{ overall_service_labels|safe }},
+                    datasets: [{
+                        data: {{ overall_service_data|safe }},
+                        backgroundColor: ['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } } }
+            });
+        }
+    })();
+</script>
+{% endblock %}

@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
+import os
 from PIL import Image
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
+from django.utils.text import slugify
 
 
 class CarBrand(models.Model):
@@ -32,6 +36,7 @@ class Car(models.Model):
     license_plate = models.CharField(max_length=20, unique=True)
     vin = models.CharField(max_length=17, unique=True, blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    photo = models.ImageField(upload_to="car_models/from_users/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.model} ({self.license_plate})"
@@ -39,6 +44,77 @@ class Car(models.Model):
     class Meta:
         verbose_name = "Автомобиль"
         verbose_name_plural = "Автомобили"
+
+    def _build_default_model_photo_candidates(self):
+        """Return candidate relative paths under STATIC for default model images.
+        Tries numerous brand/model naming variants inside 'core/car_models/'.
+        """
+        if not self.model:
+            return []
+        brand_name = str(self.model.brand.name)
+        model_name = str(self.model.name)
+
+        brand_variants = {
+            brand_name,
+            brand_name.lower(),
+            brand_name.upper(),
+            slugify(brand_name),
+            brand_name.title(),
+        }
+
+        model_compact = "".join(ch for ch in model_name if ch.isalnum())
+        model_variants = {
+            model_name,
+            model_name.lower(),
+            model_name.upper(),
+            model_name.title(),
+            slugify(model_name),
+        }
+        if model_compact:
+            model_variants.update(
+                {model_compact, model_compact.lower(), model_compact.upper()}
+            )
+
+        bases = set()
+        for b in brand_variants:
+            for m in model_variants:
+                bases.add(f"{b}/{m}")
+                bases.add(f"{b}_{m}")
+
+        for m in model_variants:
+            bases.add(m)
+
+        candidates = []
+        for base in bases:
+            for ext in (".jpg", ".jpeg", ".png"):
+                candidates.append(os.path.join("core", "car_models", base + ext))
+        return candidates
+
+    def get_photo_url(self):
+        """Return URL to the car's photo or a suitable default from STATIC based on brand/model.
+        Fallback order:
+        1) Uploaded user photo (media)
+        2) Static brand/model image under core/car_models/
+        3) Static placeholder (jpg/png/svg)
+        """
+        try:
+            if self.photo and hasattr(self.photo, "url"):
+                return self.photo.url
+        except Exception:
+            pass
+
+        for rel_path in self._build_default_model_photo_candidates():
+            if finders.find(rel_path):
+                return static(rel_path.replace("\\", "/"))
+
+        for p in (
+            "core/img/car-placeholder.jpg",
+            "core/img/car-placeholder.png",
+            "core/img/car-placeholder.svg",
+        ):
+            if finders.find(p):
+                return static(p)
+        return static("core/img/car-placeholder.jpg")
 
 
 class ServiceCenter(models.Model):
@@ -56,6 +132,33 @@ class ServiceCenter(models.Model):
     def __str__(self):
         return self.address
 
+    def get_photo_url(self):
+        """Return a safe URL to the photo or a static default if missing.
+        If media file exists (and is not the legacy default name) return it; otherwise use static default image.
+        """
+        try:
+            default_name = "service_centers/default_service_center.jpg"
+            if self.photo and getattr(self.photo, "name", None):
+                storage = getattr(self.photo, "storage", None)
+                if str(self.photo.name) != default_name and storage:
+                    try:
+                        if storage.exists(self.photo.name):
+                            return self.photo.url
+                    except Exception:
+                        pass
+                basename = os.path.basename(str(self.photo.name))
+                if basename:
+                    for rel in (
+                        f"core/img/service_centers/{basename}",
+                        f"core/img/{basename}",
+                    ):
+                        if finders.find(rel):
+                            return static(rel)
+        except Exception:
+            pass
+
+        return static("core/img/default_service_center.jpg")
+
 
 class Employee(models.Model):
     POSITION_CHOICES = [
@@ -72,7 +175,7 @@ class Employee(models.Model):
     salary = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.user.get_full_name()} ({self.get_position_display()})"
+        return f"{self.user.get_full_name()} ({self.get_position_display()})"  # type: ignore[attr-defined]
 
 
 class Part(models.Model):
@@ -248,19 +351,51 @@ class WorkingHours(models.Model):
         (7, "Воскресенье"),
     ]
 
-    day_of_week = models.IntegerField(
-        choices=DAYS_OF_WEEK, unique=True, verbose_name="День недели"
+    service_center = models.ForeignKey(
+        ServiceCenter,
+        on_delete=models.CASCADE,
+        related_name="working_hours",
+        verbose_name="Автосервис",
+        null=True,
+        blank=True,
     )
+    day_of_week = models.IntegerField(choices=DAYS_OF_WEEK, verbose_name="День недели")
     start_time = models.TimeField(verbose_name="Время начала работы")
     end_time = models.TimeField(verbose_name="Время окончания работы")
+    lunch_start = models.TimeField(blank=True, null=True, verbose_name="Начало обеда")
+    lunch_end = models.TimeField(blank=True, null=True, verbose_name="Окончание обеда")
     is_working = models.BooleanField(default=True, verbose_name="Рабочий день")
 
     def __str__(self):
-        return f"{self.get_day_of_week_display()}: {self.start_time} - {self.end_time}"
+        return f"{self.get_day_of_week_display()}: {self.start_time} - {self.end_time}"  # type: ignore[attr-defined]
 
     class Meta:
         verbose_name = "Рабочее время"
         verbose_name_plural = "Рабочее время"
+        unique_together = ("service_center", "day_of_week")
+
+
+class Review(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service_center = models.ForeignKey(
+        ServiceCenter, on_delete=models.CASCADE, related_name="reviews"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField()
+    admin_reply = models.TextField(blank=True, null=True)
+    admin_reply_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("service_center", "user")
+        ordering = ["-created_at"]
+        verbose_name = "Отзыв"
+        verbose_name_plural = "Отзывы"
+
+    def __str__(self) -> str:
+        return f"{self.service_center} — {self.user} ({self.rating})"
 
 
 class AdminDashboard(models.Model):

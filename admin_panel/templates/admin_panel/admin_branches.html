@@ -1,0 +1,87 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Филиалы автосервиса{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background-color: #f8f9fa; }
+  .branch-card { position: relative; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); overflow: hidden; border: none; transition: transform .2s, box-shadow .2s; width: 100%; max-width: 350px; margin: auto; }
+  .branch-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.15); }
+  .edit-btn { position: absolute; top: .5rem; right: .5rem; z-index: 2; font-size: 0.8rem; padding: 0.25rem; }
+  .branch-photo { height: 180px; width: 100%; object-fit: cover; background:#e9ecef; display:flex; align-items:center; justify-content:center; }
+  .branch-info { padding: 1rem 1.25rem; }
+  .stat-pill { background: #f1f3f5; border-radius: 999px; padding: .25rem .6rem; font-size: .85rem; }
+  .text-decoration-none:hover { text-decoration: none !important; }
+  .placeholder-icon { color:#adb5bd; font-size:3rem; }
+  .card-title { color:#212529; }
+  .card-text { color:#6c757d; }
+  .btn-manage { border-radius: 10px; }
+  .grid-gap { row-gap: 1.5rem; }
+  .address { font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Филиалы</h1>
+      <p class="text-muted mb-0">Выберите филиал для просмотра расписания и статистики</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_panel:admin_service_center_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Новый филиал</a>
+      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Панель администратора</a>
+    </div>
+  </div>
+
+  {% if center_cards %}
+  <div class="row grid-gap">
+    {% for item in center_cards %}
+    {% with sc=item.center wh=item.today_wh %}
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="card branch-card h-100" role="button" onclick="window.location.href='{% url 'admin_panel:admin_service_center_detail' sc.id %}'">
+          <a href="{% url 'admin_panel:admin_service_center_edit' sc.id %}" class="btn btn-sm btn-light edit-btn" title="Редактировать" onclick="event.stopPropagation();">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <div class="branch-photo">
+            {% with url=sc.get_photo_url %}
+              {% if url %}
+                <img src="{{ url }}" alt="{{ sc.address }}" class="branch-photo">
+              {% else %}
+                <img src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ sc.address }}" class="branch-photo">
+              {% endif %}
+            {% endwith %}
+          </div>
+          <div class="branch-info">
+            <h5 class="card-title mb-1 address">{{ sc.address }}</h5>
+            <p class="card-text mb-2"><i class="bi bi-telephone me-1"></i>{{ sc.phone }}</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="stat-pill"><i class="bi bi-calendar-event me-1"></i>{{ sc.appointments_count|default:0 }}</span>
+              <span class="text-muted small">
+                <i class="bi bi-clock me-1"></i>
+                {% if wh and wh.is_working %}
+                  Сегодня: {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
+                  {% if wh.lunch_start and wh.lunch_end %}
+                    <span class="text-muted small">(обед {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }})</span>
+                  {% endif %}
+                {% else %}
+                  Сегодня: выходной
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-building" style="font-size:3rem;color:#6c757d"></i>
+    <h4 class="mt-3">Нет добавленных филиалов</h4>
+    <p class="text-muted">Добавьте филиалы через административную панель Django</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

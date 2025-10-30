@@ -1,16 +1,35 @@
 import os
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from .models import ServiceCenter, UserProfile, Car, CarBrand, CarModel
 from datetime import datetime, date, timedelta
 from django.forms import ValidationError
 from .models import ServiceType, Appointment, WorkingHours
-from django.core.validators import RegexValidator
+from .models import Review
 import re
+from typing import cast
 
 
-class UserRegisterForm(UserCreationForm):
+class BootstrapInvalidMixin:
+    """Adds 'is-invalid' CSS class to fields that have validation errors when form is validated."""
+
+    def add_invalid_css_classes(self) -> None:
+        form = cast(forms.Form, self)
+        for name, field in form.fields.items():
+            if name in form.errors:
+                css = field.widget.attrs.get("class", "")
+                if "is-invalid" not in css:
+                    field.widget.attrs["class"] = (css + " is-invalid").strip()
+
+    def is_valid(self) -> bool:
+        valid = super().is_valid()  # type: ignore[misc]
+        if not valid:
+            self.add_invalid_css_classes()
+        return valid
+
+
+class UserRegisterForm(BootstrapInvalidMixin, UserCreationForm):
     email = forms.EmailField()
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
@@ -25,6 +44,40 @@ class UserRegisterForm(UserCreationForm):
             "password1",
             "password2",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        placeholders = {
+            "username": "Логин",
+            "first_name": "Имя",
+            "last_name": "Фамилия",
+            "email": "Email",
+            "password1": "Пароль",
+            "password2": "Подтверждение пароля",
+        }
+        for name, field in self.fields.items():
+            css = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = (css + " form-control").strip()
+            if name in placeholders:
+                field.widget.attrs["placeholder"] = placeholders[name]
+
+
+class LoginForm(BootstrapInvalidMixin, AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Логин",
+            }
+        )
+        self.fields["password"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Пароль",
+                "id": "passwordInput",
+            }
+        )
 
 
 class ServiceCenterChoiceForm(forms.Form):
@@ -114,6 +167,12 @@ class CarForm(forms.Form):
         required=False,
         label="VIN",
     )
+    photo = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
+        label="Фото автомобиля",
+        help_text="Необязательно. JPG/PNG до 3MB.",
+    )
 
     def clean_license_plate(self):
         """Проверка корректности формата гос. номера (X000XX)"""
@@ -142,16 +201,16 @@ class CarForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         if "brand" in initial and initial["brand"]:
-            self.fields["model"].queryset = CarModel.objects.filter(
-                brand=initial["brand"]
-            )
+            model_field = self.fields.get("model")
+            if isinstance(model_field, forms.ModelChoiceField):
+                model_field.queryset = CarModel.objects.filter(brand=initial["brand"])
 
         if self.data and "brand" in self.data:
             try:
                 brandId = self.data.get("brand")
-                self.fields["model"].queryset = CarModel.objects.filter(
-                    brand_id=brandId
-                )
+                model_field = self.fields.get("model")
+                if isinstance(model_field, forms.ModelChoiceField):
+                    model_field.queryset = CarModel.objects.filter(brand_id=brandId)
             except (ValueError, TypeError):
                 pass
 
@@ -167,6 +226,21 @@ class CarForm(forms.Form):
 
         return cleaned_data
 
+    def clean_photo(self):
+        photo = self.files.get("photo") if hasattr(self, "files") else None
+        if not photo:
+            return None
+        max_size = 3 * 1024 * 1024
+        if getattr(photo, "size", 0) > max_size:
+            raise ValidationError("Размер фото не должен превышать 3MB.")
+        valid_exts = [".jpg", ".jpeg", ".png"]
+        import os
+
+        ext = os.path.splitext(photo.name)[1].lower()
+        if ext not in valid_exts:
+            raise ValidationError("Допустимые форматы: JPG, JPEG, PNG.")
+        return photo
+
     def save(self, user):
         car = Car(
             year=self.cleaned_data["year"],
@@ -175,6 +249,11 @@ class CarForm(forms.Form):
             vin=self.cleaned_data.get("vin"),
             owner=user,
         )
+        uploaded = self.cleaned_data.get("photo") or (
+            self.files.get("photo") if hasattr(self, "files") else None
+        )
+        if uploaded:
+            car.photo = uploaded  # type: ignore[assignment]
         car.save()
         return car
 
@@ -255,7 +334,9 @@ class AppointmentForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["scheduled_time"].choices = self.generate_time_slots()
         if user is not None:
-            self.fields["car"].queryset = Car.objects.filter(owner=user)
+            car_field = self.fields.get("car")
+            if isinstance(car_field, forms.ModelChoiceField):
+                car_field.queryset = Car.objects.filter(owner=user)
 
     def generate_time_slots(self):
         """Генерирует список доступных временных слотов"""
@@ -297,8 +378,11 @@ class AppointmentForm(forms.Form):
                         "Нельзя записаться на уже прошедшее время сегодня."
                     )
             day_of_week = scheduled_date.isoweekday()
+            service_center = cleaned_data.get("service_center")
             try:
-                working_hours = WorkingHours.objects.get(day_of_week=day_of_week)
+                working_hours = WorkingHours.objects.get(
+                    service_center=service_center, day_of_week=day_of_week
+                )
                 if not working_hours.is_working:
                     raise ValidationError("Выбранная дата не является рабочим днем.")
             except WorkingHours.DoesNotExist:
@@ -313,15 +397,44 @@ class AppointmentForm(forms.Form):
             if not (start_datetime <= scheduled_datetime <= end_datetime):
                 raise ValidationError("Выбранное время вне рабочего времени.")
 
+            if (
+                scheduled_datetime + timedelta(minutes=service_type.duration)
+                > end_datetime
+            ):
+                raise ValidationError(
+                    "Выбранная услуга не успевает завершиться до конца рабочего дня. Выберите более раннее время."
+                )
+
             start_time_obj = datetime.strptime(scheduled_time, "%H:%M").time()
             end_time_obj = (
                 scheduled_datetime + timedelta(minutes=service_type.duration)
             ).time()
 
-            conflicting_appointments = Appointment.objects.filter(
+            if working_hours.lunch_start and working_hours.lunch_end:
+                lunch_start_dt = datetime.combine(
+                    scheduled_date, working_hours.lunch_start
+                )
+                lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
+                if not (
+                    scheduled_datetime >= lunch_end_dt
+                    or (scheduled_datetime + timedelta(minutes=service_type.duration))
+                    <= lunch_start_dt
+                ):
+                    raise ValidationError(
+                        "Выбранное время попадает на обеденный перерыв."
+                    )
+
+            qs = Appointment.objects.filter(
                 scheduled_date=scheduled_date,
                 status__in=["SCHEDULED", "IN_PROGRESS"],
-            ).exclude(scheduled_time__gte=end_time_obj, end_time__lte=start_time_obj)
+            )
+            if service_center:
+                qs = qs.filter(service_center=service_center)
+
+            conflicting_appointments = qs.filter(
+                scheduled_time__lt=end_time_obj,
+                end_time__gt=start_time_obj,
+            )
 
             if conflicting_appointments.exists():
                 raise ValidationError(
@@ -331,40 +444,46 @@ class AppointmentForm(forms.Form):
         return cleaned_data
 
 
-class ServiceCenterEditForm(forms.ModelForm):
-    phone = forms.CharField(
-        validators=[
-            RegexValidator(
-                regex=r"^[+]?\d[\d\s\-()]{7,20}$",
-                message="Введите корректный телефон (разрешены +, цифры, пробелы, дефисы, скобки)",
-            )
-        ],
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="Телефон",
-    )
-    address = forms.CharField(
-        max_length=200,
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="Адрес",
-    )
-    opening_hours = forms.CharField(
-        widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "Напр.: Пн-Пт 9:00-18:00"}
-        ),
-        label="Время работы",
-    )
-    photo = forms.ImageField(
-        required=False,
-        widget=forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
-        label="Фото",
-    )
-
+class ReviewForm(forms.ModelForm):
     class Meta:
-        model = ServiceCenter
-        fields = ["address", "phone", "opening_hours", "photo"]
+        model = Review
+        fields = ["rating", "comment"]
+        widgets = {
+            "rating": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 5}
+            ),
+            "comment": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": "Расскажите о вашем опыте обслуживания (минимум 20 символов)",
+                }
+            ),
+        }
 
-    def clean_opening_hours(self):
-        text = self.cleaned_data.get("opening_hours", "").strip()
-        if len(text) < 3:
-            raise forms.ValidationError("Заполните часы работы")
-        return text
+    def clean_rating(self):
+        rating = self.cleaned_data.get("rating")
+        if rating is None or rating < 1 or rating > 5:
+            raise ValidationError("Оценка должна быть от 1 до 5.")
+        return rating
+
+    def clean_comment(self):
+        comment = (self.cleaned_data.get("comment") or "").strip()
+        if len(comment) < 20:
+            raise ValidationError("Комментарий должен содержать минимум 20 символов.")
+        return comment
+
+
+class AdminReplyForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ["admin_reply"]
+        widgets = {
+            "admin_reply": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Ответ администратора",
+                }
+            ),
+        }

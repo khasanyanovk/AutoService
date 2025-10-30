@@ -1,0 +1,62 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Новая услуга{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="h4 mb-3">Добавить услугу</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">{{ base_form.name.label_tag }} {{ base_form.name }}</div>
+          <div class="col-md-6">{{ base_form.duration.label_tag }} {{ base_form.duration }}</div>
+          <div class="col-md-12">{{ base_form.description.label_tag }} {{ base_form.description }}</div>
+          <div class="col-md-12 form-check">{{ base_form.is_active }} {{ base_form.is_active.label_tag }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Филиалы и цены</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 align-middle">
+            <thead>
+              <tr>
+                <th style="width: 60px;">Выбрать</th>
+                <th>Филиал</th>
+                <th style="width: 220px;">Цена для филиала</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in centers %}
+              <tr>
+                <td>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="center_{{ c.id }}" name="center_{{ c.id }}">
+                  </div>
+                </td>
+                <td>{{ c.address }}</td>
+                <td>
+                  <div class="input-group">
+                    <span class="input-group-text">₽</span>
+                    <input type="number" step="0.01" min="0" class="form-control" name="price_{{ c.id }}" placeholder="Цена">
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Создать</button>
+      <a href="{% url 'admin_panel:admin_services' %}" class="btn btn-outline-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,10 +1,13 @@
+import os
 from django.core.management.base import BaseCommand
+from django.contrib.staticfiles import finders
+from django.core.files import File
 from core.models import ServiceCenter, ServiceType, WorkingHours
 from datetime import time
 
 
 class Command(BaseCommand):
-    help = "Заполняет базу данных тестовыми сервис-центрами и услугами"
+    help = "Заполняет базу дефолтными сервис-центрами, рабочими часами (с обедом) и услугами"
 
     def handle(self, *args, **options):
         self.stdout.write("Начало заполнения базы данных...")
@@ -14,31 +17,37 @@ class Command(BaseCommand):
                 "address": "ул. Ленина, 123, Москва",
                 "phone": "+7 (495) 123-45-67",
                 "opening_hours": "09:00-18:00 (Пн-Пт), 10:00-16:00 (Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_moscow.png",
             },
             {
                 "address": "пр. Мира, 45, Санкт-Петербург",
                 "phone": "+7 (812) 987-65-43",
                 "opening_hours": "08:00-19:00 (Пн-Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_spb.png",
             },
             {
                 "address": "ул. Гагарина, 78, Казань",
                 "phone": "+7 (843) 555-12-34",
                 "opening_hours": "09:00-17:00 (Пн-Пт)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_kazan.png",
             },
             {
                 "address": "ул. Советская, 56, Новосибирск",
                 "phone": "+7 (383) 444-55-66",
                 "opening_hours": "08:00-20:00 (Пн-Вс)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_novosibirsk.png",
             },
             {
                 "address": "пр. Победы, 89, Екатеринбург",
                 "phone": "+7 (343) 777-88-99",
                 "opening_hours": "09:00-19:00 (Пн-Сб)",
-                "photo": "service_centers/default_service_center.jpg",
+                "photo": "service_centers/service_center_ekb.png",
+            },
+            {
+                "address": "ул. Ломоносова, 52, Нижний Новгород",
+                "phone": "+7 (343) 777-88-99",
+                "opening_hours": "09:00-19:00 (Пн-Сб)",
+                "photo": "service_centers/service_center_nn.png",
             },
         ]
 
@@ -49,6 +58,9 @@ class Command(BaseCommand):
                 defaults={
                     "phone": center_data["phone"],
                     "opening_hours": center_data["opening_hours"],
+                    "photo": center_data.get(
+                        "photo", "service_centers/default_service_center.jpg"
+                    ),
                 },
             )
             if created:
@@ -61,31 +73,97 @@ class Command(BaseCommand):
                     self.style.WARNING(f"Сервис-центр уже существует: {center.address}")
                 )
 
-        working_hours_data = [
-            (1, time(9, 0), time(18, 0), True),
-            (2, time(9, 0), time(18, 0), True),
-            (3, time(9, 0), time(18, 0), True),
-            (4, time(9, 0), time(18, 0), True),
-            (5, time(9, 0), time(18, 0), True),
-            (6, time(10, 0), time(16, 0), True),
-            (7, time(0, 0), time(0, 0), False),
+            desired_rel = center_data.get("photo")
+            if desired_rel:
+                basename = os.path.basename(desired_rel)
+                media_target_rel = os.path.join("service_centers", basename)
+                try:
+                    if center.photo and getattr(center.photo, "storage", None):
+                        storage = center.photo.storage
+                        if center.photo.name == media_target_rel and storage.exists(
+                            center.photo.name
+                        ):
+                            pass
+                        else:
+                            candidate_static_paths = [
+                                os.path.join(
+                                    "core", "img", "service_centers", basename
+                                ),
+                                os.path.join("core", "img", basename),
+                                os.path.join("core", basename),
+                            ]
+                            abs_src = None
+                            for rel in candidate_static_paths:
+                                found = finders.find(rel)
+                                if found:
+                                    abs_src = (
+                                        found[0]
+                                        if isinstance(found, (list, tuple))
+                                        else found
+                                    )
+                                    break
+                            if (
+                                abs_src
+                                and isinstance(abs_src, str)
+                                and os.path.exists(abs_src)
+                            ):
+                                with open(abs_src, "rb") as fh:
+                                    center.photo.save(
+                                        media_target_rel, File(fh), save=True
+                                    )
+                            else:
+                                pass
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"Не удалось скопировать фото для {center.address}: {e}"
+                        )
+                    )
+
+        default_working_hours = [
+            (1, time(9, 0), time(18, 0), True),  # Пн
+            (2, time(9, 0), time(18, 0), True),  # Вт
+            (3, time(9, 0), time(18, 0), True),  # Ср
+            (4, time(9, 0), time(18, 0), True),  # Чт
+            (5, time(9, 0), time(18, 0), True),  # Пт
+            (6, time(10, 0), time(16, 0), True),  # Сб (короче)
+            (7, time(0, 0), time(0, 0), False),  # Вс (выходной)
         ]
 
-        for day, start, end, is_working in working_hours_data:
-            wh, created = WorkingHours.objects.get_or_create(
-                day_of_week=day,
-                defaults={
-                    "start_time": start,
-                    "end_time": end,
-                    "is_working": is_working,
-                },
-            )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Созданы рабочие часы для {wh.get_day_of_week_display()}"
-                    )
+        def default_lunch_for(day: int, is_working: bool):
+            """Возвращает (lunch_start, lunch_end) по умолчанию для дня недели.
+            Для будней — 13:00-14:00, для субботы — 13:00-13:30, для выходного — None.
+            """
+            if not is_working:
+                return None, None
+            if day in (1, 2, 3, 4, 5):
+                return time(13, 0), time(14, 0)
+            if day == 6:
+                return time(13, 0), time(13, 30)
+            return None, None
+
+        wh_created_total = 0
+        for center in ServiceCenter.objects.all():
+            for day, start, end, is_working in default_working_hours:
+                lunch_start, lunch_end = default_lunch_for(day, is_working)
+                wh, created = WorkingHours.objects.get_or_create(
+                    service_center=center,
+                    day_of_week=day,
+                    defaults={
+                        "start_time": start,
+                        "end_time": end,
+                        "is_working": is_working,
+                        "lunch_start": lunch_start,
+                        "lunch_end": lunch_end,
+                    },
                 )
+                if created:
+                    wh_created_total += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"[{center.address}] добавлен график для дня {day}"
+                        )
+                    )
 
         services_data = [
             {
@@ -177,6 +255,38 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Успешно создано {len(created_centers)} сервис-центров и {total_services_created} услуг!"
+                f"Успешно создано {len(created_centers)} сервис-центров, {wh_created_total} записей рабочего времени и {total_services_created} услуг!"
             )
         )
+
+        try:
+            from core.models import CarBrand, CarModel
+
+            brands_models = {
+                "Toyota": ["Corolla", "Camry", "RAV4"],
+                "BMW": ["3 Series", "5 Series", "X5"],
+                "Audi": ["A4", "A6", "Q5"],
+                "Lada": ["Vesta", "Granta"],
+                "Hyundai": ["Solaris", "Tucson"],
+            }
+
+            created_brands = 0
+            created_models = 0
+            for brand_name, model_list in brands_models.items():
+                brand, b_created = CarBrand.objects.get_or_create(name=brand_name)
+                if b_created:
+                    created_brands += 1
+                for model_name in model_list:
+                    _, m_created = CarModel.objects.get_or_create(
+                        brand=brand, name=model_name
+                    )
+                    if m_created:
+                        created_models += 1
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Добавлено марок: {created_brands}, моделей: {created_models}"
+                )
+            )
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Блок брендов/моделей пропущен: {e}"))
