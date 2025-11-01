@@ -62,7 +62,8 @@ def branches(request):
 
 
 def branch_detail(request, service_center_id):
-    """Детальная страница филиала: услуги, график, отзывы и форма отзыва (если доступна)."""
+    """Детальная страница филиала: услуги, график,
+    отзывы и форма отзыва (если доступна)."""
     sc = get_object_or_404(
         ServiceCenter.objects.prefetch_related("working_hours"),
         id=service_center_id,
@@ -175,7 +176,6 @@ def profile(request):
     )
 
     today = timezone.localtime(timezone.now()).date()
-    # Базовый queryset за последние 90 дней для остальных виджетов (как было)
     start_date = today - timedelta(days=89)
     appt_qs = Appointment.objects.filter(
         car__owner=request.user,
