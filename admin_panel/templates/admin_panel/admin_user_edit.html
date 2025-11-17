@@ -1,31 +1,207 @@
 {% extends 'core/base.html' %}
 {% load static %}
 {% block title %}Изменение профиля — Администратор{% endblock %}
+
+{% block extra_css %}
+<style>
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  /* Page Header */
+  .page-header {
+    animation: fadeInUp 0.6s ease;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+  }
+
+  /* Form Card */
+  .form-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    animation: scaleIn 0.6s ease;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Tabs */
+  .nav-tabs {
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .nav-tabs .nav-link:hover {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+  }
+
+  .nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background: transparent;
+    border-bottom-color: #0d6efd;
+  }
+
+  .tab-content {
+    padding: 2rem;
+    background: white;
+    border-radius: 0 0 20px 20px;
+  }
+
+  /* Form Elements */
+  label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="file"],
+  textarea,
+  select {
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    outline: none;
+  }
+
+  /* Buttons */
+  .btn {
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 0.6rem 1.5rem;
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    color: white;
+    border: 2px solid transparent;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+  }
+
+  .btn-outline-secondary {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+    background: transparent;
+  }
+
+  .btn-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+  }
+
+  /* Avatar Preview */
+  .img-thumbnail {
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+    padding: 0.5rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .page-title {
+      font-size: 1.5rem;
+    }
+
+    .form-card {
+      padding: 1.5rem;
+    }
+
+    .tab-content {
+      padding: 1.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Изменение профиля: {{ user_obj.username }}</h1>
-    <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Назад</a>
+  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <h1 class="page-title mb-0">Изменение профиля: {{ user_obj.username }}</h1>
+    <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Назад
+    </a>
   </div>
 
-  <form method="post" enctype="multipart/form-data" class="row g-3">
+  <form method="post" enctype="multipart/form-data" class="form-card">
     {% csrf_token %}
-    <div class="col-12">
+    <div class="mb-4">
       <ul class="nav nav-tabs" id="editTabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="acc-tab" data-bs-toggle="tab" data-bs-target="#acc" type="button" role="tab">Учётные данные</button>
+          <button class="nav-link active" id="acc-tab" data-bs-toggle="tab" data-bs-target="#acc" type="button" role="tab">
+            Учётные данные
+          </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="prof-tab" data-bs-toggle="tab" data-bs-target="#prof" type="button" role="tab">Профиль</button>
+          <button class="nav-link" id="prof-tab" data-bs-toggle="tab" data-bs-target="#prof" type="button" role="tab">
+            Профиль
+          </button>
         </li>
       </ul>
-      <div class="tab-content border border-top-0 p-3 rounded-bottom">
+      <div class="tab-content">
         <div class="tab-pane fade show active" id="acc" role="tabpanel" aria-labelledby="acc-tab">
           {{ u_form.as_p }}
         </div>
         <div class="tab-pane fade" id="prof" role="tabpanel" aria-labelledby="prof-tab">
           <div class="row g-3">
-            <div class="col-12 col-md-8">{{ p_form.phone.label_tag }} {{ p_form.phone }} {{ p_form.address.label_tag }} {{ p_form.address }}</div>
+            <div class="col-12 col-md-8">
+              {{ p_form.phone.label_tag }} 
+              {{ p_form.phone }} 
+              {{ p_form.address.label_tag }} 
+              {{ p_form.address }}
+            </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Аватар</label>
               {% if user_obj.userprofile and user_obj.userprofile.avatar %}
@@ -40,9 +216,13 @@
         </div>
       </div>
     </div>
-    <div class="col-12 mt-2">
-      <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i> Сохранить</button>
-      <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary">Отмена</a>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">
+        <i class="bi bi-check2 me-1"></i> Сохранить
+      </button>
+      <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary">
+        Отмена
+      </a>
     </div>
   </form>
 </div>
