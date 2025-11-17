@@ -8,19 +8,201 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
     <link href="/static/core/css/styles.css" rel="stylesheet">
+    <style>
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .toast-notification {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 15px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+            animation: slideInRight 0.4s ease, fadeOut 0.3s ease 3.7s forwards;
+            border-left: 5px solid;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        .toast-notification::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: currentColor;
+            animation: progress 4s linear forwards;
+        }
+
+        @keyframes progress {
+            from {
+                width: 100%;
+            }
+            to {
+                width: 0%;
+            }
+        }
+
+        .toast-notification.toast-success {
+            border-left-color: #198754;
+        }
+
+        .toast-notification.toast-success::before {
+            background: #198754;
+        }
+
+        .toast-notification.toast-danger {
+            border-left-color: #dc3545;
+        }
+
+        .toast-notification.toast-danger::before {
+            background: #dc3545;
+        }
+
+        .toast-notification.toast-warning {
+            border-left-color: #ffc107;
+        }
+
+        .toast-notification.toast-warning::before {
+            background: #ffc107;
+        }
+
+        .toast-notification.toast-info {
+            border-left-color: #0dcaf0;
+        }
+
+        .toast-notification.toast-info::before {
+            background: #0dcaf0;
+        }
+
+        .toast-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.25rem;
+            color: white;
+        }
+
+        .toast-success .toast-icon {
+            background: linear-gradient(135deg, #198754, #157347);
+        }
+
+        .toast-danger .toast-icon {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .toast-warning .toast-icon {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+        }
+
+        .toast-info .toast-icon {
+            background: linear-gradient(135deg, #0dcaf0, #0aa2c0);
+        }
+
+        .toast-content {
+            flex: 1;
+            padding-right: 1.5rem;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            color: #212529;
+        }
+
+        .toast-message {
+            font-size: 0.9rem;
+            color: #6c757d;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: #6c757d;
+            font-size: 1.25rem;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+
+        .toast-close:hover {
+            background: #f8f9fa;
+            color: #212529;
+            transform: rotate(90deg);
+        }
+
+        @media (max-width: 576px) {
+            #toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     {% include 'core/navbar.html' %}
+    
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
     {% if messages %}
-    <div class="container mt-4">
-        {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert" data-aos="fade-down">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                {% for message in messages %}
+                    showToast('{{ message.tags|default:"info" }}', '{{ message|escapejs }}');
+                {% endfor %}
+            });
+        </script>
     {% endif %}
 
     <main>
@@ -36,7 +218,6 @@
     <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script>
-        // Initialize AOS
         AOS.init({
             duration: 800,
             easing: 'ease-out-cubic',
@@ -44,7 +225,6 @@
             offset: 100
         });
 
-        // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 const target = document.querySelector(this.getAttribute('href'));
@@ -55,51 +235,52 @@
             });
         });
 
-        // Auto-dismiss alerts
-        document.addEventListener('DOMContentLoaded', function () {
-            function autoDismissAlert(alertEl, delay) {
-                var timeout = typeof delay === 'number' ? delay : 5000;
-                setTimeout(function () {
-                    try {
-                        var bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
-                        bsAlert.close();
-                    } catch (e) {
-                        alertEl.classList.remove('show');
-                        var removeHandler = function () { try { alertEl.remove(); } catch (_) {} };
-                        alertEl.addEventListener('transitionend', removeHandler, { once: true });
-                        setTimeout(removeHandler, 700);
-                    }
-                }, timeout);
-            }
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
 
-            document.querySelectorAll('.alert').forEach(function (alertEl) {
-                if (alertEl.classList.contains('alert-sticky') || alertEl.dataset.keep === 'true') return;
-                autoDismissAlert(alertEl);
-            });
+            if (type === 'error') type = 'danger';
 
-            if (window.MutationObserver) {
-                var observer = new MutationObserver(function (mutations) {
-                    mutations.forEach(function (m) {
-                        m.addedNodes && m.addedNodes.forEach(function (node) {
-                            if (node.nodeType === 1) {
-                                if (node.classList && node.classList.contains('alert')) {
-                                    if (!(node.classList.contains('alert-sticky') || node.dataset.keep === 'true')) {
-                                        autoDismissAlert(node);
-                                    }
-                                } else if (node.querySelectorAll) {
-                                    node.querySelectorAll('.alert').forEach(function (a) {
-                                        if (!(a.classList.contains('alert-sticky') || a.dataset.keep === 'true')) {
-                                            autoDismissAlert(a);
-                                        }
-                                    });
-                                }
-                            }
-                        });
-                    });
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-            }
-        });
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${type}`;
+
+            const icons = {
+                success: 'bi-check-circle-fill',
+                danger: 'bi-exclamation-circle-fill',
+                warning: 'bi-exclamation-triangle-fill',
+                info: 'bi-info-circle-fill'
+            };
+
+            const titles = {
+                success: 'Успешно',
+                danger: 'Ошибка',
+                warning: 'Внимание',
+                info: 'Информация'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="bi ${icons[type] || icons.info}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${titles[type] || titles.info}</div>
+                    <p class="toast-message">${message}</p>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 3500);
+        }
+
+        window.showToast = showToast;
     </script>
     {% block extra_js %}{% endblock %}
 </body>
