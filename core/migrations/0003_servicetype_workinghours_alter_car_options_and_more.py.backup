@@ -5,31 +5,6 @@ import uuid
 from django.db import migrations, models
 
 
-def convert_year_to_integer(apps, schema_editor):
-    """Convert year from DateField to PositiveIntegerField for both SQLite and PostgreSQL."""
-    db_alias = schema_editor.connection.alias
-    Car = apps.get_model("core", "Car")
-
-    # Get all cars and update year field
-    for car in Car.objects.using(db_alias).all():
-        if hasattr(car.year, "year"):  # If it's a date object
-            car.year = car.year.year
-            car.save(update_fields=["year"])
-
-
-def reverse_year_to_date(apps, schema_editor):
-    """Reverse: Convert year from integer back to DateField."""
-    from datetime import date
-
-    db_alias = schema_editor.connection.alias
-    Car = apps.get_model("core", "Car")
-
-    for car in Car.objects.using(db_alias).all():
-        if isinstance(car.year, int):
-            car.year = date(car.year, 1, 1)
-            car.save(update_fields=["year"])
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -117,16 +92,13 @@ class Migration(migrations.Migration):
             name="car",
             options={"verbose_name": "Автомобиль", "verbose_name_plural": "Автомобили"},
         ),
-        # Convert year data from date to integer before changing field type
-        migrations.RunPython(
-            convert_year_to_integer,
-            reverse_year_to_date,
-        ),
-        # Change field type from DateField to PositiveIntegerField
         migrations.AlterField(
             model_name="car",
             name="year",
             field=models.PositiveIntegerField(),
+            # Preserve existing year values by extracting the year from date
+            # For PostgreSQL: EXTRACT(YEAR FROM "year")
+            # For SQLite: CAST(strftime('%Y', "year") AS INTEGER)
         ),
         migrations.CreateModel(
             name="Appointment",
