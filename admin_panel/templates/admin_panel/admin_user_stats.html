@@ -3,19 +3,186 @@
 {% block title %}Расширенная статистика — Администратор{% endblock %}
 {% block extra_css %}
 <style>
-  .dashboard-card { border-radius: 12px; background:#fff; border:1px solid #e9ecef; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
-  .card-header { background: linear-gradient(135deg, #495057 0%, #6c757d 100%); color: white; padding: 1rem 1.25rem; border-bottom: none; }
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  /* Page Header */
+  .page-header {
+    animation: fadeInUp 0.6s ease;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: 0.25rem;
+  }
+
+  .page-subtitle {
+    color: #6c757d;
+    font-size: 1.05rem;
+  }
+
+  /* Dashboard Cards */
+  .dashboard-card {
+    background: white;
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+    animation: scaleIn 0.6s ease backwards;
+    transition: all 0.4s ease;
+    height: 100%;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .dashboard-card:hover {
+    box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    border-bottom: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: rotate 10s linear infinite;
+  }
+
+  @keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .card-header strong {
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+  }
+
+  /* Stats Value */
+  .card-body .h4 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0d6efd, #6610f2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Buttons */
+  .btn {
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .btn-outline-secondary {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+    background: transparent;
+  }
+
+  .btn-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+  }
+
+  /* Chart Container */
+  canvas {
+    max-height: 100%;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .page-title {
+      font-size: 1.5rem;
+    }
+
+    .dashboard-card {
+      border-radius: 15px;
+    }
+
+    .card-body .h4 {
+      font-size: 2rem;
+    }
+  }
+
+  /* Animation Delays */
+  .row > div:nth-child(1) .dashboard-card {
+    animation-delay: 0.1s;
+  }
+
+  .row > div:nth-child(2) .dashboard-card {
+    animation-delay: 0.15s;
+  }
+
+  .row > div:nth-child(3) .dashboard-card {
+    animation-delay: 0.2s;
+  }
+
+  .row > div:nth-child(4) .dashboard-card {
+    animation-delay: 0.25s;
+  }
+
+  .row > div:nth-child(5) .dashboard-card {
+    animation-delay: 0.3s;
+  }
 </style>
 {% endblock %}
 {% block content %}
 <div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
     <div>
-      <h1 class="h4 mb-1">Статистика пользователя</h1>
-      <div class="text-muted">{{ user_obj.get_full_name|default:user_obj.username }} (@{{ user_obj.username }})</div>
+      <h1 class="page-title mb-1">Статистика пользователя</h1>
+      <div class="page-subtitle">{{ user_obj.get_full_name|default:user_obj.username }} (@{{ user_obj.username }})</div>
     </div>
     <div>
-      <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Назад к профилю</a>
+      <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Назад к профилю
+      </a>
     </div>
   </div>
 
@@ -27,7 +194,7 @@
       </div>
     </div>
     <div class="col-xl-4">
-      <div class="dashboard-card mb-3">
+      <div class="dashboard-card mb-4">
         <div class="card-header"><strong>Сумма завершённых услуг</strong></div>
         <div class="card-body h4 mb-0">{{ total_cost }} ₽</div>
       </div>
