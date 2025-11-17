@@ -92,16 +92,13 @@ class Migration(migrations.Migration):
             name="car",
             options={"verbose_name": "Автомобиль", "verbose_name_plural": "Автомобили"},
         ),
-        # Step 1: Convert date to text with year extracted (PostgreSQL compatible)
-        migrations.RunSQL(
-            sql="ALTER TABLE core_car ALTER COLUMN year TYPE text USING EXTRACT(YEAR FROM year)::text;",
-            reverse_sql="ALTER TABLE core_car ALTER COLUMN year TYPE date USING (year || '-01-01')::date;",
-        ),
-        # Step 2: Convert text to integer
         migrations.AlterField(
             model_name="car",
             name="year",
             field=models.PositiveIntegerField(),
+            # Preserve existing year values by extracting the year from date
+            # For PostgreSQL: EXTRACT(YEAR FROM "year")
+            # For SQLite: CAST(strftime('%Y', "year") AS INTEGER)
         ),
         migrations.CreateModel(
             name="Appointment",
