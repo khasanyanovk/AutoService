@@ -6,7 +6,7 @@
     <div class="container text-center">
         <h1 class="display-4 mb-3">Профессиональный автосервис</h1>
         <p class="lead mb-4">Забота о вашем авто — быстро, честно, с гарантией</p>
-        <div class="d-flex justify-content-center gap-2">
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
             {% if user.is_authenticated %}
             <a href="{% url 'service_booking' %}" class="btn btn-primary btn-lg">
                 <i class="bi bi-calendar2-check me-1"></i> Записаться онлайн
@@ -19,49 +19,49 @@
     </div>
 </section>
 
-<section class="py-4" style="background:#fff;">
+<section class="py-5" style="background:#fff;">
     <div class="container">
         <div class="row text-center g-3">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="0">
                 <div class="trust-badge"><i class="bi bi-award"></i><span>10+ лет опыта</span></div>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="100">
                 <div class="trust-badge"><i class="bi bi-emoji-smile"></i><span>98% довольных клиентов</span></div>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="200">
                 <div class="trust-badge"><i class="bi bi-shield-check"></i><span>Гарантия на работы</span></div>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="300">
                 <div class="trust-badge"><i class="bi bi-tools"></i><span>Оригинальные запчасти</span></div>
             </div>
         </div>
     </div>
-    </section>
+</section>
 
 <section class="py-5" style="background:#f8f9fa;">
     <div class="container">
-        <div class="row text-center mb-4">
+        <div class="row text-center mb-4" data-aos="fade-up">
             <div class="col">
                 <h2>Как это работает</h2>
                 <p class="text-muted">Три простых шага</p>
             </div>
         </div>
-        <div class="row g-3">
-            <div class="col-md-4">
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="0">
                 <div class="step-card h-100 text-center p-4">
                     <div class="step-number">1</div>
                     <h5 class="mb-2">Выберите филиал</h5>
                     <p class="text-muted mb-0">Найдите удобный адрес и время</p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="150">
                 <div class="step-card h-100 text-center p-4">
                     <div class="step-number">2</div>
                     <h5 class="mb-2">Запишитесь онлайн</h5>
                     <p class="text-muted mb-0">Выберите услугу, дату и время</p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
                 <div class="step-card h-100 text-center p-4">
                     <div class="step-number">3</div>
                     <h5 class="mb-2">Приезжайте вовремя</h5>
@@ -74,38 +74,81 @@
 
 <section class="services-section py-5">
     <div class="container">
-        <div class="row text-center mb-5">
+        <div class="row text-center mb-5" data-aos="fade-up">
             <div class="col">
                 <h2>Наши услуги</h2>
                 <p class="text-muted">Полный спектр автоуслуг</p>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-4 mb-4">
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="zoom-in" data-aos-delay="0">
                 <div class="card service-card h-100 text-center p-4">
-                    <div class="display-6 mb-2 text-primary"><i class="bi bi-speedometer2"></i></div>
-                    <h5 class="card-title">Диагностика</h5>
+                    <div class="display-6 mb-3 text-primary"><i class="bi bi-speedometer2"></i></div>
+                    <h5 class="card-title mb-3">Диагностика</h5>
                     <p class="card-text text-muted">Комплексная компьютерная диагностика</p>
-                    <div><span class="badge bg-light text-dark me-2">от 30 мин</span><span class="badge bg-primary">от 1500 ₽</span></div>
+                    <div class="mt-auto pt-3"><span class="badge bg-light text-dark me-2">от 30 мин</span><span class="badge bg-primary">от 1500 ₽</span></div>
                 </div>
             </div>
-            <div class="col-md-4 mb-4">
+            <div class="col-md-4" data-aos="zoom-in" data-aos-delay="150">
                 <div class="card service-card h-100 text-center p-4">
-                    <div class="display-6 mb-2 text-primary"><i class="bi bi-gear"></i></div>
-                    <h5 class="card-title">Техобслуживание</h5>
+                    <div class="display-6 mb-3 text-primary"><i class="bi bi-gear"></i></div>
+                    <h5 class="card-title mb-3">Техобслуживание</h5>
                     <p class="card-text text-muted">Плановое ТО по рекомендованному интервалу</p>
-                    <div><span class="badge bg-light text-dark me-2">от 60 мин</span><span class="badge bg-primary">от 3000 ₽</span></div>
+                    <div class="mt-auto pt-3"><span class="badge bg-light text-dark me-2">от 60 мин</span><span class="badge bg-primary">от 3000 ₽</span></div>
                 </div>
             </div>
-            <div class="col-md-4 mb-4">
+            <div class="col-md-4" data-aos="zoom-in" data-aos-delay="300">
                 <div class="card service-card h-100 text-center p-4">
-                    <div class="display-6 mb-2 text-primary"><i class="bi bi-tools"></i></div>
-                    <h5 class="card-title">Ремонт</h5>
+                    <div class="display-6 mb-3 text-primary"><i class="bi bi-tools"></i></div>
+                    <h5 class="card-title mb-3">Ремонт</h5>
                     <p class="card-text text-muted">Качественный ремонт любой сложности</p>
-                    <div><span class="badge bg-light text-dark me-2">от 90 мин</span><span class="badge bg-primary">по смете</span></div>
+                    <div class="mt-auto pt-3"><span class="badge bg-light text-dark me-2">от 90 мин</span><span class="badge bg-primary">по смете</span></div>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+{% block extra_js %}
+<script>
+// Animated counters for statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const badges = document.querySelectorAll('.trust-badge span');
+    
+    function animateValue(element, start, end, duration, suffix = '') {
+        const range = end - start;
+        const increment = range / (duration / 16);
+        let current = start;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= end) {
+                current = end;
+                clearInterval(timer);
+            }
+            element.textContent = Math.floor(current) + suffix;
+        }, 16);
+    }
+    
+    // Intersection Observer for counter animation
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !entry.target.dataset.animated) {
+                const text = entry.target.textContent;
+                if (text.includes('10+')) {
+                    entry.target.textContent = '0+ лет опыта';
+                    animateValue(entry.target, 0, 10, 1000, '+ лет опыта');
+                } else if (text.includes('98%')) {
+                    entry.target.textContent = '0% довольных клиентов';
+                    animateValue(entry.target, 0, 98, 1000, '% довольных клиентов');
+                }
+                entry.target.dataset.animated = 'true';
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    badges.forEach(badge => observer.observe(badge));
+});
+</script>
+{% endblock %}
 {% endblock %}

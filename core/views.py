@@ -42,11 +42,17 @@ def about(request):
 
 def branches(request):
     """Публичная страница со списком филиалов без редактирования."""
-    centers = (
-        ServiceCenter.objects.all()
-        .prefetch_related("working_hours")
-        .order_by("address")
+    search_query = (
+        request.POST.get("search", "").strip() if request.method == "POST" else ""
     )
+
+    centers = ServiceCenter.objects.all().prefetch_related("working_hours")
+    if search_query:
+        centers = centers.filter(
+            Q(address__icontains=search_query) | Q(phone__icontains=search_query)
+        )
+
+    centers = centers.order_by("address")
     today_dow = timezone.localtime(timezone.now()).isoweekday()
     center_cards = []
     for c in centers:
@@ -57,6 +63,11 @@ def branches(request):
         except Exception:
             wh = None
         center_cards.append({"center": c, "today_wh": wh})
+
+    if request.headers.get("HX-Request"):
+        return render(
+            request, "core/_branches_cards.html", {"center_cards": center_cards}
+        )
 
     return render(request, "core/branches.html", {"center_cards": center_cards})
 
