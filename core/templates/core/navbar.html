@@ -39,7 +39,7 @@
                 </li>
                 {% if user.is_staff %}
                 <li class="nav-item">
-                    <a class="nav-link text-primary {% if 'admin-dashboard' in request.path %}active{% endif %}" href="{% url 'admin_panel:admin_dashboard' %}">
+                    <a class="nav-link {% if 'admin-dashboard' in request.path %}active{% endif %}" href="{% url 'admin_panel:admin_dashboard' %}">
                         <i class="bi bi-speedometer2 me-1"></i>Админ-панель
                     </a>
                 </li>
