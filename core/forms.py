@@ -347,7 +347,7 @@ class AppointmentForm(forms.Form):
                     st_id = self.data.get("service_type")
                     sc_id = self.data.get("service_center")
                     if sc_id:
-                        self.fields["service_type"].queryset = (
+                        self.fields["service_type"].queryset = (  # type: ignore
                             ServiceType.objects.filter(
                                 service_center_id=sc_id, is_active=True
                             )
