@@ -332,32 +332,44 @@ class AppointmentForm(forms.Form):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-        self.fields["scheduled_time"].choices = self.generate_time_slots()
+
+        if self.data:
+            if "service_center" in self.data and self.data.get("service_center"):
+                try:
+                    sc_id = self.data.get("service_center")
+                    if ServiceCenter.objects.filter(id=sc_id).exists():
+                        pass
+                except Exception:
+                    pass
+
+            if "service_type" in self.data and self.data.get("service_type"):
+                try:
+                    st_id = self.data.get("service_type")
+                    sc_id = self.data.get("service_center")
+                    if sc_id:
+                        self.fields["service_type"].queryset = (
+                            ServiceType.objects.filter(
+                                service_center_id=sc_id, is_active=True
+                            )
+                        )
+                except Exception:
+                    pass
+
+            if "scheduled_time" in self.data:
+                current_time = self.data.get("scheduled_time")
+                if current_time:
+                    self.fields["scheduled_time"].choices = [
+                        (current_time, current_time)
+                    ]
+            else:
+                self.fields["scheduled_time"].choices = []
+        else:
+            self.fields["scheduled_time"].choices = []
+
         if user is not None:
             car_field = self.fields.get("car")
             if isinstance(car_field, forms.ModelChoiceField):
                 car_field.queryset = Car.objects.filter(owner=user)
-
-    def generate_time_slots(self):
-        """Генерирует список доступных временных слотов"""
-        time_slots = []
-        start_time = datetime.strptime("09:00", "%H:%M")
-        end_time = datetime.strptime("18:00", "%H:%M")
-        slot_duration = timedelta(minutes=30)
-
-        current_time = start_time
-        while current_time <= end_time:
-            if not (
-                datetime.strptime("13:00", "%H:%M")
-                <= current_time
-                < datetime.strptime("14:00", "%H:%M")
-            ):
-                time_slots.append(
-                    (current_time.strftime("%H:%M"), current_time.strftime("%H:%M"))
-                )
-            current_time += slot_duration
-
-        return time_slots
 
     def clean(self):
         cleaned_data = super().clean()

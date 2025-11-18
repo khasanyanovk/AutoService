@@ -110,6 +110,66 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
   }
+
+  .table-card {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    margin-top: 2rem;
+    animation: scaleIn 0.6s ease 0.1s both;
+  }
+
+  .table-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 1rem;
+    border: none;
+  }
+
+  .table tbody tr {
+    transition: all 0.3s ease;
+  }
+
+  .table tbody tr:hover {
+    background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+  }
+
+  .table tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+  }
+
+  input[type="time"] {
+    width: 100%;
+    min-width: 120px;
+  }
+
+  .form-check-input {
+    width: 1.2em;
+    height: 1.2em;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
 </style>
 {% endblock %}
 
@@ -120,7 +180,7 @@
   <a class="btn btn-secondary" href="{% url 'admin_panel:admin_service_center_detail' service_center.id %}"><i class="bi bi-arrow-left me-1"></i> Назад</a>
   </div>
 
-  <div class="form-card">{# Removed closing div tag to maintain structure #}
+  <div class="form-card">
       <form method="post" enctype="multipart/form-data" class="row g-3">
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -152,13 +212,70 @@
             {% endwith %}
           </div>
         </div>
+      </form>
+    </div>
 
-        <div class="col-12 d-flex justify-content-between mt-4">
+    <div class="table-card">
+      <div class="table-header">
+        <i class="bi bi-clock-history me-2"></i>График работы по дням недели
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="address" value="{{ service_center.address }}">
+        <input type="hidden" name="phone" value="{{ service_center.phone }}">
+        
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width:120px;">День</th>
+                <th style="width:140px;">Открытие</th>
+                <th style="width:140px;">Закрытие</th>
+                <th style="width:140px;">Обед с</th>
+                <th style="width:140px;">до</th>
+                <th style="width:120px;">Рабочий</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for day_data in weekdays_with_hours %}
+              {% with d=day_data.day_num name=day_data.day_name wh=day_data.working_hours %}
+              <tr>
+                <td><strong>{{ name }}</strong></td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_start" class="form-control form-control-sm" 
+                         value="{% if wh %}{{ wh.start_time|time:'H:i' }}{% else %}09:00{% endif %}">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_end" class="form-control form-control-sm" 
+                         value="{% if wh %}{{ wh.end_time|time:'H:i' }}{% else %}18:00{% endif %}">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_lstart" class="form-control form-control-sm" 
+                         value="{% if wh and wh.lunch_start %}{{ wh.lunch_start|time:'H:i' }}{% endif %}"
+                         placeholder="13:00">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_lend" class="form-control form-control-sm" 
+                         value="{% if wh and wh.lunch_end %}{{ wh.lunch_end|time:'H:i' }}{% endif %}"
+                         placeholder="14:00">
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="form-check-input" name="wh_{{ d }}_work" 
+                         {% if wh %}{% if wh.is_working %}checked{% endif %}{% else %}{% if d <= 5 %}checked{% endif %}{% endif %}>
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-3 d-flex justify-content-between">
           <a class="btn btn-outline-danger" href="{% url 'admin_panel:admin_service_center_delete' service_center.id %}">
             <i class="bi bi-trash me-1"></i> Удалить филиал
           </a>
-          <button class="btn btn-primary">
-            <i class="bi bi-check2 me-1"></i> Сохранить
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check2 me-1"></i> Сохранить всё
           </button>
         </div>
       </form>

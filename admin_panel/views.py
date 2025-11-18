@@ -909,15 +909,70 @@ def admin_service_center_edit(request, service_center_id):
         )
         if form.is_valid():
             form.save()
+
+            from core.models import WorkingHours
+
+            for d in range(1, 8):
+                start = request.POST.get(f"wh_{d}_start")
+                end = request.POST.get(f"wh_{d}_end")
+                lstart = request.POST.get(f"wh_{d}_lstart")
+                lend = request.POST.get(f"wh_{d}_lend")
+                work = request.POST.get(f"wh_{d}_work") == "on"
+
+                if start and end:
+                    WorkingHours.objects.update_or_create(
+                        service_center=service_center,
+                        day_of_week=d,
+                        defaults={
+                            "start_time": start,
+                            "end_time": end,
+                            "lunch_start": lstart if lstart else None,
+                            "lunch_end": lend if lend else None,
+                            "is_working": work,
+                        },
+                    )
+
             messages.success(request, "Информация о филиале обновлена")
             return redirect("admin_panel:admin_branches")
     else:
         form = ServiceCenterEditForm(instance=service_center)
 
+    from core.models import WorkingHours
+
+    weekdays_with_hours = []
+    weekday_names = [
+        (1, "Понедельник"),
+        (2, "Вторник"),
+        (3, "Среда"),
+        (4, "Четверг"),
+        (5, "Пятница"),
+        (6, "Суббота"),
+        (7, "Воскресенье"),
+    ]
+
+    for day_num, day_name in weekday_names:
+        try:
+            wh = WorkingHours.objects.get(
+                service_center=service_center, day_of_week=day_num
+            )
+        except WorkingHours.DoesNotExist:
+            wh = None
+        weekdays_with_hours.append(
+            {
+                "day_num": day_num,
+                "day_name": day_name,
+                "working_hours": wh,
+            }
+        )
+
     return render(
         request,
         "admin_panel/admin_service_center_edit.html",
-        {"form": form, "service_center": service_center},
+        {
+            "form": form,
+            "service_center": service_center,
+            "weekdays_with_hours": weekdays_with_hours,
+        },
     )
 
 

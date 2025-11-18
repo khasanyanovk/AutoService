@@ -55,11 +55,22 @@ def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | 
                 getattr(settings, "DEFAULT_FROM_EMAIL", None),
             )
         except Exception as exc:
-            # Ensure visibility even in threads
-            logger.error("Email send failed: %s", exc, exc_info=True)
+            error_msg = f"Email send failed: {type(exc).__name__}: {exc}"
+            logger.error(
+                "%s\nSubject: %s\nRecipients: %s\nBackend: %s\nHost: %s:%s",
+                error_msg,
+                subject,
+                recipients,
+                getattr(settings, "EMAIL_BACKEND", "unknown"),
+                getattr(settings, "EMAIL_HOST", "unknown"),
+                getattr(settings, "EMAIL_PORT", "unknown"),
+                exc_info=True,
+            )
             if getattr(settings, "DEBUG", False):
-                # Best-effort console output during development
-                print(f"[email_service] send failed: {exc}")
+                print(f"[email_service] {error_msg}")
+                print(
+                    f"[email_service] Check your EMAIL settings and network connection"
+                )
 
     threading.Thread(target=_runner, daemon=True).start()
 

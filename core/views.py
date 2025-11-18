@@ -469,11 +469,21 @@ def service_booking(request):
                 return redirect("appointment_list")
 
             except Exception as e:
+                import traceback
+
+                traceback.print_exc()
                 messages.error(request, f"Ошибка при создании записи: {str(e)}")
         else:
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{error}")
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = form.fields.get(field, None)
+                        if field_label and hasattr(field_label, "label"):
+                            messages.error(request, f"{field_label.label}: {error}")
+                        else:
+                            messages.error(request, f"{error}")
     else:
         initial = {}
         if preselect_car_id:
@@ -550,6 +560,7 @@ def get_available_time_slots(request):
                 slot_duration=30,
                 lunch_start=working_hours.lunch_start,
                 lunch_end=working_hours.lunch_end,
+                service_duration=service_type.duration,
             )
 
             now = timezone.localtime(timezone.now())
@@ -618,9 +629,14 @@ def get_available_time_slots(request):
 
 
 def generate_time_slots(
-    start_time, end_time, slot_duration=30, lunch_start=None, lunch_end=None
+    start_time,
+    end_time,
+    slot_duration=30,
+    lunch_start=None,
+    lunch_end=None,
+    service_duration=None,
 ):
-    """Генерирует список временных слотов, исключая время обеда при наличии"""
+    """Генерирует список временных слотов, исключая время обеда и учитывая длительность услуги"""
     slots = []
     start_datetime = datetime.combine(date.today(), start_time)
     end_datetime = datetime.combine(date.today(), end_time)
@@ -632,12 +648,24 @@ def generate_time_slots(
 
     current_time = start_datetime
     step = timedelta(minutes=slot_duration)
-    while current_time + step <= end_datetime:
+
+    effective_duration = service_duration if service_duration else slot_duration
+
+    while current_time < end_datetime:
+        slot_end_time = current_time + timedelta(minutes=effective_duration)
+
+        if slot_end_time > end_datetime:
+            break
+
         in_lunch = False
         if lunch_start_dt and lunch_end_dt:
-            in_lunch = lunch_start_dt <= current_time < lunch_end_dt
+            in_lunch = not (
+                slot_end_time <= lunch_start_dt or current_time >= lunch_end_dt
+            )
+
         if not in_lunch:
             slots.append(current_time.strftime("%H:%M"))
+
         current_time += step
 
     return slots
