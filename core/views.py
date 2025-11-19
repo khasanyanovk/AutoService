@@ -466,7 +466,7 @@ def service_booking(request):
                     request,
                     f'Запись на услугу "{appointment.service_type}" успешно создана в {appointment.service_center} на {appointment.scheduled_date} в {appointment.scheduled_time}',
                 )
-                return redirect("appointment_list")
+                return redirect("home")
 
             except Exception as e:
                 import traceback

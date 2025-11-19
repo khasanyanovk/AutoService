@@ -186,5 +186,3 @@ REPLY_TO_EMAIL = env("REPLY_TO_EMAIL")
 
 # Optional: predefined list of admin emails to notify (comma-separated)
 NOTIFY_ADMINS_EMAILS = env("NOTIFY_ADMINS_EMAILS")
-
-print("PASSWORD: " + EMAIL_HOST_PASSWORD)
