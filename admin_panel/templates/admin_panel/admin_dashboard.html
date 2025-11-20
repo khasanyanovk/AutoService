@@ -263,17 +263,16 @@
         border: none;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         padding: 0.5rem;
-        margin-top: 0.5rem !important;
+        margin-top: 0.75rem !important;
+        animation: fadeIn 0.2s ease;
     }
 
-    @keyframes slideDown {
+    @keyframes fadeIn {
         from {
             opacity: 0;
-            transform: translateY(-10px);
         }
         to {
             opacity: 1;
-            transform: translateY(0);
         }
     }
 
@@ -287,11 +286,15 @@
     .dropdown-item:hover {
         background: linear-gradient(135deg, #f8f9ff, #e7f1ff);
         color: #0d6efd;
-        transform: translateX(5px);
     }
 
     .dropdown-item i {
         color: #0d6efd;
+        transition: transform 0.2s ease;
+    }
+
+    .dropdown-item:hover i {
+        transform: scale(1.1);
     }
 
     /* Button Group */

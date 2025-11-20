@@ -80,7 +80,7 @@ footer {
     overflow: hidden;
 }
 
-.nav-link::before {
+.nav-link:not(.dropdown-toggle)::before {
     content: '';
     position: absolute;
     bottom: 0;
@@ -93,8 +93,8 @@ footer {
     border-radius: 3px 3px 0 0;
 }
 
-.nav-link:hover::before,
-.nav-link.active::before {
+.nav-link:not(.dropdown-toggle):hover::before,
+.nav-link:not(.dropdown-toggle).active::before {
     width: 80%;
 }
 
@@ -142,7 +142,7 @@ footer {
 
 .dropdown-item:hover {
     background: linear-gradient(135deg, rgba(13,110,253,0.1), rgba(11,94,215,0.15));
-    transform: translateX(5px);
+    transform: translateX(5px); 
     color: var(--primary-color);
 }
 
@@ -343,8 +343,7 @@ footer {
    ============================================ */
 .hero-section {
     position: relative;
-    background: radial-gradient(1200px 400px at 50% -200px, rgba(13,110,253,0.25), transparent 70%),
-                linear-gradient(135deg, rgba(0,0,0,0.6), rgba(13,110,253,0.3)),
+    background: linear-gradient(135deg, rgba(0,0,0,0.5), rgba(0,0,0,0.3)),
                 url('../img/promo.jpg') no-repeat center/cover;
     color: white;
     padding: 120px 0 100px;
@@ -356,8 +355,7 @@ footer {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(45deg, transparent 30%, rgba(13,110,253,0.1) 100%);
-    animation: shimmer 3s infinite;
+    background: transparent;
 }
 
 .hero-section .container {

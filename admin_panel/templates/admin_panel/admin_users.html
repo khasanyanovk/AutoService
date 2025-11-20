@@ -116,6 +116,27 @@
     font-weight: 600;
   }
 
+  /* Checkbox Filters */
+  .filters-wrap .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+  }
+
+  .filters-wrap .form-check-input {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0;
+    cursor: pointer;
+  }
+
+  .filters-wrap .form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
   /* Filters Section */
   .filters-wrap {
     position: relative;
@@ -386,18 +407,23 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
-    <div>
-      <h1 class="page-title mb-1">Пользователи</h1>
-      <div class="page-subtitle">Поиск и управление аккаунтами</div>
-    </div>
-    <div>
-      <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
-      </a>
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="page-title mb-1"><i class="bi bi-people-fill me-2"></i>Пользователи</h1>
+        <div class="page-subtitle mt-2">Поиск и управление аккаунтами</div>
+      </div>
+      <div>
+        <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn">
+          <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
+        </a>
+      </div>
     </div>
   </div>
+</div>
+
+<div class="container-fluid py-4">
 
   <div class="dashboard-card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">

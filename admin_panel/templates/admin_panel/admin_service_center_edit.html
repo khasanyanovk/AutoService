@@ -158,27 +158,20 @@
     width: 100%;
     min-width: 120px;
   }
-
-  .form-check-input {
-    width: 1.2em;
-    height: 1.2em;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <h1 class="page-title">Редактирование филиала</h1>
-  <a class="btn btn-secondary" href="{% url 'admin_panel:admin_service_center_detail' service_center.id %}"><i class="bi bi-arrow-left me-1"></i> Назад</a>
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1 class="page-title"><i class="bi bi-building me-2"></i>Редактирование филиала</h1>
+      <a class="btn" href="{% url 'admin_panel:admin_service_center_detail' service_center.id %}"><i class="bi bi-arrow-left me-1"></i> Назад</a>
+    </div>
   </div>
+</div>
+
+<div class="container py-4">
 
   <div class="form-card">
       <form method="post" enctype="multipart/form-data" class="row g-3">

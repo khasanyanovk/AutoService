@@ -61,12 +61,12 @@
                         </div>
                         <span class="fw-semibold">{{ user.get_short_name|default:user.username }}</span>
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" aria-labelledby="navbarDropdown" style="border-radius: 12px; min-width: 200px;">
-                        <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="bi bi-person-fill me-2 text-primary"></i>Профиль</a></li>
-                        <li><a class="dropdown-item" href="{% url 'profile_edit' %}"><i class="bi bi-pencil-fill me-2 text-primary"></i>Редактировать</a></li>
-                        <li><a class="dropdown-item" href="{% url 'add_car' %}"><i class="bi bi-plus-circle-fill me-2 text-primary"></i>Добавить авто</a></li>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" aria-labelledby="navbarDropdown" style="border-radius: 12px; min-width: 200px; max-width: 220px;">
+                        <li><a class="dropdown-item text-nowrap" href="{% url 'profile' %}"><i class="bi bi-person-fill me-2 text-primary"></i>Профиль</a></li>
+                        <li><a class="dropdown-item text-nowrap" href="{% url 'profile_edit' %}"><i class="bi bi-pencil-fill me-2 text-primary"></i>Редактировать</a></li>
+                        <li><a class="dropdown-item text-nowrap" href="{% url 'add_car' %}"><i class="bi bi-plus-circle-fill me-2 text-primary"></i>Добавить авто</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i>Выйти</a></li>
+                        <li><a class="dropdown-item text-danger text-nowrap" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i>Выйти</a></li>
                     </ul>
                 </li>
                 {% else %}

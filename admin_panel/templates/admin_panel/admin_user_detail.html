@@ -203,18 +203,23 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
-    <div>
-      <h1 class="page-title mb-1">Профиль пользователя</h1>
-      <div class="page-subtitle">Просмотр данных аккаунта</div>
-    </div>
-    <div>
-      <a href="{% url 'admin_panel:admin_users' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Назад к списку
-      </a>
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="page-title mb-1"><i class="bi bi-person-circle me-2"></i>Профиль пользователя</h1>
+        <div class="page-subtitle mt-2">Просмотр данных аккаунта</div>
+      </div>
+      <div>
+        <a href="{% url 'admin_panel:admin_users' %}" class="btn">
+          <i class="bi bi-arrow-left me-1"></i> Назад к списку
+        </a>
+      </div>
     </div>
   </div>
+</div>
+
+<div class="container-fluid py-4">
 
   <div class="dashboard-card mb-4">
     <div class="card-header"><strong>Основная информация</strong></div>

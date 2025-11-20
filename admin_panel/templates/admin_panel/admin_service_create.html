@@ -67,19 +67,7 @@
     outline: none;
   }
 
-  .form-check-input {
-    width: 1.2em;
-    height: 1.2em;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-  }
-
-  .table thead th {
+  .btn {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     color: #495057;
     font-weight: 700;
@@ -130,10 +118,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <div class="page-header mb-4">
-    <h1 class="page-title">Добавить услугу</h1>
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container">
+    <h1 class="page-title"><i class="bi bi-plus-circle me-2"></i>Добавить услугу</h1>
   </div>
+</div>
+
+<div class="container py-4">
 
   <form method="post">
     {% csrf_token %}

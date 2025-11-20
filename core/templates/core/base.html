@@ -186,6 +186,80 @@
                 max-width: none;
             }
         }
+
+        /* Universal Page Header for Admin Pages */
+        .page-header.admin-header {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            color: #fff;
+            padding: 2.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-left: calc(-50vw + 50%);
+            margin-right: calc(-50vw + 50%);
+            padding-left: calc(50vw - 50%);
+            padding-right: calc(50vw - 50%);
+        }
+
+        .page-header.admin-header h1,
+        .page-header.admin-header h2 {
+            margin: 0;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .page-header.admin-header .page-title {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .page-header.admin-header .page-subtitle,
+        .page-header.admin-header p {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 0;
+        }
+
+        .page-header.admin-header .btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .page-header.admin-header .btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .page-header.admin-header i {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Universal Checkbox Styles for Admin Pages */
+        .form-check-input {
+            width: 1.1rem;
+            height: 1.1rem;
+            margin-top: 0;
+            cursor: pointer;
+            border: 2px solid #dee2e6;
+            transition: all 0.2s ease;
+        }
+
+        .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        .form-check-input:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        .form-check-label {
+            cursor: pointer;
+            margin-bottom: 0;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
