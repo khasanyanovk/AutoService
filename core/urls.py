@@ -25,6 +25,8 @@ urlpatterns = [
         name="get_time_slots",
     ),
     path("about/", views.about, name="about"),
+    path("privacy-policy/", views.privacy_policy, name="privacy_policy"),
+    path("terms-of-service/", views.terms_of_service, name="terms_of_service"),
     path("branches/", views.branches, name="branches"),
     path(
         "branches/<uuid:service_center_id>/", views.branch_detail, name="branch_detail"

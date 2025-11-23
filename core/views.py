@@ -40,6 +40,16 @@ def about(request):
     return render(request, "core/about.html")
 
 
+def privacy_policy(request):
+    """Страница политики конфиденциальности"""
+    return render(request, "core/privacy_policy.html")
+
+
+def terms_of_service(request):
+    """Страница условий использования"""
+    return render(request, "core/terms_of_service.html")
+
+
 def branches(request):
     """Публичная страница со списком филиалов без редактирования."""
     search_query = (

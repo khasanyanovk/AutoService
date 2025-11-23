@@ -1,0 +1,164 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Политика конфиденциальности - ПОЧИНИМ ВСЕ{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <h1 class="mb-4 text-center" style="color: #1a1a2e;">
+                        <i class="bi bi-shield-check text-primary me-2"></i>
+                        Политика конфиденциальности
+                    </h1>
+                    
+                    <p class="text-muted text-center mb-5">
+                        <small>Последнее обновление: {{ update_date|default:"23 ноября 2025 г." }}</small>
+                    </p>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">1. Общие положения</h2>
+                        <p>Настоящая Политика конфиденциальности персональных данных (далее — Политика конфиденциальности) действует в отношении всей информации, которую сервис <strong>ПОЧИНИМ ВСЕ</strong> (далее — Сервис) может получить о Пользователе во время использования сайта и его сервисов.</p>
+                        <p>Использование Сервиса означает безоговорочное согласие Пользователя с настоящей Политикой и указанными в ней условиями обработки его персональной информации.</p>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">2. Собираемая информация</h2>
+                        <p>Мы собираем и обрабатываем следующие персональные данные:</p>
+                        <ul class="custom-list">
+                            <li><strong>Регистрационные данные:</strong> имя, фамилия, адрес электронной почты, логин</li>
+                            <li><strong>Контактная информация:</strong> номер телефона (если предоставлен)</li>
+                            <li><strong>Данные об автомобилях:</strong> марка, модель, год выпуска, регистрационный номер</li>
+                            <li><strong>История записей:</strong> данные о записях на обслуживание, выбранные услуги, филиалы</li>
+                            <li><strong>Отзывы и оценки:</strong> текст отзывов, оценки услуг</li>
+                            <li><strong>Техническая информация:</strong> IP-адрес, браузер, операционная система, cookies</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">3. Цели обработки информации</h2>
+                        <p>Персональные данные используются для следующих целей:</p>
+                        <ul class="custom-list">
+                            <li>Предоставление доступа к функционалу Сервиса</li>
+                            <li>Идентификация пользователя при входе в систему</li>
+                            <li>Организация записи на техническое обслуживание автомобилей</li>
+                            <li>Связь с пользователем (уведомления, напоминания, подтверждения)</li>
+                            <li>Улучшение качества обслуживания и пользовательского опыта</li>
+                            <li>Анализ статистики использования Сервиса</li>
+                            <li>Исполнение обязательств перед пользователем</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">4. Защита персональных данных</h2>
+                        <p>Мы принимаем технические и организационные меры для защиты персональных данных:</p>
+                        <ul class="custom-list">
+                            <li>Хранение паролей в зашифрованном виде (хеширование PBKDF2)</li>
+                            <li>Использование защищенного соединения HTTPS</li>
+                            <li>Ограничение доступа к персональным данным</li>
+                            <li>Регулярное обновление системы безопасности</li>
+                            <li>Резервное копирование данных</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">5. Передача данных третьим лицам</h2>
+                        <p>Мы <strong>не передаем</strong> ваши персональные данные третьим лицам, за исключением случаев:</p>
+                        <ul class="custom-list">
+                            <li>Когда это необходимо для выполнения услуги (например, передача информации конкретному филиалу для записи)</li>
+                            <li>При наличии вашего явного согласия</li>
+                            <li>По требованию законодательства РФ</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">6. Использование cookies</h2>
+                        <p>Сервис использует файлы cookies для:</p>
+                        <ul class="custom-list">
+                            <li>Сохранения состояния авторизации</li>
+                            <li>Запоминания пользовательских настроек</li>
+                            <li>Анализа трафика и поведения пользователей</li>
+                        </ul>
+                        <p>Вы можете отключить cookies в настройках браузера, но это может ограничить функциональность Сервиса.</p>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">7. Права пользователя</h2>
+                        <p>Вы имеете право:</p>
+                        <ul class="custom-list">
+                            <li>Получать информацию о хранящихся данных</li>
+                            <li>Требовать исправления неточных данных</li>
+                            <li>Требовать удаления ваших персональных данных</li>
+                            <li>Отозвать согласие на обработку данных</li>
+                            <li>Ограничить обработку персональных данных</li>
+                        </ul>
+                        <p class="mt-3">Для реализации этих прав обращайтесь по адресу: <a href="mailto:autoservice.nn@mail.ru">autoservice.nn@mail.ru</a></p>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">8. Срок хранения данных</h2>
+                        <p>Персональные данные хранятся в течение:</p>
+                        <ul class="custom-list">
+                            <li>Периода использования Сервиса</li>
+                            <li>Срока, установленного законодательством РФ</li>
+                            <li>До момента удаления аккаунта пользователем</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">9. Изменение Политики конфиденциальности</h2>
+                        <p>Администрация Сервиса оставляет за собой право вносить изменения в настоящую Политику конфиденциальности. При внесении изменений в актуальной редакции указывается дата последнего обновления.</p>
+                        <p>Новая редакция Политики вступает в силу с момента ее размещения на сайте.</p>
+                    </div>
+
+                    <div class="content-section">
+                        <h2 class="h4 mb-3 mt-5">10. Контактная информация</h2>
+                        <p>По вопросам, касающимся обработки персональных данных, обращайтесь:</p>
+                        <div class="alert alert-light border mt-3">
+                            <p class="mb-2"><i class="bi bi-envelope text-primary me-2"></i><strong>Email:</strong> <a href="mailto:autoservice.nn@mail.ru">autoservice.nn@mail.ru</a></p>
+                            <p class="mb-2"><i class="bi bi-telephone text-primary me-2"></i><strong>Телефон:</strong> <a href="tel:+79050132351">+7 (905) 013-23-51</a></p>
+                            <p class="mb-0"><i class="bi bi-geo-alt text-primary me-2"></i><strong>Адрес:</strong> г. Нижний Новгород, пр. Гагарина, д. 23</p>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-5">
+                        <a href="{% url 'home' %}" class="btn btn-primary">
+                            <i class="bi bi-house-door me-2"></i>Вернуться на главную
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-list {
+        list-style: none;
+        padding-left: 0;
+    }
+    .custom-list li {
+        padding-left: 1.5rem;
+        margin-bottom: 0.75rem;
+        position: relative;
+    }
+    .custom-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #0d6efd;
+        font-weight: bold;
+    }
+    .content-section p {
+        text-align: justify;
+        line-height: 1.8;
+    }
+    .content-section h2 {
+        color: #1a1a2e;
+        border-left: 4px solid #0d6efd;
+        padding-left: 1rem;
+    }
+</style>
+{% endblock %}
