@@ -188,23 +188,47 @@ def admin_dashboard(request):
         .order_by("scheduled_date", "scheduled_time")[:5]
     )
 
-    chart_start = today - timedelta(days=6)
-    visits_qs = (
-        Appointment.objects.filter(
-            scheduled_date__gte=chart_start, scheduled_date__lte=today
-        )
-        .values("scheduled_date")
-        .annotate(count=Count("id"))
-        .order_by("scheduled_date")
-    )
-    overall_visits_labels = []
-    overall_visits_data = []
-    current = chart_start
-    while current <= today:
-        overall_visits_labels.append(current.strftime("%d.%m"))
-        found = next((v for v in visits_qs if v["scheduled_date"] == current), None)
-        overall_visits_data.append(found["count"] if found else 0)
-        current += timedelta(days=1)
+    first_appointment = Appointment.objects.aggregate(Min("scheduled_date"))[
+        "scheduled_date__min"
+    ]
+    if first_appointment:
+        chart_start = first_appointment
+        days_total = (today - chart_start).days + 1
+
+        if days_total > 90:
+            visits_qs = (
+                Appointment.objects.filter(
+                    scheduled_date__gte=chart_start, scheduled_date__lte=today
+                )
+                .extra(select={"week_start": "DATE_TRUNC('week', scheduled_date)"})
+                .values("week_start")
+                .annotate(count=Count("id"))
+                .order_by("week_start")
+            )
+            overall_visits_labels = [
+                row["week_start"].strftime("%d.%m") for row in visits_qs
+            ]
+            overall_visits_data = [row["count"] for row in visits_qs]
+        else:
+            visits_qs = (
+                Appointment.objects.filter(
+                    scheduled_date__gte=chart_start, scheduled_date__lte=today
+                )
+                .values("scheduled_date")
+                .annotate(count=Count("id"))
+                .order_by("scheduled_date")
+            )
+            by_date = {row["scheduled_date"]: row["count"] for row in visits_qs}
+            overall_visits_labels = []
+            overall_visits_data = []
+            current = chart_start
+            while current <= today:
+                overall_visits_labels.append(current.strftime("%d.%m"))
+                overall_visits_data.append(by_date.get(current, 0))
+                current += timedelta(days=1)
+    else:
+        overall_visits_labels = []
+        overall_visits_data = []
 
     services_qs = (
         Appointment.objects.filter(status__in=["SCHEDULED", "IN_PROGRESS", "COMPLETED"])
@@ -582,11 +606,33 @@ def admin_api_update_appointment(request, appointment_id):
 @login_required
 @admin_required
 def admin_api_overall_statuses(request):
-    """AJAX: Статистика по статусам записей за период (неделя/месяц) по всем филиалам"""
+    """AJAX: Статистика по статусам записей за период (неделя/месяц/все время) по всем филиалам"""
+    from datetime import timedelta
+
     _auto_cancel_overdue_appointments()
-    qs = Appointment.objects.values("status").annotate(count=Count("id"))
+    period = request.GET.get("period", "week")
+
+    if period == "all":
+        qs = Appointment.objects.values("status").annotate(count=Count("id"))
+    else:
+        today = timezone.localtime(timezone.now()).date()
+
+        if period == "month":
+            start_date = today - timedelta(days=29)
+        else:
+            start_date = today - timedelta(days=6)
+
+        qs = (
+            Appointment.objects.filter(
+                scheduled_date__gte=start_date, scheduled_date__lte=today
+            )
+            .values("status")
+            .annotate(count=Count("id"))
+        )
+
     status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
     counts_map = {row["status"]: row["count"] for row in qs}
+
     data = [
         {
             "status": key,
@@ -601,13 +647,22 @@ def admin_api_overall_statuses(request):
 @login_required
 @admin_required
 def admin_api_overall_visits(request):
-    """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц"""
+    """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц/все время"""
+    from datetime import timedelta
+
     _auto_cancel_overdue_appointments()
     today = timezone.localtime(timezone.now()).date()
     period = request.GET.get("period", "week")
-    if period == "month":
+
+    if period == "all":
+        first_appointment = Appointment.objects.order_by("scheduled_date").first()
+        if first_appointment:
+            chart_start = first_appointment.scheduled_date
+        else:
+            chart_start = today - timedelta(days=6)
+    elif period == "month":
         chart_start = today - timedelta(days=29)
-    else:
+    else:  # week
         chart_start = today - timedelta(days=6)
 
     visits_qs = (
@@ -623,10 +678,30 @@ def admin_api_overall_visits(request):
     labels = []
     data = []
     current = chart_start
-    while current <= today:
-        labels.append(current.strftime("%d.%m"))
-        data.append(by_date.get(current, 0))
-        current += timedelta(days=1)
+
+    if period == "all":
+        total_days = (today - chart_start).days + 1
+        if total_days > 90:
+            step = 7
+            while current <= today:
+                week_end = min(current + timedelta(days=6), today)
+                week_count = sum(
+                    by_date.get(current + timedelta(days=i), 0)
+                    for i in range((week_end - current).days + 1)
+                )
+                labels.append(current.strftime("%d.%m"))
+                data.append(week_count)
+                current += timedelta(days=step)
+        else:
+            while current <= today:
+                labels.append(current.strftime("%d.%m"))
+                data.append(by_date.get(current, 0))
+                current += timedelta(days=1)
+    else:
+        while current <= today:
+            labels.append(current.strftime("%d.%m"))
+            data.append(by_date.get(current, 0))
+            current += timedelta(days=1)
 
     return JsonResponse({"labels": labels, "data": data})
 
