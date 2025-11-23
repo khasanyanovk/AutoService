@@ -5,6 +5,64 @@ import uuid
 from django.db import migrations, models
 
 
+def convert_year_field(apps, schema_editor):
+    """Convert year field type based on database backend."""
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        # PostgreSQL: Use SQL to convert date to integer
+        with connection.cursor() as cursor:
+            # Check if column exists and is date type
+            cursor.execute(
+                """
+                SELECT data_type FROM information_schema.columns 
+                WHERE table_name='core_car' AND column_name='year'
+            """
+            )
+            result = cursor.fetchone()
+
+            if result and result[0] == "date":
+                cursor.execute(
+                    """
+                    ALTER TABLE core_car ADD COLUMN year_temp INTEGER;
+                    UPDATE core_car SET year_temp = EXTRACT(YEAR FROM year);
+                    ALTER TABLE core_car DROP COLUMN year;
+                    ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                    ALTER TABLE core_car ALTER COLUMN year SET NOT NULL;
+                """
+                )
+    elif connection.vendor == "sqlite":
+        # SQLite: Handled by RunPython + AlterField (SQLite is more flexible)
+        pass  # Will be handled by subsequent AlterField operation
+
+
+def reverse_year_field(apps, schema_editor):
+    """Reverse year field conversion."""
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT data_type FROM information_schema.columns 
+                WHERE table_name='core_car' AND column_name='year'
+            """
+            )
+            result = cursor.fetchone()
+
+            if result and result[0] == "integer":
+                cursor.execute(
+                    """
+                    ALTER TABLE core_car ADD COLUMN year_temp DATE;
+                    UPDATE core_car SET year_temp = MAKE_DATE(year, 1, 1);
+                    ALTER TABLE core_car DROP COLUMN year;
+                    ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                """
+                )
+    elif connection.vendor == "sqlite":
+        pass  # Will be handled by subsequent AlterField operation
+
+
 def convert_year_to_integer(apps, schema_editor):
     """Convert year from DateField to PositiveIntegerField for both SQLite and PostgreSQL."""
     db_alias = schema_editor.connection.alias
@@ -127,46 +185,16 @@ class Migration(migrations.Migration):
             convert_year_to_integer,
             reverse_year_to_date,
         ),
-        # Change field type from DateField to PositiveIntegerField
-        # For PostgreSQL, we need to use SQL to extract year from date
-        migrations.RunSQL(
-            sql=[
-                # For PostgreSQL: Create temporary column, copy year values, drop old, rename
-                """
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name='core_car' AND column_name='year' 
-                        AND data_type='date'
-                    ) THEN
-                        ALTER TABLE core_car ADD COLUMN year_temp INTEGER;
-                        UPDATE core_car SET year_temp = EXTRACT(YEAR FROM year);
-                        ALTER TABLE core_car DROP COLUMN year;
-                        ALTER TABLE core_car RENAME COLUMN year_temp TO year;
-                        ALTER TABLE core_car ALTER COLUMN year SET NOT NULL;
-                    END IF;
-                END $$;
-                """
-            ],
-            reverse_sql=[
-                # Reverse: convert integer back to date
-                """
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name='core_car' AND column_name='year' 
-                        AND data_type='integer'
-                    ) THEN
-                        ALTER TABLE core_car ADD COLUMN year_temp DATE;
-                        UPDATE core_car SET year_temp = MAKE_DATE(year, 1, 1);
-                        ALTER TABLE core_car DROP COLUMN year;
-                        ALTER TABLE core_car RENAME COLUMN year_temp TO year;
-                    END IF;
-                END $$;
-                """
-            ],
+        # Convert field type - PostgreSQL needs special handling
+        migrations.RunPython(
+            convert_year_field,
+            reverse_year_field,
+        ),
+        # For SQLite: AlterField works fine after RunPython data conversion
+        migrations.AlterField(
+            model_name="car",
+            name="year",
+            field=models.PositiveIntegerField(),
         ),
         migrations.CreateModel(
             name="Appointment",
