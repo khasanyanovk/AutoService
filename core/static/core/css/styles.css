@@ -80,6 +80,17 @@ footer {
     overflow: hidden;
 }
 
+.navbar .dropdown-toggle::after {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transition: all 0.3s ease !important;
+}
+
+.navbar .dropdown-toggle:hover::after {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 .nav-link:not(.dropdown-toggle)::before {
     content: '';
     position: absolute;
