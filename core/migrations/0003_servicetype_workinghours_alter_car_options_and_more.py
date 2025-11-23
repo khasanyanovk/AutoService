@@ -12,8 +12,10 @@ def convert_year_to_integer(apps, schema_editor):
 
     # Get all cars and update year field
     for car in Car.objects.using(db_alias).all():
-        if hasattr(car.year, "year"):  # If it's a date object
-            car.year = car.year.year
+        if car.year:
+            if hasattr(car.year, "year"):  # If it's a date object
+                car.year = car.year.year
+            # If it's already an integer, keep it as is
             car.save(update_fields=["year"])
 
 
@@ -25,9 +27,12 @@ def reverse_year_to_date(apps, schema_editor):
     Car = apps.get_model("core", "Car")
 
     for car in Car.objects.using(db_alias).all():
-        if isinstance(car.year, int):
-            car.year = date(car.year, 1, 1)
-            car.save(update_fields=["year"])
+        if car.year and isinstance(car.year, int):
+            try:
+                car.year = date(car.year, 1, 1)
+                car.save(update_fields=["year"])
+            except (ValueError, TypeError):
+                pass  # Skip invalid years
 
 
 class Migration(migrations.Migration):
@@ -123,10 +128,45 @@ class Migration(migrations.Migration):
             reverse_year_to_date,
         ),
         # Change field type from DateField to PositiveIntegerField
-        migrations.AlterField(
-            model_name="car",
-            name="year",
-            field=models.PositiveIntegerField(),
+        # For PostgreSQL, we need to use SQL to extract year from date
+        migrations.RunSQL(
+            sql=[
+                # For PostgreSQL: Create temporary column, copy year values, drop old, rename
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='core_car' AND column_name='year' 
+                        AND data_type='date'
+                    ) THEN
+                        ALTER TABLE core_car ADD COLUMN year_temp INTEGER;
+                        UPDATE core_car SET year_temp = EXTRACT(YEAR FROM year);
+                        ALTER TABLE core_car DROP COLUMN year;
+                        ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                        ALTER TABLE core_car ALTER COLUMN year SET NOT NULL;
+                    END IF;
+                END $$;
+                """
+            ],
+            reverse_sql=[
+                # Reverse: convert integer back to date
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='core_car' AND column_name='year' 
+                        AND data_type='integer'
+                    ) THEN
+                        ALTER TABLE core_car ADD COLUMN year_temp DATE;
+                        UPDATE core_car SET year_temp = MAKE_DATE(year, 1, 1);
+                        ALTER TABLE core_car DROP COLUMN year;
+                        ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                    END IF;
+                END $$;
+                """
+            ],
         ),
         migrations.CreateModel(
             name="Appointment",
