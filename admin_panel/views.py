@@ -111,9 +111,11 @@ def admin_review_reply(request, review_id):
     review.admin_reply = reply_text
     review.admin_reply_at = timezone.localtime(timezone.now()) if reply_text else None
     review.save(update_fields=["admin_reply", "admin_reply_at"])
-    messages.success(request, "Ответ сохранен.")
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"ok": True})
+
+    messages.success(request, "Ответ сохранен.")
     referer = request.META.get("HTTP_REFERER")
     return redirect(referer or "admin_panel:admin_reviews")
 
@@ -126,9 +128,11 @@ def admin_review_delete(request, review_id):
     review = get_object_or_404(Review, id=review_id)
     if request.method == "POST":
         review.delete()
-        messages.success(request, "Отзыв удален.")
+
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({"ok": True})
+
+        messages.success(request, "Отзыв удален.")
         referer = request.META.get("HTTP_REFERER")
         return redirect(referer or "admin_panel:admin_reviews")
     return redirect("admin_panel:admin_reviews")
@@ -188,46 +192,23 @@ def admin_dashboard(request):
         .order_by("scheduled_date", "scheduled_time")[:5]
     )
 
-    first_appointment = Appointment.objects.aggregate(Min("scheduled_date"))[
-        "scheduled_date__min"
-    ]
-    if first_appointment:
-        chart_start = first_appointment
-        days_total = (today - chart_start).days + 1
-
-        if days_total > 90:
-            visits_qs = (
-                Appointment.objects.filter(
-                    scheduled_date__gte=chart_start, scheduled_date__lte=today
-                )
-                .extra(select={"week_start": "DATE_TRUNC('week', scheduled_date)"})
-                .values("week_start")
-                .annotate(count=Count("id"))
-                .order_by("week_start")
-            )
-            overall_visits_labels = [
-                row["week_start"].strftime("%d.%m") for row in visits_qs
-            ]
-            overall_visits_data = [row["count"] for row in visits_qs]
-        else:
-            visits_qs = (
-                Appointment.objects.filter(
-                    scheduled_date__gte=chart_start, scheduled_date__lte=today
-                )
-                .values("scheduled_date")
-                .annotate(count=Count("id"))
-                .order_by("scheduled_date")
-            )
-            by_date = {row["scheduled_date"]: row["count"] for row in visits_qs}
-            overall_visits_labels = []
-            overall_visits_data = []
-            current = chart_start
-            while current <= today:
-                overall_visits_labels.append(current.strftime("%d.%m"))
-                overall_visits_data.append(by_date.get(current, 0))
-                current += timedelta(days=1)
-    else:
-        overall_visits_labels = []
+    chart_start = today - timedelta(days=6)
+    visits_qs = (
+        Appointment.objects.filter(
+            scheduled_date__gte=chart_start, scheduled_date__lte=today
+        )
+        .values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+    by_date = {row["scheduled_date"]: row["count"] for row in visits_qs}
+    overall_visits_labels = []
+    overall_visits_data = []
+    current = chart_start
+    while current <= today:
+        overall_visits_labels.append(current.strftime("%d.%m"))
+        overall_visits_data.append(by_date.get(current, 0))
+        current += timedelta(days=1)
         overall_visits_data = []
 
     services_qs = (

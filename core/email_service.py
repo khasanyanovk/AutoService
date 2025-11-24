@@ -69,7 +69,7 @@ def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | 
             if getattr(settings, "DEBUG", False):
                 print(f"[email_service] {error_msg}")
                 print(
-                    f"[email_service] Check your EMAIL settings and network connection"
+                    "[email_service] Check your EMAIL settings and network connection"
                 )
 
     threading.Thread(target=_runner, daemon=True).start()
@@ -106,10 +106,10 @@ def send_appointment_status_changed_email(appt) -> None:
     subject = f"Статус вашей записи: {dict(getattr(appt, 'STATUS_CHOICES', [] )).get(appt.status, appt.status)}"
     _send_async(subject, [appt.car.owner.email], text, html)
 
-    admins = admin_recipients()
-    if admins:
-        subject_admin = f"Статус изменён — {appt.service_center}"
-        _send_async(subject_admin, admins, text, html)
+    # admins = admin_recipients()
+    # if admins:
+    #     subject_admin = f"Статус изменён — {appt.service_center}"
+    #     _send_async(subject_admin, admins, text, html)
 
 
 def send_appointment_cancelled_email(appt) -> None:

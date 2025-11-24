@@ -443,9 +443,13 @@
 
     function fetchTable(extra){
       const qs = buildQuery(extra);
-      fetch(window.location.pathname + '?' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+      return fetch(window.location.pathname + '?' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
         .then(r => r.json())
-        .then(data => { if (container) container.innerHTML = data.html || ''; attachRowHandlers(); attachPagerHandlers(); });
+        .then(data => { 
+          if (container) container.innerHTML = data.html || ''; 
+          attachRowHandlers(); 
+          attachPagerHandlers(); 
+        });
     }
 
     let typingTimer = null;
@@ -473,8 +477,22 @@
         f.addEventListener('submit', (e) => {
           e.preventDefault();
           const fd = new FormData(f);
+          const input = f.querySelector('input[name="admin_reply"]');
+          
           fetch(f.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(() => fetchTable());
+            .then(response => response.json())
+            .then(data => {
+              if (data.ok) {
+                showToast('success', 'Ответ сохранен');
+                fetchTable().then(() => {
+                  const newInput = container.querySelector(`form[action="${f.action}"] input[name="admin_reply"]`);
+                  if (newInput) newInput.value = '';
+                });
+              }
+            })
+            .catch(err => {
+              showToast('danger', 'Ошибка при сохранении ответа');
+            });
         });
       });
 
@@ -484,7 +502,16 @@
           if (!confirm('Удалить отзыв?')) return;
           const fd = new FormData(f);
           fetch(f.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(() => fetchTable());
+            .then(response => response.json())
+            .then(data => {
+              if (data.ok) {
+                showToast('success', 'Отзыв удален');
+                fetchTable();
+              }
+            })
+            .catch(err => {
+              showToast('danger', 'Ошибка при удалении отзыва');
+            });
         });
       });
     }
