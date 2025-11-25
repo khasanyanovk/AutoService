@@ -792,12 +792,10 @@ def appointment_detail(request, appointment_id):
         Appointment, id=appointment_id, car__owner=request.user
     )
 
-    # Получаем последний платеж для записи
     latest_payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
 
-    # Если запрос через AJAX - возвращаем JSON
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         payment_data = None
         if latest_payment:
@@ -814,12 +812,12 @@ def appointment_detail(request, appointment_id):
         data = {
             "id": str(appointment.id),
             "service_type": appointment.service_type.name,
-            "service_center": appointment.service_center.address,
+            "service_center": appointment.service_center.address,  # type: ignore
             "scheduled_date": appointment.scheduled_date.strftime("%d.%m.%Y"),
             "scheduled_time": appointment.scheduled_time.strftime("%H:%M"),
             "car": str(appointment.car),
             "status": appointment.status,
-            "status_display": appointment.get_status_display(),
+            "status_display": appointment.get_status_display(),  # type: ignore
             "price": float(appointment.service_type.price),
             "payment": payment_data,
         }
