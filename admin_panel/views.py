@@ -1403,6 +1403,8 @@ def admin_api_day_schedule(request, service_center_id):
 @admin_required
 def admin_appointment_detail(request, appointment_id):
     """Детальная информация о записи"""
+    from payments.models import Payment
+
     _auto_cancel_overdue_appointments()
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
@@ -1413,7 +1415,10 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
-    payment = appointment.payment_set.order_by("-created_at").first()
+    # Получаем последний платёж для записи
+    payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
 
     context = {
         "appointment": appointment,

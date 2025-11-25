@@ -2,12 +2,14 @@
 Сервис для работы с платежами через ЮKassa
 """
 
-from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
 from yookassa import Configuration, Payment as YooPayment
-from .models import Payment, Appointment
+from .models import Payment
+from core.models import Appointment
 
+
+# Конфигурация ЮKassa
 Configuration.account_id = settings.YOOKASSA_SHOP_ID
 Configuration.secret_key = settings.YOOKASSA_SECRET_KEY
 
@@ -23,6 +25,7 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
     Returns:
         Payment: Созданный объект платежа
     """
+    # Проверяем, есть ли уже pending платеж
     existing_payment = Payment.objects.filter(
         appointment=appointment, status="pending"
     ).first()
@@ -30,8 +33,10 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
     if existing_payment:
         return existing_payment
 
+    # Формируем описание платежа
     description = f"Оплата услуги '{appointment.service_type.name}' по адресу: {appointment.service_center.address}"
 
+    # Создаем платеж в ЮKassa
     payment_data = {
         "amount": {"value": str(appointment.service_type.price), "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": return_url},
@@ -42,6 +47,7 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
 
     yoo_payment = YooPayment.create(payment_data)
 
+    # Сохраняем платеж в базу
     payment = Payment.objects.create(
         appointment=appointment,
         payment_id=yoo_payment.id,
@@ -69,8 +75,10 @@ def check_payment_status(payment: Payment) -> Payment:
     old_status = payment.status
     payment.status = yoo_payment.status
 
+    # Если платеж успешно оплачен
     if yoo_payment.status == "succeeded" and old_status != "succeeded":
         payment.paid_at = timezone.now()
+
     payment.save()
     return payment
 
@@ -112,6 +120,7 @@ def cancel_payment(payment: Payment) -> bool:
     try:
         yoo_payment = YooPayment.find_one(payment.payment_id)
 
+        # Можно отменить только pending платежи
         if yoo_payment.status == "pending":
             payment.status = "canceled"
             payment.save()

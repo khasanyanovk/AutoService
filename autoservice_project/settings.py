@@ -66,6 +66,7 @@ ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 INSTALLED_APPS = [
     "core",
     "admin_panel",
+    "payments",
     "crispy_forms",
     "crispy_bootstrap5",
     "django.contrib.admin",

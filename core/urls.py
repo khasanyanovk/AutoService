@@ -24,17 +24,6 @@ urlpatterns = [
         name="cancel_appointment",
     ),
     path(
-        "appointments/<uuid:appointment_id>/pay/",
-        views.create_payment,
-        name="create_payment",
-    ),
-    path(
-        "appointments/<uuid:appointment_id>/check-payment/",
-        views.check_payment,
-        name="check_payment",
-    ),
-    path("payments/webhook/", views.yookassa_webhook, name="yookassa_webhook"),
-    path(
         "ajax/get-time-slots/",
         views.get_available_time_slots,
         name="get_time_slots",

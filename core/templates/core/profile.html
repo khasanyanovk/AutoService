@@ -951,7 +951,7 @@
               ${data.price} ₽
             </div>
             <p class="mb-3">Платеж создан, но еще не завершен</p>
-            <a href="/appointments/${data.id}/check-payment/" class="btn btn-primary">
+            <a href="/payments/appointments/${data.id}/check-payment/" class="btn btn-primary">
               <i class="bi bi-arrow-clockwise me-2"></i>Проверить статус
             </a>
             ${data.payment.confirmation_url ? `
@@ -1051,7 +1051,7 @@
       payBtn.addEventListener('click', function() {
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/appointments/${appointmentId}/pay/`;
+        form.action = `/payments/appointments/${appointmentId}/pay/`;
         
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
         const csrfInput = document.createElement('input');

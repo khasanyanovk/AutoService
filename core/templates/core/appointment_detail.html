@@ -323,7 +323,7 @@
                             </div>
                             <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
                             <p class="mb-3">Платеж создан, но еще не завершен</p>
-                            <a href="{% url 'check_payment' appointment.id %}" class="btn btn-primary">
+                            <a href="{% url 'payments:check_payment' appointment.id %}" class="btn btn-primary">
                                 <i class="bi bi-arrow-clockwise me-2"></i>Проверить статус
                             </a>
                             {% if payment.confirmation_url %}
@@ -338,7 +338,7 @@
                             </div>
                             <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
                             <p class="mb-3">Оплатите услугу онлайн через ЮKassa</p>
-                            <form method="post" action="{% url 'create_payment' appointment.id %}">
+                            <form method="post" action="{% url 'payments:create_payment' appointment.id %}">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-success btn-lg">
                                     <i class="bi bi-credit-card me-2"></i>Оплатить

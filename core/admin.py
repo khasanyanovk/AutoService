@@ -10,7 +10,6 @@ from .models import (
     UserProfile,
     Review,
     BlockedTimeSlot,
-    Payment,
 )
 
 admin.site.register(CarBrand)
@@ -23,4 +22,3 @@ admin.site.register(WorkingHours)
 admin.site.register(UserProfile)
 admin.site.register(Review)
 admin.site.register(BlockedTimeSlot)
-admin.site.register(Payment)
