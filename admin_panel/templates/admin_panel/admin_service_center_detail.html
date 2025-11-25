@@ -174,10 +174,10 @@
         background: #0d6efd;
         color: #fff;
     }
-    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; }
-    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; }
-    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; }
-    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; color: #000 !important; }
+    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; color: #000 !important; }
+    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; color: #000 !important; }
+    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; color: #000 !important; }
     
     .chart-container {
         position: relative;
@@ -201,6 +201,10 @@
     }
     .slot.free { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
     .slot.busy { background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); }
+    .slot.blocked { 
+        background: linear-gradient(135deg, #fff9e6 0%, #ffe6cc 100%); 
+        border-left: 4px solid #ffc107;
+    }
     .slot-time { font-weight: 700; color: #212529; }
     .slot-title { color: #495057; font-weight: 500; }
     .slot-status { font-size: .85rem; font-weight: 600; }
@@ -335,7 +339,7 @@
                 <div class="card-body p-0 schedule-list">
                     {% if todays_schedule %}
                         {% for s in todays_schedule %}
-                        <div class="slot {% if s.busy %}busy{% else %}free{% endif %}">
+                        <div class="slot {% if s.busy %}busy{% elif s.blocked %}blocked{% else %}free{% endif %}">
                             <div>
                                 <div class="slot-time">
                                     {% if s.busy %}
@@ -346,14 +350,31 @@
                                 </div>
                                 {% if s.busy %}
                                     <div class="slot-title small">{{ s.title }}</div>
+                                {% elif s.blocked %}
+                                    <div class="text-warning small">
+                                        <i class="bi bi-lock-fill me-1"></i>Заблокирован
+                                        {% if s.blocked_reason %}<br><small>{{ s.blocked_reason }}</small>{% endif %}
+                                    </div>
                                 {% else %}
                                     <div class="text-muted small">Свободно</div>
                                 {% endif %}
                             </div>
                             {% if s.busy %}
                             <a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/{{ s.appointment_id }}/">Открыть</a>
+                            {% elif s.blocked %}
+                            <button class="btn btn-outline-success btn-sm btn-unblock-slot" 
+                                    data-date="{{ s.selected_date }}"
+                                    data-time="{{ s.time }}"
+                                    title="Разблокировать">
+                                <i class="bi bi-unlock"></i>
+                            </button>
                             {% else %}
-                            <span class="badge bg-success slot-status">Свободно</span>
+                            <button class="btn btn-outline-warning btn-sm btn-block-slot" 
+                                    data-date="{{ s.selected_date }}"
+                                    data-time="{{ s.time }}"
+                                    title="Заблокировать">
+                                <i class="bi bi-lock"></i>
+                            </button>
                             {% endif %}
                         </div>
                         {% endfor %}
@@ -421,24 +442,38 @@
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
                 </div>
-                <div class="card-body" style="min-height:300px; position:relative;">
-                    {% if status_total > 0 %}
-                        {% for stat in status_stats %}
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="badge 
-                                {% if stat.status == 'SCHEDULED' %}bg-primary
-                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
-                                {% elif stat.status == 'COMPLETED' %}bg-success
-                                {% elif stat.status == 'CANCELLED' %}bg-danger
-                                {% endif %}">
-                                {{ stat.label }}
-                            </span>
-                            <strong class="text-dark">{{ stat.count }}</strong>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-overlay">Нет записей со статусами за выбранный период</div>
-                    {% endif %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Статус</th>
+                                    <th class="text-end">Количество</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if status_total > 0 %}
+                                    {% for stat in status_stats %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge 
+                                                {% if stat.status == 'SCHEDULED' %}bg-primary
+                                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
+                                                {% elif stat.status == 'COMPLETED' %}bg-success
+                                                {% elif stat.status == 'CANCELLED' %}bg-danger
+                                                {% endif %}">
+                                                {{ stat.label }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end"><strong>{{ stat.count }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -497,11 +532,23 @@
                                     '</div>'+
                                     '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
                                 '</div>';
+                            } else if (s.blocked) {
+                                html += '<div class="slot blocked">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-warning small"><i class="bi bi-lock-fill me-1"></i>Заблокирован'+(s.blocked_reason ? '<br><small>'+s.blocked_reason+'</small>' : '')+'</div>'+
+                                    '</div>'+
+                                    '<button class="btn btn-outline-success btn-sm btn-unblock-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Разблокировать">'+
+                                        '<i class="bi bi-unlock"></i>'+
+                                    '</button>'+
+                                '</div>';
                             } else {
                                 html += '<div class="slot free">' +
                                     '<div><div class="slot-time">'+s.time+'</div>'+
                                     '<div class="text-muted small">Свободно</div></div>'+
-                                    '<span class="badge bg-success slot-status">Свободно</span>'+
+                                    '<button class="btn btn-outline-warning btn-sm btn-block-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Заблокировать">'+
+                                        '<i class="bi bi-lock"></i>'+
+                                    '</button>'+
                                 '</div>';
                             }
                         });
@@ -509,6 +556,7 @@
                         html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
                     }
                     container.innerHTML = html;
+                    attachSlotHandlers();
                 });
             },
             dayCellDidMount: function(arg) {
@@ -549,34 +597,47 @@
                     var clientNow = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
                     fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=1&client_now=' + encodeURIComponent(clientNow), {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    }).then(function(r){ return r.json(); }).then(function(data){
-                        var container = document.querySelector('.schedule-list');
-                        if (!container) return;
-                        var html = '';
-                        if (data.slots && data.slots.length) {
-                            data.slots.forEach(function(s){
-                                if (s.busy) {
-                                    var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
-                                    html += '<div class="slot busy">' +
-                                        '<div>'+
-                                            '<div class="slot-time">'+ timeLabel +'</div>'+
-                                            '<div class="slot-title small">'+ (s.title || '') +'</div>'+
-                                        '</div>'+
-                                        '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
-                                    '</div>';
-                                } else {
-                                    html += '<div class="slot free">' +
-                                        '<div><div class="slot-time">'+s.time+'</div>'+
-                                        '<div class="text-muted small">Свободно</div></div>'+
-                                        '<span class="badge bg-success slot-status">Свободно</span>'+
-                                    '</div>';
-                                }
-                            });
-                        } else {
-                            html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
-                        }
-                        container.innerHTML = html;
-                    });
+                }).then(function(r){ return r.json(); }).then(function(data){
+                    var container = document.querySelector('.schedule-list');
+                    if (!container) return;
+                    var html = '';
+                    if (data.slots && data.slots.length) {
+                        data.slots.forEach(function(s){
+                            if (s.busy) {
+                                var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
+                                html += '<div class="slot busy">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+ timeLabel +'</div>'+
+                                        '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                    '</div>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
+                                '</div>';
+                            } else if (s.blocked) {
+                                html += '<div class="slot blocked">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-warning small"><i class="bi bi-lock-fill me-1"></i>Заблокирован'+(s.blocked_reason ? '<br><small>'+s.blocked_reason+'</small>' : '')+'</div>'+
+                                    '</div>'+
+                                    '<button class="btn btn-outline-success btn-sm btn-unblock-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Разблокировать">'+
+                                        '<i class="bi bi-unlock"></i>'+
+                                    '</button>'+
+                                '</div>';
+                            } else {
+                                html += '<div class="slot free">' +
+                                    '<div><div class="slot-time">'+s.time+'</div>'+
+                                    '<div class="text-muted small">Свободно</div></div>'+
+                                    '<button class="btn btn-outline-warning btn-sm btn-block-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Заблокировать">'+
+                                        '<i class="bi bi-lock"></i>'+
+                                    '</button>'+
+                                '</div>';
+                            }
+                        });
+                    } else {
+                        html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                    }
+                    container.innerHTML = html;
+                    attachSlotHandlers();
+                });
                 }
             } catch(e) {}
         })();
@@ -682,6 +743,81 @@
                 });
             });
         });
+
+        function attachSlotHandlers() {
+            
+            document.querySelectorAll('.btn-block-slot').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const date = this.getAttribute('data-date');
+                    const time = this.getAttribute('data-time');
+                    
+                    if (confirm(`Заблокировать слот ${time}?`)) {
+                        const formData = new FormData();
+                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                        formData.append('date', date);
+                        formData.append('time', time);
+                        formData.append('action', 'block');
+                        
+                        fetch('{% url "admin_panel:admin_toggle_slot_block" service_center.id %}', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('success', 'Слот заблокирован');
+                                location.reload();
+                            } else {
+                                showToast('danger', data.error || 'Ошибка при блокировке');
+                            }
+                        })
+                        .catch(err => {
+                            showToast('danger', 'Ошибка сети');
+                        });
+                    }
+                });
+            });
+
+            // Обработчики для разблокировки слотов
+            document.querySelectorAll('.btn-unblock-slot').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const date = this.getAttribute('data-date');
+                    const time = this.getAttribute('data-time');
+                    
+                    if (confirm(`Разблокировать слот ${time}?`)) {
+                        const formData = new FormData();
+                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                        formData.append('date', date);
+                        formData.append('time', time);
+                        formData.append('action', 'unblock');
+                        
+                        fetch('{% url "admin_panel:admin_toggle_slot_block" service_center.id %}', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('success', 'Слот разблокирован');
+                                location.reload();
+                            } else {
+                                showToast('danger', data.error || 'Ошибка при разблокировке');
+                            }
+                        })
+                        .catch(err => {
+                            showToast('danger', 'Ошибка сети');
+                        });
+                    }
+                });
+            });
+        }
+        attachSlotHandlers();
     });
 </script>
 {% endblock %}

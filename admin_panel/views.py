@@ -849,6 +849,14 @@ def admin_service_center_detail(request, service_center_id):
                 .select_related("car", "service_type", "car__owner")
                 .order_by("scheduled_time")
             )
+
+            from core.models import BlockedTimeSlot
+
+            blocked_slots = BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=selected_date
+            )
+            blocked_times = {bs.time: bs for bs in blocked_slots}
+
             all_slots = generate_time_slots(
                 working_hours.start_time,
                 working_hours.end_time,
@@ -866,6 +874,21 @@ def admin_service_center_detail(request, service_center_id):
             last_app_id = None
             for slot in all_slots:
                 slot_time = datetime.strptime(slot, "%H:%M").time()
+
+                if slot_time in blocked_times:
+                    blocked_slot = blocked_times[slot_time]
+                    todays_schedule.append(
+                        {
+                            "time": slot,
+                            "busy": False,
+                            "blocked": True,
+                            "blocked_id": str(blocked_slot.id),
+                            "blocked_reason": blocked_slot.reason or "",
+                            "selected_date": selected_date.isoformat(),
+                        }
+                    )
+                    continue
+
                 matched = None
                 for a in day_appointments:
                     end_t = a.end_time
@@ -906,7 +929,14 @@ def admin_service_center_detail(request, service_center_id):
                         )
                         last_app_id = str(matched.id)
                 else:
-                    todays_schedule.append({"time": slot, "busy": False})
+                    todays_schedule.append(
+                        {
+                            "time": slot,
+                            "busy": False,
+                            "blocked": False,
+                            "selected_date": selected_date.isoformat(),
+                        }
+                    )
 
     if period == "month":
         chart_start = today - timedelta(days=29)
@@ -1266,6 +1296,14 @@ def admin_api_day_schedule(request, service_center_id):
         .select_related("car", "service_type", "car__owner")
         .order_by("scheduled_time")
     )
+
+    from core.models import BlockedTimeSlot
+
+    blocked_slots = BlockedTimeSlot.objects.filter(
+        service_center=service_center, date=selected_date
+    )
+    blocked_times = {bs.time: bs for bs in blocked_slots}
+
     all_slots = generate_time_slots(
         working_hours.start_time,
         working_hours.end_time,
@@ -1289,6 +1327,21 @@ def admin_api_day_schedule(request, service_center_id):
     last_app_id = None
     for slot in all_slots:
         slot_time = datetime.strptime(slot, "%H:%M").time()
+
+        if slot_time in blocked_times:
+            blocked_slot = blocked_times[slot_time]
+            slots.append(
+                {
+                    "time": slot,
+                    "busy": False,
+                    "blocked": True,
+                    "blocked_id": str(blocked_slot.id),
+                    "blocked_reason": blocked_slot.reason or "",
+                    "selected_date": selected_date.isoformat(),
+                }
+            )
+            continue
+
         matched = None
         for a in day_appointments:
             end_t = a.end_time
@@ -1325,7 +1378,13 @@ def admin_api_day_schedule(request, service_center_id):
                 )
                 last_app_id = str(matched.id)
         else:
-            slots.append({"time": slot, "busy": False})
+            slots.append(
+                {
+                    "time": slot,
+                    "busy": False,
+                    "selected_date": selected_date.isoformat(),
+                }
+            )
 
     return JsonResponse({"slots": slots})
 
@@ -1363,9 +1422,15 @@ def admin_api_appointments(request):
     appointments = Appointment.objects.all()
 
     if start_date:
-        appointments = appointments.filter(scheduled_date__gte=start_date)
+        from datetime import datetime
+
+        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        appointments = appointments.filter(scheduled_date__gte=start_dt.date())
     if end_date:
-        appointments = appointments.filter(scheduled_date__lte=end_date)
+        from datetime import datetime
+
+        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        appointments = appointments.filter(scheduled_date__lte=end_dt.date())
     if service_center_id:
         appointments = appointments.filter(service_center_id=service_center_id)
 
@@ -1600,3 +1665,51 @@ def admin_model_delete(request, model_id):
         messages.success(request, "Модель удалена")
         return redirect("admin_panel:admin_cars")
     return render(request, "admin_panel/admin_model_delete.html", {"model": model})
+
+
+@login_required
+@admin_required
+def admin_toggle_slot_block(request, service_center_id):
+    """API для блокировки/разблокировки временного слота"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+
+    try:
+        from core.models import BlockedTimeSlot
+
+        date_str = request.POST.get("date")
+        time_str = request.POST.get("time")
+        action = request.POST.get("action")  # "block" or "unblock"
+
+        if not date_str or not time_str or not action:
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+
+        slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        slot_time = datetime.strptime(time_str, "%H:%M").time()
+
+        if action == "block":
+            blocked_slot, created = BlockedTimeSlot.objects.get_or_create(
+                service_center=service_center,
+                date=slot_date,
+                time=slot_time,
+                defaults={
+                    "blocked_by": request.user,
+                    "reason": request.POST.get("reason", ""),
+                },
+            )
+            return JsonResponse(
+                {"success": True, "action": "blocked", "id": str(blocked_slot.id)}
+            )
+
+        elif action == "unblock":
+            BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=slot_date, time=slot_time
+            ).delete()
+            return JsonResponse({"success": True, "action": "unblocked"})
+        else:
+            return JsonResponse({"error": "Invalid action"}, status=400)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

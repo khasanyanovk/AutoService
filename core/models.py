@@ -413,3 +413,37 @@ class AdminDashboard(models.Model):
     class Meta:
         verbose_name = "Дашборд администратора"
         verbose_name_plural = "Дашборды администраторов"
+
+
+class BlockedTimeSlot(models.Model):
+    """Модель для блокировки временных слотов администратором"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service_center = models.ForeignKey(
+        ServiceCenter,
+        on_delete=models.CASCADE,
+        related_name="blocked_slots",
+        verbose_name="Автосервис",
+    )
+    date = models.DateField(verbose_name="Дата")
+    time = models.TimeField(verbose_name="Время")
+    blocked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Заблокировал",
+    )
+    blocked_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата блокировки")
+    reason = models.CharField(
+        max_length=200, blank=True, null=True, verbose_name="Причина блокировки"
+    )
+
+    class Meta:
+        verbose_name = "Заблокированный слот"
+        verbose_name_plural = "Заблокированные слоты"
+        unique_together = ("service_center", "date", "time")
+        ordering = ["date", "time"]
+
+    def __str__(self):
+        return f"{self.service_center} - {self.date} {self.time}"

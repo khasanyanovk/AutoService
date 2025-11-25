@@ -597,9 +597,19 @@ def get_available_time_slots(request):
                 service_center=service_center,
             )
 
+            from core.models import BlockedTimeSlot
+
+            blocked_slots = BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=selected_date
+            ).values_list("time", flat=True)
+            blocked_times = set(blocked_slots)
+
             available_slots = []
             for slot in all_slots:
                 slot_time = datetime.strptime(slot, "%H:%M").time()
+                if slot_time in blocked_times:
+                    continue
+
                 slot_end_time = (
                     datetime.combine(selected_date, slot_time)
                     + timedelta(minutes=service_type.duration)

@@ -136,4 +136,9 @@ urlpatterns = [
         views.admin_model_delete,
         name="admin_model_delete",
     ),
+    path(
+        "admin-api/service-center/<uuid:service_center_id>/toggle-slot-block/",
+        views.admin_toggle_slot_block,
+        name="admin_toggle_slot_block",
+    ),
 ]
