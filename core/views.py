@@ -692,20 +692,6 @@ def generate_time_slots(
 
 
 @login_required
-def appointment_list(request):
-    """Список записей пользователя"""
-    auto_update_appointments()
-    appointments = (
-        Appointment.objects.filter(car__owner=request.user)
-        .select_related("service_center", "service_type", "car")
-        .order_by("-scheduled_date", "scheduled_time")
-    )
-
-    context = {"appointments": appointments}
-
-    return render(request, "core/appointment_list.html", context)
-
-
 @login_required
 def cancel_appointment(request, appointment_id):
     """Отмена записи"""
@@ -721,7 +707,7 @@ def cancel_appointment(request, appointment_id):
         else:
             messages.error(request, "Невозможно отменить запись в текущем статусе")
 
-    return redirect("appointment_list")
+    return redirect("profile")
 
 
 @login_required
@@ -795,3 +781,150 @@ def admin_delete_review(request, review_id):
         review.delete()
         messages.success(request, "Отзыв удалён")
     return redirect("admin_panel:admin_service_center_detail", service_center_id=sc_id)
+
+
+@login_required
+def appointment_detail(request, appointment_id):
+    """Детальная страница записи с возможностью оплаты"""
+    from .models import Payment
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
+    )
+
+    latest_payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        payment_data = None
+        if latest_payment:
+            payment_data = {
+                "status": latest_payment.status,
+                "confirmation_url": latest_payment.confirmation_url,
+                "paid_at": (
+                    latest_payment.paid_at.strftime("%d.%m.%Y в %H:%M")
+                    if latest_payment.paid_at
+                    else None
+                ),
+            }
+
+        data = {
+            "id": str(appointment.id),
+            "service_type": appointment.service_type.name,
+            "service_center": appointment.service_center.address,
+            "scheduled_date": appointment.scheduled_date.strftime("%d.%m.%Y"),
+            "scheduled_time": appointment.scheduled_time.strftime("%H:%M"),
+            "car": str(appointment.car),
+            "status": appointment.status,
+            "status_display": appointment.get_status_display(),
+            "price": float(appointment.service_type.price),
+            "payment": payment_data,
+        }
+        return JsonResponse(data)
+
+    context = {
+        "appointment": appointment,
+        "payment": latest_payment,
+    }
+
+    return render(request, "core/appointment_detail.html", context)
+
+
+@login_required
+def create_payment(request, appointment_id):
+    """Создание платежа для записи"""
+    from .models import Payment
+    from .payment_service import create_payment as create_yookassa_payment
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
+    )
+
+    if appointment.status == "CANCELLED":
+        messages.error(request, "Невозможно оплатить отмененную запись")
+        return redirect("appointment_detail", appointment_id=appointment_id)
+
+    existing_payment = Payment.objects.filter(
+        appointment=appointment, status="succeeded"
+    ).first()
+
+    if existing_payment:
+        messages.info(request, "Эта запись уже оплачена")
+        return redirect("appointment_detail", appointment_id=appointment_id)
+
+    try:
+        return_url = request.build_absolute_uri(f"/appointments/{appointment_id}/")
+
+        payment = create_yookassa_payment(appointment, return_url)
+
+        if payment.confirmation_url:
+            return redirect(payment.confirmation_url)
+        else:
+            messages.error(request, "Ошибка создания платежа")
+            return redirect("appointment_detail", appointment_id=appointment_id)
+
+    except Exception as e:
+        messages.error(request, f"Ошибка при создании платежа: {str(e)}")
+        return redirect("appointment_detail", appointment_id=appointment_id)
+
+
+@login_required
+def check_payment(request, appointment_id):
+    """Проверка статуса платежа"""
+    from .models import Payment
+    from .payment_service import check_payment_status
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
+    )
+
+    latest_payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
+    if latest_payment:
+        check_payment_status(latest_payment)
+
+        if latest_payment.status == "succeeded":
+            messages.success(request, "Платеж успешно выполнен!")
+        elif latest_payment.status == "canceled":
+            messages.error(request, "Платеж отменен")
+        else:
+            messages.info(
+                request, f"Статус платежа: {latest_payment.get_status_display()}"
+            )
+
+    return redirect("appointment_detail", appointment_id=appointment_id)
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+import json
+
+
+@csrf_exempt
+def yookassa_webhook(request):
+    """Webhook для получения уведомлений от ЮKassa"""
+    from .models import Payment
+    from .payment_service import check_payment_status
+
+    if request.method == "POST":
+        try:
+            event = json.loads(request.body)
+
+            if event.get("event") == "payment.succeeded":
+                payment_id = event["object"]["id"]
+
+                try:
+                    payment = Payment.objects.get(payment_id=payment_id)
+                    check_payment_status(payment)
+                except Payment.DoesNotExist:
+                    pass
+
+            return HttpResponse(status=200)
+        except Exception as e:
+            print(f"Webhook error: {e}")
+            return HttpResponse(status=400)
+
+    return HttpResponse(status=405)

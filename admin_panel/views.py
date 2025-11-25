@@ -1413,9 +1413,12 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
+    payment = appointment.payment_set.order_by("-created_at").first()
+
     context = {
         "appointment": appointment,
         "status_choices": Appointment.STATUS_CHOICES,
+        "payment": payment,
     }
     return render(request, "admin_panel/admin_appointment_detail.html", context)
 

@@ -45,6 +45,8 @@ env = Env(
     REPLY_TO_EMAIL=(str, "no-reply@localhost"),
     NOTIFY_ADMINS_EMAILS=(list, []),
     LOG_LEVEL=(str, "ERROR"),
+    YOOKASSA_SHOP_ID=(int, 0),
+    YOOKASSA_SECRET_KEY=(str, ""),
 )
 
 Env.read_env(BASE_DIR / ".env")
@@ -186,3 +188,7 @@ REPLY_TO_EMAIL = env("REPLY_TO_EMAIL")
 
 # Optional: predefined list of admin emails to notify (comma-separated)
 NOTIFY_ADMINS_EMAILS = env("NOTIFY_ADMINS_EMAILS")
+
+# Youcassa settings
+YOOKASSA_SHOP_ID = env("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = env("YOOKASSA_SECRET_KEY")

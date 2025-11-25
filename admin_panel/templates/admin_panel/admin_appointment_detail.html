@@ -228,6 +228,39 @@
                                 <strong>Стоимость:</strong>
                                 <div class="mt-1">{{ appointment.service_type.price }} руб.</div>
                             </div>
+                            
+                            <div class="info-item">
+                                <strong>Оплата:</strong>
+                                <div class="mt-1">
+                                    {% if payment %}
+                                        {% if payment.status == 'succeeded' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Оплачено
+                                            </span>
+                                            <br><small class="text-muted">
+                                                {{ payment.paid_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        {% elif payment.status == 'pending' or payment.status == 'waiting_for_capture' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-clock-history me-1"></i>Ожидает оплаты
+                                            </span>
+                                            <br><small class="text-muted">
+                                                Создан: {{ payment.created_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        {% elif payment.status == 'canceled' %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-x-circle me-1"></i>Отменено
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-dash-circle me-1"></i>Не оплачено
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

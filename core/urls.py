@@ -13,12 +13,27 @@ urlpatterns = [
     path("car/<uuid:car_id>/delete/", views.delete_car, name="delete_car"),
     path("ajax/load-models/", views.load_models, name="load_models"),
     path("booking/", views.service_booking, name="service_booking"),
-    path("appointments/", views.appointment_list, name="appointment_list"),
+    path(
+        "appointments/<uuid:appointment_id>/",
+        views.appointment_detail,
+        name="appointment_detail",
+    ),
     path(
         "appointments/<uuid:appointment_id>/cancel/",
         views.cancel_appointment,
         name="cancel_appointment",
     ),
+    path(
+        "appointments/<uuid:appointment_id>/pay/",
+        views.create_payment,
+        name="create_payment",
+    ),
+    path(
+        "appointments/<uuid:appointment_id>/check-payment/",
+        views.check_payment,
+        name="check_payment",
+    ),
+    path("payments/webhook/", views.yookassa_webhook, name="yookassa_webhook"),
     path(
         "ajax/get-time-slots/",
         views.get_available_time_slots,
