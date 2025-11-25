@@ -463,21 +463,31 @@ def admin_user_stats(request, user_id):
     )
 
     today = timezone.localtime(timezone.now()).date()
-    start = today - timedelta(days=89)
-    appts_range = appts.filter(scheduled_date__gte=start, scheduled_date__lte=today)
-    by_date = (
-        appts_range.values("scheduled_date")
-        .annotate(count=Count("id"))
-        .order_by("scheduled_date")
-    )
+    from dateutil.relativedelta import relativedelta
+
+    start_month = today.replace(day=1) - relativedelta(months=11)
+
     labels = []
     data = []
-    current = start
-    by_date_map = {row["scheduled_date"]: row["count"] for row in by_date}
-    while current <= today:
-        labels.append(current.strftime("%d.%m"))
-        data.append(by_date_map.get(current, 0))
-        current += timedelta(days=1)
+    current_month = start_month
+
+    for _ in range(12):
+        # Начало и конец текущего месяца
+        month_start = current_month
+        if current_month.month == 12:
+            month_end = current_month.replace(day=31)
+        else:
+            next_month = current_month + relativedelta(months=1)
+            month_end = next_month - timedelta(days=1)
+
+        # Подсчет записей за месяц
+        month_count = appts.filter(
+            scheduled_date__gte=month_start, scheduled_date__lte=month_end
+        ).count()
+
+        labels.append(current_month.strftime("%b %Y"))
+        data.append(month_count)
+        current_month = current_month + relativedelta(months=1)
 
     top_services_qs = (
         appts.values("service_type__name")
@@ -1393,6 +1403,8 @@ def admin_api_day_schedule(request, service_center_id):
 @admin_required
 def admin_appointment_detail(request, appointment_id):
     """Детальная информация о записи"""
+    from payments.models import Payment
+
     _auto_cancel_overdue_appointments()
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
@@ -1403,9 +1415,15 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
+    # Получаем последний платёж для записи
+    payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
     context = {
         "appointment": appointment,
         "status_choices": Appointment.STATUS_CHOICES,
+        "payment": payment,
     }
     return render(request, "admin_panel/admin_appointment_detail.html", context)
 

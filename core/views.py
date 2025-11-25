@@ -692,20 +692,6 @@ def generate_time_slots(
 
 
 @login_required
-def appointment_list(request):
-    """Список записей пользователя"""
-    auto_update_appointments()
-    appointments = (
-        Appointment.objects.filter(car__owner=request.user)
-        .select_related("service_center", "service_type", "car")
-        .order_by("-scheduled_date", "scheduled_time")
-    )
-
-    context = {"appointments": appointments}
-
-    return render(request, "core/appointment_list.html", context)
-
-
 @login_required
 def cancel_appointment(request, appointment_id):
     """Отмена записи"""
@@ -721,7 +707,7 @@ def cancel_appointment(request, appointment_id):
         else:
             messages.error(request, "Невозможно отменить запись в текущем статусе")
 
-    return redirect("appointment_list")
+    return redirect("profile")
 
 
 @login_required
@@ -795,3 +781,53 @@ def admin_delete_review(request, review_id):
         review.delete()
         messages.success(request, "Отзыв удалён")
     return redirect("admin_panel:admin_service_center_detail", service_center_id=sc_id)
+
+
+@login_required
+def appointment_detail(request, appointment_id):
+    """Детальная страница записи с возможностью оплаты"""
+    from payments.models import Payment
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
+    )
+
+    # Получаем последний платеж для записи
+    latest_payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
+    # Если запрос через AJAX - возвращаем JSON
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        payment_data = None
+        if latest_payment:
+            payment_data = {
+                "status": latest_payment.status,
+                "confirmation_url": latest_payment.confirmation_url,
+                "paid_at": (
+                    latest_payment.paid_at.strftime("%d.%m.%Y в %H:%M")
+                    if latest_payment.paid_at
+                    else None
+                ),
+            }
+
+        data = {
+            "id": str(appointment.id),
+            "service_type": appointment.service_type.name,
+            "service_center": appointment.service_center.address,
+            "scheduled_date": appointment.scheduled_date.strftime("%d.%m.%Y"),
+            "scheduled_time": appointment.scheduled_time.strftime("%H:%M"),
+            "car": str(appointment.car),
+            "status": appointment.status,
+            "status_display": appointment.get_status_display(),
+            "price": float(appointment.service_type.price),
+            "payment": payment_data,
+        }
+        return JsonResponse(data)
+
+    context = {
+        "appointment": appointment,
+        "payment": latest_payment,
+    }
+
+    return render(request, "core/appointment_detail.html", context)

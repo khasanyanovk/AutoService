@@ -13,7 +13,11 @@ urlpatterns = [
     path("car/<uuid:car_id>/delete/", views.delete_car, name="delete_car"),
     path("ajax/load-models/", views.load_models, name="load_models"),
     path("booking/", views.service_booking, name="service_booking"),
-    path("appointments/", views.appointment_list, name="appointment_list"),
+    path(
+        "appointments/<uuid:appointment_id>/",
+        views.appointment_detail,
+        name="appointment_detail",
+    ),
     path(
         "appointments/<uuid:appointment_id>/cancel/",
         views.cancel_appointment,

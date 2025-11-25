@@ -1,0 +1,371 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Детали записи{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+    }
+
+    .appointment-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+        animation: fadeInUp 0.6s ease;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: white;
+        padding: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 15s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .card-header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .info-row:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-label i {
+        font-size: 1.25rem;
+        color: #0d6efd;
+    }
+
+    .info-value {
+        font-weight: 700;
+        color: #212529;
+        font-size: 1.1rem;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1.25rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-scheduled {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        color: white;
+    }
+
+    .status-in_progress {
+        background: linear-gradient(135deg, #fd7e14, #e76500);
+        color: white;
+    }
+
+    .status-completed {
+        background: linear-gradient(135deg, #198754, #157347);
+        color: white;
+    }
+
+    .status-cancelled {
+        background: linear-gradient(135deg, #dc3545, #bb2d3b);
+        color: white;
+    }
+
+    .payment-section {
+        background: linear-gradient(135deg, #fff8e1 0%, #ffe4b5 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-top: 2rem;
+        border: 3px dashed #ffc107;
+        text-align: center;
+    }
+
+    .payment-section.paid {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border-color: #28a745;
+    }
+
+    .payment-status {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .payment-amount {
+        font-size: 3rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 1rem 0;
+    }
+
+    .btn {
+        border-radius: 50px;
+        padding: 0.85rem 2rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        transition: all 0.3s ease;
+        border: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4);
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #198754, #157347);
+        box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+    }
+
+    .btn-success:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(25, 135, 84, 0.4);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545, #bb2d3b);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .action-buttons .btn {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    @media (max-width: 768px) {
+        .info-row {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.5rem;
+        }
+
+        .payment-amount {
+            font-size: 2rem;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="appointment-card">
+                <div class="card-header">
+                    <h1><i class="bi bi-calendar-check me-2"></i>Детали записи</h1>
+                </div>
+                
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-wrench-adjustable-circle"></i>
+                            Услуга
+                        </div>
+                        <div class="info-value">{{ appointment.service_type.name }}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-geo-alt"></i>
+                            Филиал
+                        </div>
+                        <div class="info-value">{{ appointment.service_center.address }}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-calendar3"></i>
+                            Дата
+                        </div>
+                        <div class="info-value">{{ appointment.scheduled_date|date:"d.m.Y" }}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-clock"></i>
+                            Время
+                        </div>
+                        <div class="info-value">{{ appointment.scheduled_time|time:"H:i" }}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-car-front"></i>
+                            Автомобиль
+                        </div>
+                        <div class="info-value">{{ appointment.car }}</div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">
+                            <i class="bi bi-info-circle"></i>
+                            Статус
+                        </div>
+                        <div class="info-value">
+                            <span class="status-badge status-{{ appointment.status|lower }}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Секция оплаты -->
+                    {% if appointment.status != 'CANCELLED' %}
+                    <div class="payment-section {% if payment.status == 'succeeded' %}paid{% endif %}">
+                        {% if payment.status == 'succeeded' %}
+                            <div class="payment-status text-success">
+                                <i class="bi bi-check-circle-fill fs-1"></i>
+                                <p class="mt-2 mb-0">Оплачено</p>
+                            </div>
+                            <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
+                            <p class="text-muted">Платеж выполнен {{ payment.paid_at|date:"d.m.Y в H:i" }}</p>
+                        {% elif payment %}
+                            <div class="payment-status text-warning">
+                                <i class="bi bi-hourglass-split fs-1"></i>
+                                <p class="mt-2 mb-0">Ожидает оплаты</p>
+                            </div>
+                            <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
+                            <p class="mb-3">Платеж создан, но еще не завершен</p>
+                            <a href="{% url 'payments:check_payment' appointment.id %}" class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Проверить статус
+                            </a>
+                            {% if payment.confirmation_url %}
+                            <a href="{{ payment.confirmation_url }}" class="btn btn-success ms-2">
+                                <i class="bi bi-credit-card me-2"></i>Продолжить оплату
+                            </a>
+                            {% endif %}
+                        {% else %}
+                            <div class="payment-status">
+                                <i class="bi bi-credit-card fs-1 text-primary"></i>
+                                <p class="mt-2 mb-0">Оплата онлайн</p>
+                            </div>
+                            <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
+                            <p class="mb-3">Оплатите услугу онлайн через ЮKassa</p>
+                            <form method="post" action="{% url 'payments:create_payment' appointment.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-credit-card me-2"></i>Оплатить
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Кнопки действий -->
+                    <div class="action-buttons">
+                        <a href="{% url 'profile' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Назад в профиль
+                        </a>
+                        
+                        {% if appointment.status == 'SCHEDULED' and payment.status != 'succeeded' %}
+                        <form method="post" action="{% url 'cancel_appointment' appointment.id %}" style="flex: 1; min-width: 200px;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Вы уверены, что хотите отменить запись?')">
+                                <i class="bi bi-x-circle me-2"></i>Отменить запись
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

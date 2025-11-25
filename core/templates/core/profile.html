@@ -737,7 +737,7 @@
             {% if appointments %}
             <div class="list-group">
                 {% for a in appointments %}
-                <div class="list-group-item">
+                <div class="list-group-item appointment-item" data-appointment-id="{{ a.id }}" style="cursor: pointer; transition: all 0.3s ease;">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                         <div class="flex-grow-1">
                             <div class="fw-semibold mb-2">
@@ -747,8 +747,11 @@
                             <div class="text-muted small mb-1">
                                 <i class="bi bi-geo-alt me-1"></i>{{ a.service_center.address }}
                             </div>
-                            <div class="text-muted small">
+                            <div class="text-muted small mb-1">
                                 <i class="bi bi-car-front me-1"></i>{{ a.car.model.brand }} {{ a.car.model.name }} ({{ a.car.license_plate }})
+                            </div>
+                            <div class="text-muted small">
+                                <i class="bi bi-cash-coin me-1"></i><strong>{{ a.service_type.price }} ₽</strong>
                             </div>
                             {% if a.notes %}
                                 <div class="mt-2 small p-2 rounded" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-left: 3px solid #0d6efd;">
@@ -760,14 +763,9 @@
                             <span class="badge {% if a.status == 'SCHEDULED' %}bg-primary{% elif a.status == 'IN_PROGRESS' %}bg-warning text-dark{% elif a.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">
                                 {{ a.get_status_display }}
                             </span>
-                            {% if a.status == 'SCHEDULED' %}
-                                <form action="{% url 'cancel_appointment' a.id %}" method="post" class="d-inline" onsubmit="return confirm('Отменить эту запись?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-outline-danger btn-compact">
-                                        <i class="bi bi-x-circle"></i> Отменить
-                                    </button>
-                                </form>
-                            {% endif %}
+                            <button type="button" class="btn btn-outline-primary btn-compact btn-appointment-details" data-appointment-id="{{ a.id }}">
+                                <i class="bi bi-eye"></i> Подробнее
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -788,6 +786,27 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-labelledby="appointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%); color: white; border: none; padding: 2rem;">
+                <h5 class="modal-title fw-bold" id="appointmentModalLabel">
+                    <i class="bi bi-calendar-check me-2"></i>Детали записи
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="appointmentModalBody" style="padding: 2rem;">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 
 
 {% block extra_js %}
@@ -840,6 +859,232 @@
         statsTab.addEventListener('shown.bs.tab', function(){
             requestAnimationFrame(()=> setTimeout(initCharts, 0));
         });
+  }
+
+  document.querySelectorAll('.btn-appointment-details').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const appointmentId = this.getAttribute('data-appointment-id');
+      loadAppointmentDetails(appointmentId);
+    });
+  });
+
+  document.querySelectorAll('.appointment-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const appointmentId = this.getAttribute('data-appointment-id');
+      loadAppointmentDetails(appointmentId);
+    });
+    
+    item.addEventListener('mouseenter', function() {
+      this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+      this.style.transform = 'translateX(5px)';
+    });
+    
+    item.addEventListener('mouseleave', function() {
+      this.style.background = '';
+      this.style.transform = '';
+    });
+  });
+
+  function loadAppointmentDetails(appointmentId) {
+    const modal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+    const modalBody = document.getElementById('appointmentModalBody');
+    
+    modalBody.innerHTML = `
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Загрузка...</span>
+        </div>
+      </div>
+    `;
+    
+    modal.show();
+    
+    fetch(`/appointments/${appointmentId}/`, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      modalBody.innerHTML = renderAppointmentDetails(data);
+      attachModalHandlers(appointmentId);
+    })
+    .catch(error => {
+      modalBody.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>Ошибка загрузки данных
+        </div>
+      `;
+    });
+  }
+
+  function renderAppointmentDetails(data) {
+    const statusClass = data.status === 'SCHEDULED' ? 'primary' : 
+                       data.status === 'IN_PROGRESS' ? 'warning' :
+                       data.status === 'COMPLETED' ? 'success' : 'secondary';
+    
+    let paymentSection = '';
+    
+    if (data.status !== 'CANCELLED') {
+      if (data.payment && data.payment.status === 'succeeded') {
+        paymentSection = `
+          <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
+            <div class="payment-status text-success">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="text-muted">Платеж выполнен ${data.payment.paid_at}</p>
+          </div>
+        `;
+      } else if (data.payment && data.payment.status === 'pending') {
+        paymentSection = `
+          <div class="payment-section" style="background: linear-gradient(135deg, #fff8e1 0%, #ffe4b5 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #ffc107; text-align: center;">
+            <div class="payment-status text-warning">
+              <i class="bi bi-hourglass-split fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Ожидает оплаты</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="mb-3">Платеж создан, но еще не завершен</p>
+            <a href="/payments/appointments/${data.id}/check-payment/" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise me-2"></i>Проверить статус
+            </a>
+            ${data.payment.confirmation_url ? `
+              <a href="${data.payment.confirmation_url}" class="btn btn-success ms-2">
+                <i class="bi bi-credit-card me-2"></i>Продолжить оплату
+              </a>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        paymentSection = `
+          <div class="payment-section" style="background: linear-gradient(135deg, #fff8e1 0%, #ffe4b5 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #ffc107; text-align: center;">
+            <div class="payment-status">
+              <i class="bi bi-credit-card fs-1 text-primary"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплата онлайн</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="mb-3">Оплатите услугу онлайн через ЮKassa</p>
+            <button type="button" class="btn btn-success btn-lg btn-pay-now" data-appointment-id="${data.id}">
+              <i class="bi bi-credit-card me-2"></i>Оплатить
+            </button>
+          </div>
+        `;
+      }
+    }
+    
+    return `
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-wrench-adjustable-circle" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Услуга
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.service_type}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-geo-alt" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Филиал
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.service_center}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-calendar3" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Дата
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.scheduled_date}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-clock" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Время
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.scheduled_time}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-car-front" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Автомобиль
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.car}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-info-circle" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Статус
+        </div>
+        <div class="info-value">
+          <span class="badge bg-${statusClass}" style="padding: 0.5rem 1.25rem; border-radius: 50px; font-size: 0.95rem; text-transform: uppercase;">
+            ${data.status_display}
+          </span>
+        </div>
+      </div>
+
+      ${paymentSection}
+
+      <div class="mt-4 d-flex gap-2 justify-content-end">
+        ${data.status === 'SCHEDULED' && (!data.payment || data.payment.status !== 'succeeded') ? `
+          <button type="button" class="btn btn-danger btn-cancel-appointment" data-appointment-id="${data.id}">
+            <i class="bi bi-x-circle me-2"></i>Отменить запись
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function attachModalHandlers(appointmentId) {
+    const payBtn = document.querySelector('.btn-pay-now');
+    if (payBtn) {
+      payBtn.addEventListener('click', function() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/payments/appointments/${appointmentId}/pay/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+      });
+    }
+
+    const cancelBtn = document.querySelector('.btn-cancel-appointment');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        if (confirm('Вы уверены, что хотите отменить запись?')) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = `/appointments/${appointmentId}/cancel/`;
+          
+          const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrfmiddlewaretoken';
+          csrfInput.value = csrfToken;
+          form.appendChild(csrfInput);
+          
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    }
   }
 })();
 </script>
