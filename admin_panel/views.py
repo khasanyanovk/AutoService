@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
 from django.db.models import Count, Min
 from django.db.models.functions import ExtractWeekDay
 from django.utils import timezone
@@ -21,13 +22,13 @@ from datetime import datetime, timedelta
 from .decorators import admin_required
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.contrib.auth.models import User
 from core.forms import UserUpdateForm, ProfileUpdateForm
 from .forms import (
     ServiceTypeForm,
     ServiceTypeBaseCreateForm,
     CarBrandForm,
     CarModelForm,
+    UserCreateForm,
 )
 from core.models import CarBrand, CarModel
 from django.template.loader import render_to_string
@@ -209,7 +210,6 @@ def admin_dashboard(request):
         overall_visits_labels.append(current.strftime("%d.%m"))
         overall_visits_data.append(by_date.get(current, 0))
         current += timedelta(days=1)
-        overall_visits_data = []
 
     services_qs = (
         Appointment.objects.filter(status__in=["SCHEDULED", "IN_PROGRESS", "COMPLETED"])
@@ -333,6 +333,32 @@ def admin_users(request):
         "admin_panel/admin_users.html",
         {"page_obj": page_obj, "filters": filters},
     )
+
+
+@login_required
+@admin_required
+def admin_user_create(request):
+    """Создание нового пользователя администратором"""
+    _auto_cancel_overdue_appointments()
+
+    if request.method == "POST":
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+
+            from core.models import UserProfile
+
+            UserProfile.objects.get_or_create(user=user)
+
+            user_type = "администратор" if user.is_staff else "пользователь"
+            messages.success(
+                request, f'Пользователь "{user.username}" ({user_type}) успешно создан'
+            )
+            return redirect("admin_panel:admin_user_detail", user_id=user.id)
+    else:
+        form = UserCreateForm()
+
+    return render(request, "admin_panel/admin_user_create.html", {"form": form})
 
 
 @login_required

@@ -273,6 +273,18 @@
     box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
   }
 
+  .btn-success {
+    background: linear-gradient(135deg, #198754, #146c43);
+    color: white;
+    border: none;
+  }
+
+  .btn-success:hover {
+    background: linear-gradient(135deg, #157347, #0f5132);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.4);
+  }
+
   .btn-sm {
     padding: 0.4rem 1rem;
     font-size: 0.875rem;
@@ -414,7 +426,10 @@
         <h1 class="page-title mb-1"><i class="bi bi-people-fill me-2"></i>Пользователи</h1>
         <div class="page-subtitle mt-2">Поиск и управление аккаунтами</div>
       </div>
-      <div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'admin_panel:admin_user_create' %}" class="btn btn-success">
+          <i class="bi bi-person-plus-fill me-1"></i> Создать пользователя
+        </a>
         <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn">
           <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
         </a>

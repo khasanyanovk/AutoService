@@ -1,0 +1,215 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Создание пользователя — Администратор{% endblock %}
+
+{% block content %}
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="text-white mb-1">
+          <i class="bi bi-person-plus-fill me-2"></i>Создание пользователя
+        </h1>
+        <p class="text-white-50 mb-0">Добавление нового пользователя или администратора</p>
+      </div>
+      <div>
+        <a href="{% url 'admin_panel:admin_users' %}" class="btn btn-light">
+          <i class="bi bi-arrow-left me-1"></i> Назад
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-person-badge me-2"></i>Данные пользователя</h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="{{ form.username.id_for_label }}" class="form-label fw-bold">
+                  {{ form.username.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.username.errors.0 }}
+                  </div>
+                {% endif %}
+                <small class="text-muted">Уникальное имя пользователя для входа</small>
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.email.id_for_label }}" class="form-label fw-bold">
+                  {{ form.email.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.email.errors.0 }}
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.first_name.id_for_label }}" class="form-label fw-bold">
+                  {{ form.first_name.label }}
+                </label>
+                {{ form.first_name }}
+                {% if form.first_name.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.first_name.errors.0 }}
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.last_name.id_for_label }}" class="form-label fw-bold">
+                  {{ form.last_name.label }}
+                </label>
+                {{ form.last_name }}
+                {% if form.last_name.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.last_name.errors.0 }}
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.password1.id_for_label }}" class="form-label fw-bold">
+                  {{ form.password1.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.password1.errors.0 }}
+                  </div>
+                {% endif %}
+                <small class="text-muted">{{ form.password1.help_text }}</small>
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.password2.id_for_label }}" class="form-label fw-bold">
+                  {{ form.password2.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.password2.errors.0 }}
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-12">
+                <div class="alert alert-info d-flex align-items-start">
+                  <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                  <div>
+                    <div class="form-check mb-2">
+                      {{ form.is_staff }}
+                      <label class="form-check-label fw-bold" for="{{ form.is_staff.id_for_label }}">
+                        {{ form.is_staff.label }}
+                      </label>
+                    </div>
+                    <small class="text-muted">{{ form.is_staff.help_text }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger mt-3">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+              <a href="{% url 'admin_panel:admin_users' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i> Отмена
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i> Создать пользователя
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb text-warning me-2"></i>Подсказки</h6>
+          <ul class="small text-muted mb-0">
+            <li>Логин должен быть уникальным и содержать только буквы, цифры и символы @/./+/-/_</li>
+            <li>Email также должен быть уникальным</li>
+            <li>Пароль должен содержать минимум 8 символов</li>
+            <li>Установите флаг "Администратор", если пользователь должен иметь доступ к админ-панели</li>
+            <li>После создания пользователь сможет войти в систему с указанными учетными данными</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .page-header.admin-header {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    padding: 2rem 0;
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+
+  .card {
+    border-radius: 15px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    border-bottom: none;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .form-label {
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+
+  .btn {
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+  }
+
+  .invalid-feedback {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  .alert {
+    border-radius: 10px;
+  }
+
+  .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+</style>
+{% endblock %}
