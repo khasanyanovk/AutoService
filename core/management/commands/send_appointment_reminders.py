@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta, datetime
 from core.models import Appointment
-from core.email_service import send_appointment_reminder_email
+from notifications.email_service import send_appointment_reminder_email
 
 
 class Command(BaseCommand):

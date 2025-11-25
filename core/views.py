@@ -27,7 +27,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Sum
-from .email_service import (
+from notifications.email_service import (
     send_appointment_cancelled_email,
 )
 
