@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import os
-from PIL import Image
+from PIL import Image  # type: ignore
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
