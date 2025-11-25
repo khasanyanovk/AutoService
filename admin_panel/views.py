@@ -463,21 +463,31 @@ def admin_user_stats(request, user_id):
     )
 
     today = timezone.localtime(timezone.now()).date()
-    start = today - timedelta(days=89)
-    appts_range = appts.filter(scheduled_date__gte=start, scheduled_date__lte=today)
-    by_date = (
-        appts_range.values("scheduled_date")
-        .annotate(count=Count("id"))
-        .order_by("scheduled_date")
-    )
+    from dateutil.relativedelta import relativedelta
+
+    start_month = today.replace(day=1) - relativedelta(months=11)
+
     labels = []
     data = []
-    current = start
-    by_date_map = {row["scheduled_date"]: row["count"] for row in by_date}
-    while current <= today:
-        labels.append(current.strftime("%d.%m"))
-        data.append(by_date_map.get(current, 0))
-        current += timedelta(days=1)
+    current_month = start_month
+
+    for _ in range(12):
+        # Начало и конец текущего месяца
+        month_start = current_month
+        if current_month.month == 12:
+            month_end = current_month.replace(day=31)
+        else:
+            next_month = current_month + relativedelta(months=1)
+            month_end = next_month - timedelta(days=1)
+
+        # Подсчет записей за месяц
+        month_count = appts.filter(
+            scheduled_date__gte=month_start, scheduled_date__lte=month_end
+        ).count()
+
+        labels.append(current_month.strftime("%b %Y"))
+        data.append(month_count)
+        current_month = current_month + relativedelta(months=1)
 
     top_services_qs = (
         appts.values("service_type__name")
