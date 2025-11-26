@@ -9,28 +9,82 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('core', '0013_delete_payment'),
-    ]
-
     operations = [
         migrations.CreateModel(
-            name='Payment',
+            name="Payment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('payment_id', models.CharField(max_length=100, unique=True, verbose_name='ID платежа в ЮKassa')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Сумма')),
-                ('status', models.CharField(choices=[('pending', 'Ожидает оплаты'), ('waiting_for_capture', 'Ожидает подтверждения'), ('succeeded', 'Оплачено'), ('canceled', 'Отменено')], default='pending', max_length=30, verbose_name='Статус')),
-                ('description', models.CharField(blank=True, max_length=255, verbose_name='Описание')),
-                ('confirmation_url', models.URLField(blank=True, max_length=500, null=True, verbose_name='Ссылка на оплату')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создан')),
-                ('paid_at', models.DateTimeField(blank=True, null=True, verbose_name='Оплачен')),
-                ('appointment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payments', to='core.appointment', verbose_name='Запись')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "payment_id",
+                    models.CharField(
+                        max_length=100, unique=True, verbose_name="ID платежа в ЮKassa"
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=10, verbose_name="Сумма"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Ожидает оплаты"),
+                            ("waiting_for_capture", "Ожидает подтверждения"),
+                            ("succeeded", "Оплачено"),
+                            ("canceled", "Отменено"),
+                        ],
+                        default="pending",
+                        max_length=30,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "description",
+                    models.CharField(
+                        blank=True, max_length=255, verbose_name="Описание"
+                    ),
+                ),
+                (
+                    "confirmation_url",
+                    models.URLField(
+                        blank=True,
+                        max_length=500,
+                        null=True,
+                        verbose_name="Ссылка на оплату",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="Создан"),
+                ),
+                (
+                    "paid_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="Оплачен"),
+                ),
+                (
+                    "appointment",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="payments",
+                        to="core.appointment",
+                        verbose_name="Запись",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Платеж',
-                'verbose_name_plural': 'Платежи',
-                'ordering': ['-created_at'],
+                "verbose_name": "Платеж",
+                "verbose_name_plural": "Платежи",
+                "ordering": ["-created_at"],
             },
         ),
     ]

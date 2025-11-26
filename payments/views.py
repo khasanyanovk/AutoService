@@ -21,7 +21,6 @@ def create_payment(request, appointment_id):
         messages.error(request, "Невозможно оплатить отмененную запись")
         return redirect("appointment_detail", appointment_id=appointment_id)
 
-    # Проверка на уже оплаченную запись
     existing_payment = Payment.objects.filter(
         appointment=appointment, status="succeeded"
     ).first()
@@ -31,10 +30,8 @@ def create_payment(request, appointment_id):
         return redirect("appointment_detail", appointment_id=appointment_id)
 
     try:
-        # Формируем URL для возврата после оплаты
         return_url = request.build_absolute_uri(f"/appointments/{appointment_id}/")
 
-        # Создаем платеж через ЮKassa
         payment = create_yookassa_payment(appointment, return_url)
 
         if payment.confirmation_url:
@@ -55,7 +52,6 @@ def check_payment(request, appointment_id):
         Appointment, id=appointment_id, car__owner=request.user
     )
 
-    # Получаем последний платеж для записи
     latest_payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
@@ -69,7 +65,7 @@ def check_payment(request, appointment_id):
             messages.error(request, "Платеж отменен")
         else:
             messages.info(
-                request, f"Статус платежа: {latest_payment.get_status_display()}"
+                request, f"Статус платежа: {latest_payment.get_status_display()}"  # type: ignore
             )
 
     return redirect("appointment_detail", appointment_id=appointment_id)
@@ -82,7 +78,6 @@ def yookassa_webhook(request):
         try:
             event = json.loads(request.body)
 
-            # Обрабатываем событие успешной оплаты
             if event.get("event") == "payment.succeeded":
                 payment_id = event["object"]["id"]
 
