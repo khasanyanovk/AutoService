@@ -277,11 +277,12 @@ def profile(request):
 
     top_service_name = top_services_labels[0] if top_services_labels else "—"
 
+    total_cost = loyalty_account.total_spent
+
     all_completed = Appointment.objects.filter(
         car__owner=request.user, status="COMPLETED"
     ).select_related("service_type")
 
-    total_cost = sum(apt.get_final_price() for apt in all_completed)
     avg_cost = total_cost / all_completed.count() if all_completed.count() > 0 else 0
 
     now_local = timezone.localtime(timezone.now())
@@ -853,7 +854,7 @@ def appointment_detail(request, appointment_id):
                 "bonus_balance": float(loyalty_account.bonus_balance),
                 "max_bonus_usage": float(max_bonus_usage),
                 "status": loyalty_account.status,
-                "status_display": loyalty_account.get_status_display(),
+                "status_display": loyalty_account.get_status_display(),  # type: ignore
                 "status_discount_percent": float(status_discount_percent),
                 "personal_discount_percent": float(
                     loyalty_account.personal_discount_percent

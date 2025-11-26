@@ -581,7 +581,8 @@
                             <span class="info-pill"><i class="bi bi-graph-up"></i>{{ visits_count_90 }} записей / 90 дн.</span>
                             
                             {% comment %} Статус лояльности {% endcomment %}
-                            <span class="info-pill loyalty-status" data-status="{{ loyalty_account.status }}">
+                            <span class="info-pill loyalty-status" data-status="{{ loyalty_account.status }}" 
+                                  title="Скидка: {{ loyalty_account.get_status_discount_percent }}%">
                                 <i class="bi bi-award"></i>
                                 {{ loyalty_account.get_status_display }}
                             </span>

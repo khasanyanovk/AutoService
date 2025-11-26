@@ -185,7 +185,20 @@ class LoyaltyAccount(models.Model):
         ordering = ["-total_spent"]
 
     def __str__(self):
-        return f"{self.user.username} - {self.get_status_display()} - {self.bonus_balance} бонусов"  # type: ignore
+        return f"{self.user.username} - {self.get_status_display()} - {self.bonus_balance} бонусов"
+
+    def save(self, *args, **kwargs):
+        """Переопределяем save для автоматического обновления статуса"""
+        if self.pk:
+            try:
+                old_instance = LoyaltyAccount.objects.get(pk=self.pk)
+                if old_instance.total_spent != self.total_spent:
+                    self._update_status()
+            except LoyaltyAccount.DoesNotExist:
+                self._update_status()
+        else:
+            self._update_status()
+        super().save(*args, **kwargs)  # type: ignore
 
     def add_bonuses(self, amount: Decimal, description: str = "", save: bool = True):
         """Начислить бонусы"""
@@ -225,23 +238,28 @@ class LoyaltyAccount(models.Model):
             return
 
         self.total_spent += amount
-        self._update_status()
         self.save()
 
     def _update_status(self):
         """Обновить статус на основе общей суммы покупок"""
         settings = LoyaltySettings.get_settings()
 
+        new_status = CustomerStatus.NONE
         if self.total_spent >= settings.platinum_threshold:
-            self.status = CustomerStatus.PLATINUM
+            new_status = CustomerStatus.PLATINUM
         elif self.total_spent >= settings.gold_threshold:
-            self.status = CustomerStatus.GOLD
+            new_status = CustomerStatus.GOLD
         elif self.total_spent >= settings.silver_threshold:
-            self.status = CustomerStatus.SILVER
+            new_status = CustomerStatus.SILVER
         elif self.total_spent >= settings.bronze_threshold:
-            self.status = CustomerStatus.BRONZE
-        else:
-            self.status = CustomerStatus.NONE
+            new_status = CustomerStatus.BRONZE
+
+        self.status = new_status
+
+    def recalculate_status(self):
+        """Принудительно пересчитать и сохранить статус на основе текущего total_spent"""
+        self._update_status()
+        self.save(update_fields=["status"])
 
     def calculate_max_bonus_usage(self, service_price: Decimal) -> Decimal:
         """Рассчитать максимальную сумму бонусов для использования"""
@@ -249,19 +267,24 @@ class LoyaltyAccount(models.Model):
         max_amount = service_price * (settings.max_bonus_usage_percent / Decimal("100"))
         return min(max_amount, self.bonus_balance)
 
-    def calculate_discount(self, base_price: Decimal) -> Decimal:
-        """Рассчитать сумму скидки на основе статуса"""
+    def get_status_discount_percent(self) -> Decimal:
+        """Получить процент скидки для текущего статуса"""
         settings = LoyaltySettings.get_settings()
 
-        discount_percent = Decimal("0.00")
         if self.status == CustomerStatus.BRONZE:
-            discount_percent = settings.bronze_discount_percent
+            return settings.bronze_discount_percent
         elif self.status == CustomerStatus.SILVER:
-            discount_percent = settings.silver_discount_percent
+            return settings.silver_discount_percent
         elif self.status == CustomerStatus.GOLD:
-            discount_percent = settings.gold_discount_percent
+            return settings.gold_discount_percent
         elif self.status == CustomerStatus.PLATINUM:
-            discount_percent = settings.platinum_discount_percent
+            return settings.platinum_discount_percent
+
+        return Decimal("0.00")
+
+    def calculate_discount(self, base_price: Decimal) -> Decimal:
+        """Рассчитать сумму скидки на основе статуса"""
+        discount_percent = self.get_status_discount_percent()
 
         if self.personal_discount_percent > 0:
             discount_percent += self.personal_discount_percent
