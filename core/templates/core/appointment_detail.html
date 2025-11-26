@@ -210,6 +210,49 @@
         box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
     }
 
+    .price-breakdown {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        font-size: 1.05rem;
+    }
+
+    .price-breakdown hr {
+        margin: 1rem 0;
+        opacity: 0.3;
+    }
+
+    .bonus-selector {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px solid #2196f3;
+    }
+
+    .bonus-selector .form-control {
+        border-radius: 8px;
+        border: 2px solid #2196f3;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .bonus-selector .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(33, 150, 243, 0.25);
+        border-color: #1976d2;
+    }
+
+    .bonus-selector .input-group-text {
+        background: #2196f3;
+        color: white;
+        font-weight: 700;
+        border: 2px solid #2196f3;
+    }
+
+    .bonus-selector .btn-outline-primary {
+        border: 2px solid #2196f3;
+        font-weight: 600;
+    }
+
     .action-buttons {
         display: flex;
         gap: 1rem;
@@ -308,15 +351,15 @@
 
                     <!-- Секция оплаты -->
                     {% if appointment.status != 'CANCELLED' %}
-                    <div class="payment-section {% if payment.status == 'succeeded' %}paid{% endif %}">
-                        {% if payment.status == 'succeeded' %}
+                    <div class="payment-section {% if payment and payment.status == 'succeeded' %}paid{% endif %}">
+                        {% if payment and payment.status == 'succeeded' %}
                             <div class="payment-status text-success">
                                 <i class="bi bi-check-circle-fill fs-1"></i>
                                 <p class="mt-2 mb-0">Оплачено</p>
                             </div>
                             <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
                             <p class="text-muted">Платеж выполнен {{ payment.paid_at|date:"d.m.Y в H:i" }}</p>
-                        {% elif payment %}
+                        {% elif payment and payment.status == 'pending' %}
                             <div class="payment-status text-warning">
                                 <i class="bi bi-hourglass-split fs-1"></i>
                                 <p class="mt-2 mb-0">Ожидает оплаты</p>
@@ -336,14 +379,130 @@
                                 <i class="bi bi-credit-card fs-1 text-primary"></i>
                                 <p class="mt-2 mb-0">Оплата онлайн</p>
                             </div>
-                            <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
-                            <p class="mb-3">Оплатите услугу онлайн через ЮKassa</p>
-                            <form method="post" action="{% url 'payments:create_payment' appointment.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success btn-lg">
-                                    <i class="bi bi-credit-card me-2"></i>Оплатить
+                            
+                            <!-- Информация о ценах и скидках -->
+                            <div class="price-breakdown mt-4 mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Базовая цена:</span>
+                                    <span class="fw-bold">{{ base_price }} ₽</span>
+                                </div>
+                                {% if discount_amount > 0 %}
+                                <div class="d-flex justify-content-between mb-2 text-success">
+                                    <span>
+                                        <i class="bi bi-tag-fill me-1"></i>Скидка
+                                        {% if status_discount_percent > 0 and loyalty_account.personal_discount_percent > 0 %}
+                                            ({{ loyalty_account.get_status_display }}: {{ status_discount_percent }}% + Персональная: {{ loyalty_account.personal_discount_percent }}%):
+                                        {% elif status_discount_percent > 0 %}
+                                            ({{ loyalty_account.get_status_display }}: {{ status_discount_percent }}%):
+                                        {% else %}
+                                            (Персональная: {{ loyalty_account.personal_discount_percent }}%):
+                                        {% endif %}
+                                    </span>
+                                    <span class="fw-bold">-{{ discount_amount }} ₽</span>
+                                </div>
+                                {% endif %}
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Доступно бонусов:</span>
+                                    <span class="fw-bold text-primary">{{ loyalty_account.bonus_balance }} ₽</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2 text-info">
+                                    <span><i class="bi bi-info-circle me-1"></i>Можно использовать (макс 70%):</span>
+                                    <span class="fw-bold">до {{ max_bonus_usage }} ₽</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <span class="fs-5 fw-bold">Итого к оплате:</span>
+                                    <span class="fs-4 fw-bold text-primary" id="final-price">{{ price_after_discount }} ₽</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Форма с выбором бонусов -->
+                            <div class="bonus-selector mb-3">
+                                <label for="bonus-amount" class="form-label fw-bold">
+                                    <i class="bi bi-gift me-1"></i>Использовать бонусы:
+                                </label>
+                                <div class="input-group mb-3">
+                                    <input type="number" 
+                                           class="form-control form-control-lg" 
+                                           id="bonus-amount" 
+                                           name="bonus_amount"
+                                           min="0" 
+                                           max="{{ max_bonus_usage }}" 
+                                           step="1"
+                                           value="0"
+                                           placeholder="Введите количество бонусов">
+                                    <span class="input-group-text">₽</span>
+                                    <button class="btn btn-outline-primary" type="button" id="use-max-bonus">
+                                        Использовать максимум
+                                    </button>
+                                </div>
+                                <div class="form-text mb-3">
+                                    <i class="bi bi-lightbulb text-warning me-1"></i>
+                                    Вы можете использовать до {{ max_bonus_usage }} ₽ бонусов для оплаты этой услуги
+                                </div>
+                            </div>
+                            
+                            <div id="payment-form">
+                                <button type="button" class="btn btn-success btn-lg" id="pay-button">
+                                    <i class="bi bi-credit-card me-2"></i>Оплатить <span id="pay-amount">{{ price_after_discount }}</span> ₽
                                 </button>
-                            </form>
+                            </div>
+                            
+                            <script>
+                                const basePrice = {{ base_price|default:0 }};
+                                const discountAmount = {{ discount_amount|default:0 }};
+                                const priceAfterDiscount = {{ price_after_discount|default:0 }};
+                                const maxBonusUsage = {{ max_bonus_usage|default:0 }};
+                                const bonusBalance = {{ loyalty_account.bonus_balance|default:0 }};
+                                
+                                console.log('Данные оплаты:', {
+                                    basePrice,
+                                    discountAmount,
+                                    priceAfterDiscount,
+                                    maxBonusUsage,
+                                    bonusBalance
+                                });
+                                
+                                const bonusInput = document.getElementById('bonus-amount');
+                                const finalPriceEl = document.getElementById('final-price');
+                                const payAmountEl = document.getElementById('pay-amount');
+                                const useMaxBtn = document.getElementById('use-max-bonus');
+                                const payButton = document.getElementById('pay-button');
+                                
+                                function updatePrice() {
+                                    let bonusToUse = parseFloat(bonusInput.value) || 0;
+                                    
+                                    // Валидация
+                                    if (bonusToUse < 0) bonusToUse = 0;
+                                    if (bonusToUse > maxBonusUsage) bonusToUse = maxBonusUsage;
+                                    if (bonusToUse > bonusBalance) bonusToUse = bonusBalance;
+                                    
+                                    bonusInput.value = Math.floor(bonusToUse);
+                                    
+                                    const finalPrice = Math.max(0, priceAfterDiscount - bonusToUse);
+                                    finalPriceEl.textContent = finalPrice.toFixed(2) + ' ₽';
+                                    payAmountEl.textContent = finalPrice.toFixed(2);
+                                }
+                                
+                                if (bonusInput) {
+                                    bonusInput.addEventListener('input', updatePrice);
+                                }
+                                
+                                if (useMaxBtn) {
+                                    useMaxBtn.addEventListener('click', function() {
+                                        bonusInput.value = maxBonusUsage;
+                                        updatePrice();
+                                    });
+                                }
+                                
+                                if (payButton) {
+                                    payButton.addEventListener('click', function() {
+                                        const bonusAmount = bonusInput ? (bonusInput.value || 0) : 0;
+                                        const url = "{% url 'payments:create_payment' appointment.id %}" + "?bonus_amount=" + bonusAmount;
+                                        window.location.href = url;
+                                    });
+                                }
+                            </script>
                         {% endif %}
                     </div>
                     {% endif %}
@@ -354,13 +513,15 @@
                             <i class="bi bi-arrow-left me-1"></i>Назад в профиль
                         </a>
                         
-                        {% if appointment.status == 'SCHEDULED' and payment.status != 'succeeded' %}
-                        <form method="post" action="{% url 'cancel_appointment' appointment.id %}" style="flex: 1; min-width: 200px;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Вы уверены, что хотите отменить запись?')">
-                                <i class="bi bi-x-circle me-2"></i>Отменить запись
-                            </button>
-                        </form>
+                        {% if appointment.status == 'SCHEDULED' %}
+                            {% if not payment or payment.status != 'succeeded' %}
+                            <form method="post" action="{% url 'cancel_appointment' appointment.id %}" style="flex: 1; min-width: 200px;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Вы уверены, что хотите отменить запись?')">
+                                    <i class="bi bi-x-circle me-2"></i>Отменить запись
+                                </button>
+                            </form>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>

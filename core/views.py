@@ -196,6 +196,10 @@ def profile(request):
         .order_by("-scheduled_date", "scheduled_time")
     )
 
+    from loyalty_program.models import LoyaltyAccount
+
+    loyalty_account, created = LoyaltyAccount.objects.get_or_create(user=request.user)
+
     today = timezone.localtime(timezone.now()).date()
     start_date = today - timedelta(days=89)
     appt_qs = Appointment.objects.filter(
@@ -239,13 +243,6 @@ def profile(request):
     labels = [f"{mm:02d}.{yy}" for (yy, mm) in months]
     data = [month_map.get((yy, mm), 0) for (yy, mm) in months]
 
-    total_cost = (
-        appt_qs.filter(status="COMPLETED").aggregate(total=Sum("service_type__price"))[
-            "total"
-        ]
-        or 0
-    )
-
     top_services_qs = (
         appt_qs.values("service_type__name").annotate(c=Count("id")).order_by("-c")[:5]
     )
@@ -279,12 +276,14 @@ def profile(request):
     hour_data = hour_counts
 
     top_service_name = top_services_labels[0] if top_services_labels else "—"
-    avg_cost = (
-        appt_qs.filter(status="COMPLETED")
-        .aggregate(avg=Avg("service_type__price"))
-        .get("avg")
-        or 0
-    )
+
+    all_completed = Appointment.objects.filter(
+        car__owner=request.user, status="COMPLETED"
+    ).select_related("service_type")
+
+    total_cost = sum(apt.get_final_price() for apt in all_completed)
+    avg_cost = total_cost / all_completed.count() if all_completed.count() > 0 else 0
+
     now_local = timezone.localtime(timezone.now())
     upcoming_appt = (
         Appointment.objects.filter(
@@ -303,6 +302,7 @@ def profile(request):
         "profile": user_profile,
         "cars": user_cars,
         "appointments": appointments,
+        "loyalty_account": loyalty_account,
         "labels": labels,
         "data": data,
         "visits_count_90": sum(data),
@@ -787,6 +787,8 @@ def admin_delete_review(request, review_id):
 def appointment_detail(request, appointment_id):
     """Детальная страница записи с возможностью оплаты"""
     from payments.models import Payment
+    from loyalty_program.models import LoyaltyAccount
+    from decimal import Decimal
 
     appointment = get_object_or_404(
         Appointment, id=appointment_id, car__owner=request.user
@@ -794,6 +796,30 @@ def appointment_detail(request, appointment_id):
 
     latest_payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
+    loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+    base_price = appointment.get_base_price()
+    discount_amount = loyalty_account.calculate_discount(base_price)
+    price_after_discount = base_price - discount_amount
+    max_bonus_usage = loyalty_account.calculate_max_bonus_usage(price_after_discount)
+
+    from loyalty_program.models import LoyaltySettings
+
+    settings = LoyaltySettings.get_settings()
+
+    status_discount_percent = Decimal("0.00")
+    if loyalty_account.status == "BRONZE":
+        status_discount_percent = settings.bronze_discount_percent
+    elif loyalty_account.status == "SILVER":
+        status_discount_percent = settings.silver_discount_percent
+    elif loyalty_account.status == "GOLD":
+        status_discount_percent = settings.gold_discount_percent
+    elif loyalty_account.status == "PLATINUM":
+        status_discount_percent = settings.platinum_discount_percent
+
+    total_discount_percent = (
+        status_discount_percent + loyalty_account.personal_discount_percent
     )
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -820,12 +846,33 @@ def appointment_detail(request, appointment_id):
             "status_display": appointment.get_status_display(),  # type: ignore
             "price": float(appointment.service_type.price),
             "payment": payment_data,
+            "loyalty": {
+                "base_price": float(base_price),
+                "discount_amount": float(discount_amount),
+                "price_after_discount": float(price_after_discount),
+                "bonus_balance": float(loyalty_account.bonus_balance),
+                "max_bonus_usage": float(max_bonus_usage),
+                "status": loyalty_account.status,
+                "status_display": loyalty_account.get_status_display(),
+                "status_discount_percent": float(status_discount_percent),
+                "personal_discount_percent": float(
+                    loyalty_account.personal_discount_percent
+                ),
+                "total_discount_percent": float(total_discount_percent),
+            },
         }
         return JsonResponse(data)
 
     context = {
         "appointment": appointment,
         "payment": latest_payment,
+        "loyalty_account": loyalty_account,
+        "base_price": base_price,
+        "discount_amount": discount_amount,
+        "price_after_discount": price_after_discount,
+        "max_bonus_usage": max_bonus_usage,
+        "status_discount_percent": status_discount_percent,
+        "total_discount_percent": total_discount_percent,
     }
 
     return render(request, "core/appointment_detail.html", context)

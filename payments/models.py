@@ -22,7 +22,36 @@ class Payment(models.Model):
     payment_id = models.CharField(
         max_length=100, unique=True, verbose_name="ID платежа в ЮKassa"
     )
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сумма")
+
+    original_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Исходная цена",
+        help_text="Базовая цена услуги без скидок",
+    )
+    discount_applied = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Применённая скидка",
+        help_text="Сумма персональной скидки клиента",
+    )
+    bonus_used = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Использовано бонусов",
+        help_text="Количество списанных бонусов",
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Итоговая сумма",
+        help_text="Фактически оплаченная сумма после скидок и бонусов",
+    )
+
     status = models.CharField(
         max_length=30, choices=STATUS_CHOICES, default="pending", verbose_name="Статус"
     )

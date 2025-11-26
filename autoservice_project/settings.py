@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "admin_panel",
     "payments",
     "notifications",
+    "loyalty_program",
     "crispy_forms",
     "crispy_bootstrap5",
     "django.contrib.admin",
