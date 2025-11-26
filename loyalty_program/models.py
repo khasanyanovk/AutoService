@@ -185,7 +185,7 @@ class LoyaltyAccount(models.Model):
         ordering = ["-total_spent"]
 
     def __str__(self):
-        return f"{self.user.username} - {self.get_status_display()} - {self.bonus_balance} бонусов"
+        return f"{self.user.username} - {self.get_status_display()} - {self.bonus_balance} бонусов"  # type: ignore
 
     def add_bonuses(self, amount: Decimal, description: str = "", save: bool = True):
         """Начислить бонусы"""
@@ -325,4 +325,4 @@ class BonusTransaction(models.Model):
 
     def __str__(self):
         sign = "+" if self.transaction_type == self.TransactionType.EARNED else "-"
-        return f"{sign}{self.amount} - {self.get_transaction_type_display()}"
+        return f"{sign}{self.amount} - {self.get_transaction_type_display()}"  # type: ignore

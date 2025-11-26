@@ -30,7 +30,7 @@ def process_online_payment_bonus(sender, instance, created, **kwargs):
             loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=user)
 
             bonus_description = f"Онлайн оплата услуги #{appointment.id}"
-            if loyalty_account.transactions.filter(
+            if loyalty_account.transactions.filter(  # type: ignore
                 description=bonus_description
             ).exists():
                 return
@@ -72,7 +72,7 @@ def process_offline_payment_bonus(sender, instance, created, **kwargs):
                 return
 
             bonus_description = f"Оплата в центре за услугу #{instance.id}"
-            if loyalty_account.transactions.filter(
+            if loyalty_account.transactions.filter(  # type: ignore
                 description=bonus_description
             ).exists():
                 return
