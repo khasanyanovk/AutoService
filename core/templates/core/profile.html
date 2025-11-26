@@ -980,12 +980,25 @@
           <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
             <div class="payment-status text-success">
               <i class="bi bi-check-circle-fill fs-1"></i>
-              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено</p>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено онлайн</p>
             </div>
             <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
               ${data.price} ₽
             </div>
             <p class="text-muted">Платеж выполнен ${data.payment.paid_at}</p>
+          </div>
+        `;
+      } else if (data.status === 'COMPLETED') {
+        paymentSection = `
+          <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
+            <div class="payment-status text-success">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено в центре</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="text-muted">Услуга завершена</p>
           </div>
         `;
       } else if (data.payment && data.payment.status === 'pending') {

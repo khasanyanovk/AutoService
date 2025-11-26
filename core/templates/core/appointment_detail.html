@@ -351,14 +351,21 @@
 
                     <!-- Секция оплаты -->
                     {% if appointment.status != 'CANCELLED' %}
-                    <div class="payment-section {% if payment and payment.status == 'succeeded' %}paid{% endif %}">
+                    <div class="payment-section {% if payment and payment.status == 'succeeded' or appointment.status == 'COMPLETED' %}paid{% endif %}">
                         {% if payment and payment.status == 'succeeded' %}
                             <div class="payment-status text-success">
                                 <i class="bi bi-check-circle-fill fs-1"></i>
-                                <p class="mt-2 mb-0">Оплачено</p>
+                                <p class="mt-2 mb-0">Оплачено онлайн</p>
                             </div>
-                            <div class="payment-amount">{{ appointment.service_type.price }} ₽</div>
+                            <div class="payment-amount">{{ appointment.paid_amount|default:appointment.service_type.price }} ₽</div>
                             <p class="text-muted">Платеж выполнен {{ payment.paid_at|date:"d.m.Y в H:i" }}</p>
+                        {% elif appointment.status == 'COMPLETED' %}
+                            <div class="payment-status text-success">
+                                <i class="bi bi-check-circle-fill fs-1"></i>
+                                <p class="mt-2 mb-0">Оплачено в центре</p>
+                            </div>
+                            <div class="payment-amount">{{ appointment.paid_amount|default:appointment.service_type.price }} ₽</div>
+                            <p class="text-muted">Услуга завершена {{ appointment.updated_at|date:"d.m.Y в H:i" }}</p>
                         {% elif payment and payment.status == 'pending' %}
                             <div class="payment-status text-warning">
                                 <i class="bi bi-hourglass-split fs-1"></i>
