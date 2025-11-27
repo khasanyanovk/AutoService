@@ -319,6 +319,15 @@ class Appointment(models.Model):
         verbose_name="Статус",
     )
     notes = models.TextField(verbose_name="Примечания", blank=True)
+    paid_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Оплаченная сумма",
+        help_text="Фактическая сумма с учетом скидок и использованных бонусов",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -330,6 +339,18 @@ class Appointment(models.Model):
             )
             self.end_time = end_datetime.time()
         super().save(*args, **kwargs)
+
+    def get_base_price(self):
+        """Получить базовую цену услуги"""
+        from decimal import Decimal
+
+        return Decimal(str(self.service_type.price))
+
+    def get_final_price(self):
+        """Получить фактически оплаченную сумму или базовую цену"""
+        if self.paid_amount is not None:
+            return self.paid_amount
+        return self.get_base_price()
 
     def __str__(self):
         return f"{self.car} - {self.service_type} - {self.scheduled_date} {self.scheduled_time}"

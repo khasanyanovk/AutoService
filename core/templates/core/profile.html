@@ -102,6 +102,41 @@
         opacity: 1;
     }
 
+    /* Loyalty Status Styles */
+    .loyalty-status {
+        font-weight: 600;
+        border: 2px solid rgba(255,255,255,0.5);
+    }
+    
+    .loyalty-status[data-status="BRONZE"] {
+        background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%) !important;
+    }
+    
+    .loyalty-status[data-status="SILVER"] {
+        background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%) !important;
+    }
+    
+    .loyalty-status[data-status="GOLD"] {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important;
+        color: #000 !important;
+    }
+    
+    .loyalty-status[data-status="PLATINUM"] {
+        background: linear-gradient(135deg, #E5E4E2 0%, #B4B4B8 100%) !important;
+        box-shadow: 0 0 20px rgba(229, 228, 226, 0.6);
+    }
+    
+    .bonus-balance {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        font-weight: 600;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
     /* Modern Car Cards */
     .carousel-card {
         border-radius: 24px;
@@ -544,6 +579,19 @@
                             <span class="info-pill"><i class="bi bi-envelope"></i>{{ user.email }}</span>
                             <span class="info-pill"><i class="bi bi-car-front"></i>{{ cars.count }} авто</span>
                             <span class="info-pill"><i class="bi bi-graph-up"></i>{{ visits_count_90 }} записей / 90 дн.</span>
+                            
+                            {% comment %} Статус лояльности {% endcomment %}
+                            <span class="info-pill loyalty-status" data-status="{{ loyalty_account.status }}" 
+                                  title="Скидка: {{ loyalty_account.get_status_discount_percent }}%">
+                                <i class="bi bi-award"></i>
+                                {{ loyalty_account.get_status_display }}
+                            </span>
+                            
+                            {% comment %} Баланс бонусов {% endcomment %}
+                            <span class="info-pill bonus-balance" title="1 бонус = 1 рубль">
+                                <i class="bi bi-gift"></i>
+                                {{ loyalty_account.bonus_balance|floatformat:0 }} бонусов
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -924,6 +972,7 @@
                        data.status === 'IN_PROGRESS' ? 'warning' :
                        data.status === 'COMPLETED' ? 'success' : 'secondary';
     
+    const loyalty = data.loyalty || {};
     let paymentSection = '';
     
     if (data.status !== 'CANCELLED') {
@@ -932,12 +981,25 @@
           <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
             <div class="payment-status text-success">
               <i class="bi bi-check-circle-fill fs-1"></i>
-              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено</p>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено онлайн</p>
             </div>
             <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
               ${data.price} ₽
             </div>
             <p class="text-muted">Платеж выполнен ${data.payment.paid_at}</p>
+          </div>
+        `;
+      } else if (data.status === 'COMPLETED') {
+        paymentSection = `
+          <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
+            <div class="payment-status text-success">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено в центре</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="text-muted">Услуга завершена</p>
           </div>
         `;
       } else if (data.payment && data.payment.status === 'pending') {
@@ -948,7 +1010,7 @@
               <p class="mt-2 mb-0 fw-bold fs-5">Ожидает оплаты</p>
             </div>
             <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
-              ${data.price} ₽
+              ${loyalty.price_after_discount || data.price} ₽
             </div>
             <p class="mb-3">Платеж создан, но еще не завершен</p>
             <a href="/payments/appointments/${data.id}/check-payment/" class="btn btn-primary">
@@ -962,19 +1024,81 @@
           </div>
         `;
       } else {
+        // Формируем строку описания скидки
+        let discountText = '';
+        if (loyalty.discount_amount > 0) {
+          if (loyalty.status_discount_percent > 0 && loyalty.personal_discount_percent > 0) {
+            discountText = `(${loyalty.status_display}: ${loyalty.status_discount_percent}% + Персональная: ${loyalty.personal_discount_percent}%)`;
+          } else if (loyalty.status_discount_percent > 0) {
+            discountText = `(${loyalty.status_display}: ${loyalty.status_discount_percent}%)`;
+          } else {
+            discountText = `(Персональная: ${loyalty.personal_discount_percent}%)`;
+          }
+        }
+        
         paymentSection = `
-          <div class="payment-section" style="background: linear-gradient(135deg, #fff8e1 0%, #ffe4b5 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #ffc107; text-align: center;">
-            <div class="payment-status">
+          <div class="payment-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 2px solid #2196f3;">
+            <div class="text-center mb-3">
               <i class="bi bi-credit-card fs-1 text-primary"></i>
               <p class="mt-2 mb-0 fw-bold fs-5">Оплата онлайн</p>
             </div>
-            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
-              ${data.price} ₽
+            
+            <!-- Информация о ценах и скидках -->
+            <div class="price-breakdown" style="background: #f8f9fa; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Базовая цена:</span>
+                <span class="fw-bold">${loyalty.base_price || data.price} ₽</span>
+              </div>
+              ${loyalty.discount_amount > 0 ? `
+                <div class="d-flex justify-content-between mb-2 text-success">
+                  <span><i class="bi bi-tag-fill me-1"></i>Скидка ${discountText}:</span>
+                  <span class="fw-bold">-${loyalty.discount_amount} ₽</span>
+                </div>
+              ` : ''}
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Доступно бонусов:</span>
+                <span class="fw-bold text-primary">${loyalty.bonus_balance || 0} ₽</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2 text-info">
+                <span><i class="bi bi-info-circle me-1"></i>Можно использовать (макс 70%):</span>
+                <span class="fw-bold">до ${loyalty.max_bonus_usage || 0} ₽</span>
+              </div>
+              <hr style="margin: 1rem 0; opacity: 0.3;">
+              <div class="d-flex justify-content-between">
+                <span class="fs-5 fw-bold">Итого к оплате:</span>
+                <span class="fs-4 fw-bold text-primary" id="modal-final-price">${loyalty.price_after_discount || data.price} ₽</span>
+              </div>
             </div>
-            <p class="mb-3">Оплатите услугу онлайн через ЮKassa</p>
-            <button type="button" class="btn btn-success btn-lg btn-pay-now" data-appointment-id="${data.id}">
-              <i class="bi bi-credit-card me-2"></i>Оплатить
-            </button>
+            
+            <!-- Форма с выбором бонусов -->
+            <div class="bonus-selector mb-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 12px; padding: 1.5rem; border: 2px solid #2196f3;">
+              <label for="modal-bonus-amount" class="form-label fw-bold">
+                <i class="bi bi-gift me-1"></i>Использовать бонусы:
+              </label>
+              <div class="input-group mb-3">
+                <input type="number" 
+                       class="form-control form-control-lg" 
+                       id="modal-bonus-amount" 
+                       min="0" 
+                       max="${loyalty.max_bonus_usage || 0}" 
+                       value="0"
+                       step="1"
+                       style="border-radius: 8px; border: 2px solid #2196f3; font-size: 1.1rem; font-weight: 600;">
+                <span class="input-group-text" style="background: #2196f3; color: white; font-weight: 700; border: 2px solid #2196f3;">₽</span>
+              </div>
+              <button type="button" class="btn btn-info w-100 mb-2" id="modal-use-max-bonus">
+                <i class="bi bi-arrow-up-circle me-1"></i>Использовать максимум (${loyalty.max_bonus_usage || 0} ₽)
+              </button>
+              <small class="text-muted d-block text-center">
+                <i class="bi bi-info-circle me-1"></i>Можно оплатить до 70% стоимости бонусами
+              </small>
+            </div>
+            
+            <div class="text-center">
+              <button type="button" class="btn btn-success btn-lg" id="modal-pay-button" data-appointment-id="${data.id}">
+                <i class="bi bi-credit-card me-2"></i>Оплатить <span id="modal-pay-amount">${loyalty.price_after_discount || data.price}</span> ₽
+              </button>
+            </div>
           </div>
         `;
       }
@@ -1046,22 +1170,48 @@
   }
 
   function attachModalHandlers(appointmentId) {
-    const payBtn = document.querySelector('.btn-pay-now');
-    if (payBtn) {
-      payBtn.addEventListener('click', function() {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/payments/appointments/${appointmentId}/pay/`;
-        
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfmiddlewaretoken';
-        csrfInput.value = csrfToken;
-        form.appendChild(csrfInput);
-        
-        document.body.appendChild(form);
-        form.submit();
+    const bonusInput = document.getElementById('modal-bonus-amount');
+    const useMaxBtn = document.getElementById('modal-use-max-bonus');
+    const payButton = document.getElementById('modal-pay-button');
+    const finalPriceEl = document.getElementById('modal-final-price');
+    const payAmountEl = document.getElementById('modal-pay-amount');
+    
+    // Получаем данные из атрибутов
+    const maxBonusUsage = bonusInput ? parseFloat(bonusInput.getAttribute('max')) : 0;
+    const priceAfterDiscount = parseFloat(finalPriceEl ? finalPriceEl.textContent : 0);
+    
+    // Обновление цены при изменении бонусов
+    function updatePrice() {
+      if (!bonusInput || !finalPriceEl || !payAmountEl) return;
+      
+      let bonusAmount = parseFloat(bonusInput.value) || 0;
+      bonusAmount = Math.min(bonusAmount, maxBonusUsage);
+      bonusAmount = Math.max(0, bonusAmount);
+      bonusInput.value = Math.floor(bonusAmount);
+      
+      const finalPrice = Math.max(0, priceAfterDiscount - bonusAmount);
+      finalPriceEl.textContent = finalPrice.toFixed(2) + ' ₽';
+      payAmountEl.textContent = finalPrice.toFixed(2);
+    }
+    
+    if (bonusInput) {
+      bonusInput.addEventListener('input', updatePrice);
+    }
+    
+    if (useMaxBtn) {
+      useMaxBtn.addEventListener('click', function() {
+        if (bonusInput) {
+          bonusInput.value = maxBonusUsage;
+          updatePrice();
+        }
+      });
+    }
+    
+    if (payButton) {
+      payButton.addEventListener('click', function() {
+        const bonusAmount = bonusInput ? (bonusInput.value || 0) : 0;
+        const url = `/payments/appointments/${appointmentId}/pay/?bonus_amount=${bonusAmount}`;
+        window.location.href = url;
       });
     }
 

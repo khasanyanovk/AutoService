@@ -13,6 +13,9 @@ from .services import create_payment as create_yookassa_payment, check_payment_s
 @login_required
 def create_payment(request, appointment_id):
     """Создание платежа для записи"""
+    from decimal import Decimal
+    from loyalty_program.models import LoyaltyAccount
+
     appointment = get_object_or_404(
         Appointment, id=appointment_id, car__owner=request.user
     )
@@ -30,9 +33,29 @@ def create_payment(request, appointment_id):
         return redirect("appointment_detail", appointment_id=appointment_id)
 
     try:
+        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+
+        bonus_to_use = Decimal(request.GET.get("bonus_amount", "0") or "0")
+
+        base_price = appointment.get_base_price()
+        discount_amount = loyalty_account.calculate_discount(base_price)
+        final_price = loyalty_account.calculate_final_price(base_price, bonus_to_use)
+
+        max_bonus = loyalty_account.calculate_max_bonus_usage(
+            base_price - discount_amount
+        )
+        actual_bonus_used = min(bonus_to_use, max_bonus, loyalty_account.bonus_balance)
+
         return_url = request.build_absolute_uri(f"/appointments/{appointment_id}/")
 
-        payment = create_yookassa_payment(appointment, return_url)
+        payment = create_yookassa_payment(
+            appointment=appointment,
+            return_url=return_url,
+            original_amount=base_price,
+            discount_applied=discount_amount,
+            bonus_used=actual_bonus_used,
+            final_amount=final_price,
+        )
 
         if payment.confirmation_url:
             return redirect(payment.confirmation_url)

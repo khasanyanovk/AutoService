@@ -599,6 +599,9 @@ def admin_appointments(request):
 @admin_required
 def admin_api_update_appointment(request, appointment_id):
     """AJAX: Обновление статуса и добавление комментария администратора"""
+    from decimal import Decimal, InvalidOperation
+    from loyalty_program.models import LoyaltyAccount
+
     _auto_cancel_overdue_appointments()
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -606,11 +609,35 @@ def admin_api_update_appointment(request, appointment_id):
     appt = get_object_or_404(Appointment, id=appointment_id)
     new_status = request.POST.get("status")
     comment = request.POST.get("comment", "").strip()
+    paid_amount_str = request.POST.get("paid_amount", "").strip()
 
     payload = {}
     if new_status and new_status in dict(Appointment.STATUS_CHOICES):
+        old_status = appt.status
         appt.status = new_status
         payload["status"] = new_status
+
+        if new_status == "COMPLETED" and paid_amount_str:
+            try:
+                paid_amount = Decimal(paid_amount_str)
+                appt.paid_amount = paid_amount
+                payload["paid_amount"] = str(paid_amount)
+            except (InvalidOperation, ValueError):
+                pass
+        elif new_status == "COMPLETED" and not appt.paid_amount:
+            try:
+                loyalty_account, _ = LoyaltyAccount.objects.get_or_create(
+                    user=appt.car.owner
+                )
+                base_price = appt.get_base_price()
+                discount_amount = loyalty_account.calculate_discount(base_price)
+                final_price = base_price - discount_amount
+                appt.paid_amount = final_price
+                payload["paid_amount"] = str(final_price)
+                payload["auto_calculated"] = True
+            except Exception as e:
+                print(f"Error calculating paid_amount: {e}")
+
     if comment:
         prefix = "admin: "
         appt.notes = (appt.notes + "\n" if appt.notes else "") + prefix + comment

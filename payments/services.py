@@ -12,17 +12,30 @@ Configuration.account_id = settings.YOOKASSA_SHOP_ID
 Configuration.secret_key = settings.YOOKASSA_SECRET_KEY
 
 
-def create_payment(appointment: Appointment, return_url: str) -> Payment:
+def create_payment(
+    appointment: Appointment,
+    return_url: str,
+    original_amount=None,
+    discount_applied=None,
+    bonus_used=None,
+    final_amount=None,
+) -> Payment:
     """
     Создает платеж для записи
 
     Args:
         appointment: Объект записи
         return_url: URL для возврата после оплаты
+        original_amount: Исходная цена услуги
+        discount_applied: Применённая скидка
+        bonus_used: Использованные бонусы
+        final_amount: Финальная сумма к оплате
 
     Returns:
         Payment: Созданный объект платежа
     """
+    from decimal import Decimal
+
     existing_payment = Payment.objects.filter(
         appointment=appointment, status="pending"
     ).first()
@@ -30,10 +43,19 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
     if existing_payment:
         return existing_payment
 
+    if final_amount is None:
+        final_amount = appointment.get_base_price()
+    if original_amount is None:
+        original_amount = appointment.get_base_price()
+    if discount_applied is None:
+        discount_applied = Decimal("0")
+    if bonus_used is None:
+        bonus_used = Decimal("0")
+
     description = f"Оплата услуги '{appointment.service_type.name}' по адресу: {appointment.service_center.address}"  # type: ignore
 
     payment_data = {
-        "amount": {"value": str(appointment.service_type.price), "currency": "RUB"},
+        "amount": {"value": str(final_amount), "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": return_url},
         "capture": True,
         "description": description,
@@ -45,7 +67,10 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
     payment = Payment.objects.create(
         appointment=appointment,
         payment_id=yoo_payment.id,
-        amount=appointment.service_type.price,
+        original_amount=original_amount,
+        discount_applied=discount_applied,
+        bonus_used=bonus_used,
+        amount=final_amount,
         status=yoo_payment.status,
         description=description,
         confirmation_url=yoo_payment.confirmation.confirmation_url,  # type: ignore
