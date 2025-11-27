@@ -6,6 +6,36 @@ body {
     min-height: 100vh;
 }
 
+/* Page Header */
+.page-header.admin-header {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.page-header.admin-header h1,
+.page-header.admin-header .page-title {
+    color: white !important;
+    font-weight: 700;
+}
+
+.page-header.admin-header .page-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.page-header.admin-header .btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.page-header.admin-header .btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
 /* Animations */
 @keyframes fadeInUp {
     from {
@@ -273,8 +303,9 @@ body {
     background: linear-gradient(135deg, #6c757d, #5a6268) !important;
 }
 
-/* Page Title */
-.page-title {
+/* Page Title (for dashboard and other pages without page-header) */
+.container-fluid > .row .page-title,
+.dashboard-title {
     font-size: 2rem;
     font-weight: 800;
     background: linear-gradient(135deg, #212529, #495057);
