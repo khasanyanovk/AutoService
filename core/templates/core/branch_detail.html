@@ -4,16 +4,7 @@
 {% block title %}{{ service_center.address }}{% endblock %}
 
 {% block extra_css %}
-<style>
-  body { background:#f8f9fa; }
-  .header-band { background:linear-gradient(135deg,#0d6efd 0%,#0b5ed7 100%); color:#fff; padding:2rem 0; margin-bottom:1.25rem; }
-  .header-band .subtitle { opacity:.9; }
-  .sc-card { border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.08); border:none; background:#fff; }
-  .photo { width:100%; height: 340px; object-fit:cover; border-radius: 12px; }
-  .section-title { font-weight:600; }
-  .badge-dot { display:inline-flex; align-items:center; gap:.4rem; }
-  .badge-dot::before { content:""; width:.5rem; height:.5rem; border-radius:50%; display:inline-block; background: currentColor; }
-</style>
+<link rel="stylesheet" href="{% static 'core/css/branch-detail.css' %}">
 {% endblock %}
 
 {% block content %}
