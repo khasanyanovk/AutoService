@@ -48,7 +48,7 @@ def create_payment(appointment: Appointment, return_url: str) -> Payment:
         amount=appointment.service_type.price,
         status=yoo_payment.status,
         description=description,
-        confirmation_url=yoo_payment.confirmation.confirmation_url,
+        confirmation_url=yoo_payment.confirmation.confirmation_url,  # type: ignore
     )
 
     return payment
@@ -67,7 +67,7 @@ def check_payment_status(payment: Payment) -> Payment:
     yoo_payment = YooPayment.find_one(payment.payment_id)
 
     old_status = payment.status
-    payment.status = yoo_payment.status
+    payment.status = yoo_payment.status  # type: ignore
 
     if yoo_payment.status == "succeeded" and old_status != "succeeded":
         payment.paid_at = timezone.now()
@@ -91,8 +91,8 @@ def get_payment_info(payment_id: str) -> dict:
         return {
             "id": yoo_payment.id,
             "status": yoo_payment.status,
-            "amount": yoo_payment.amount.value,
-            "currency": yoo_payment.amount.currency,
+            "amount": yoo_payment.amount.value,  # type: ignore
+            "currency": yoo_payment.amount.currency,  # type: ignore
             "created_at": yoo_payment.created_at,
             "paid": yoo_payment.paid,
         }
