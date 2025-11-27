@@ -1,0 +1,104 @@
+/* Loyalty Status Styles */
+.loyalty-status {
+    font-weight: 600;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.loyalty-status[data-status="BRONZE"] {
+    background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%) !important;
+}
+
+.loyalty-status[data-status="SILVER"] {
+    background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%) !important;
+}
+
+.loyalty-status[data-status="GOLD"] {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important;
+    color: #000 !important;
+}
+
+.loyalty-status[data-status="PLATINUM"] {
+    background: linear-gradient(135deg, #E5E4E2 0%, #B4B4B8 100%) !important;
+    box-shadow: 0 0 20px rgba(229, 228, 226, 0.6);
+}
+
+/* Bonus Balance */
+.bonus-balance {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    font-weight: 600;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Payment Section Styles */
+.payment-section {
+    border-radius: 16px;
+    padding: 2rem;
+    margin-top: 2rem;
+}
+
+.payment-section.paid {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 3px dashed #28a745;
+    text-align: center;
+}
+
+.payment-section .payment-status {
+    font-size: 1.2rem;
+}
+
+.payment-section .payment-amount {
+    font-size: 2.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #198754, #157347);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 1rem 0;
+}
+
+/* Price Breakdown */
+.price-breakdown {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.price-breakdown .text-success {
+    color: #198754 !important;
+}
+
+.price-breakdown .text-info {
+    color: #0dcaf0 !important;
+}
+
+/* Bonus Selector */
+.bonus-selector {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #2196f3;
+}
+
+.bonus-selector .form-control-lg {
+    border-radius: 8px;
+    border: 2px solid #2196f3;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.bonus-selector .input-group-text {
+    background: #2196f3;
+    color: white;
+    font-weight: 700;
+    border: 2px solid #2196f3;
+}
