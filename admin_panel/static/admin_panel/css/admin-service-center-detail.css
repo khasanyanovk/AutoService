@@ -1,0 +1,220 @@
+.dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+    }
+    .service-center-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: white;
+        padding: 2.5rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(13, 110, 253, 0.3);
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.6s ease;
+    }
+    .service-center-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 15s linear infinite;
+    }
+
+    .service-center-header .container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    /* Стили для FullCalendar */
+    #calendar {
+        background: transparent;
+        border-radius: 0;
+        overflow: hidden;
+    }
+    .fc-toolbar {
+        padding: 1.5rem;
+        margin-bottom: 0 !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .fc-button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .fc-button-primary {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+        border: none !important;
+    }
+
+    .fc-button-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4) !important;
+    }
+
+    .fc-button-active {
+        background: linear-gradient(135deg, #0b5ed7, #0a58ca) !important;
+    }
+
+    .fc .fc-daygrid-day-number {
+        display: inline-flex;
+        width: 2rem;
+        height: 2rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: 600;
+        margin: .25rem auto .25rem .25rem;
+    }
+
+    .fc .fc-day-today .fc-daygrid-day-number {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+
+    .fc-selected-day .fc-daygrid-day-number {
+        background: #0d6efd;
+        color: #fff;
+    }
+    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; color: #000 !important; }
+    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; color: #000 !important; }
+    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; color: #000 !important; }
+    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; color: #000 !important; }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .small-chart {
+        height: 250px;
+    }
+    .schedule-list .slot { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 1rem 1.25rem; 
+        border-bottom: 1px solid #f1f3f5;
+        transition: all 0.3s ease;
+    }
+    .slot:hover {
+        background: linear-gradient(90deg, #f8f9fa 0%, transparent 100%);
+        padding-left: 1.5rem;
+    }
+    .slot.free { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
+    .slot.busy { background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); }
+    .slot.blocked { 
+        background: linear-gradient(135deg, #fff9e6 0%, #ffe6cc 100%); 
+        border-left: 4px solid #ffc107;
+    }
+    .slot-time { font-weight: 700; color: #212529; }
+    .slot-title { color: #495057; font-weight: 500; }
+    .slot-status { font-size: .85rem; font-weight: 600; }
+    .empty-overlay { 
+        position: absolute; 
+        inset: 0; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        color: #6c757d; 
+        font-size: .95rem; 
+        text-align: center; 
+        padding: 0 1rem;
+        font-weight: 500;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+
+    .btn {
+        border-radius: 50px;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .btn-light {
+        background: white;
+        color: #495057;
+        border: 2px solid #dee2e6;
+    }
+
+    .btn-light:hover {
+        background: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ffc107, #ffb300);
+        color: #000;
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+    }
+
+    .btn-outline-primary {
+        border: 2px solid #0d6efd;
+        color: #0d6efd;
+        background: transparent;
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    }
+
+    .badge {
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+    }
+    @media (max-width: 991.98px) {
+        .chart-container { height: 240px; }
+        .small-chart { height: 200px; }
+    }

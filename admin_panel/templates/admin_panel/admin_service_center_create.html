@@ -5,69 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
-<style>
-  .card-header-custom {
-    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-    color: white;
-    padding: 1rem 1.5rem;
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-
-  .form-check-input {
-    width: 1.2em;
-    height: 1.2em;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-  }
-
-  .btn {
-    border-radius: 50px;
-    font-weight: 600;
-    padding: 0.65rem 1.5rem;
-    transition: all 0.3s ease;
-    border: none;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-    color: white;
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
-  }
-
-  .btn-outline-secondary {
-    border: 2px solid #6c757d;
-    color: #6c757d;
-    background: transparent;
-  }
-
-  .btn-outline-secondary:hover {
-    background: #6c757d;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-  }
-
-  .input-group-text {
-    border-radius: 12px 0 0 12px;
-    background: #e9ecef;
-    border: 1px solid #dee2e6;
-    font-weight: 600;
-  }
-
-  .input-group .form-control {
-    border-radius: 0 12px 12px 0;
-  }
-</style>
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-service-center-create.css' %}">
 {% endblock %}
 
 {% block content %}
