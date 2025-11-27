@@ -13,7 +13,11 @@ urlpatterns = [
     path("car/<uuid:car_id>/delete/", views.delete_car, name="delete_car"),
     path("ajax/load-models/", views.load_models, name="load_models"),
     path("booking/", views.service_booking, name="service_booking"),
-    path("appointments/", views.appointment_list, name="appointment_list"),
+    path(
+        "appointments/<uuid:appointment_id>/",
+        views.appointment_detail,
+        name="appointment_detail",
+    ),
     path(
         "appointments/<uuid:appointment_id>/cancel/",
         views.cancel_appointment,
@@ -25,6 +29,8 @@ urlpatterns = [
         name="get_time_slots",
     ),
     path("about/", views.about, name="about"),
+    path("privacy-policy/", views.privacy_policy, name="privacy_policy"),
+    path("terms-of-service/", views.terms_of_service, name="terms_of_service"),
     path("branches/", views.branches, name="branches"),
     path(
         "branches/<uuid:service_center_id>/", views.branch_detail, name="branch_detail"

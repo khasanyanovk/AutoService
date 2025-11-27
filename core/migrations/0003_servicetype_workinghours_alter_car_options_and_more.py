@@ -5,68 +5,255 @@ import uuid
 from django.db import migrations, models
 
 
+def convert_year_field(apps, schema_editor):
+    """Convert year field type based on database backend."""
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        # PostgreSQL: Use SQL to convert date to integer
+        with connection.cursor() as cursor:
+            # Check if column exists and is date type
+            cursor.execute(
+                """
+                SELECT data_type FROM information_schema.columns 
+                WHERE table_name='core_car' AND column_name='year'
+            """
+            )
+            result = cursor.fetchone()
+
+            if result and result[0] == "date":
+                cursor.execute(
+                    """
+                    ALTER TABLE core_car ADD COLUMN year_temp INTEGER;
+                    UPDATE core_car SET year_temp = EXTRACT(YEAR FROM year);
+                    ALTER TABLE core_car DROP COLUMN year;
+                    ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                    ALTER TABLE core_car ALTER COLUMN year SET NOT NULL;
+                """
+                )
+    elif connection.vendor == "sqlite":
+        # SQLite: Handled by RunPython + AlterField (SQLite is more flexible)
+        pass  # Will be handled by subsequent AlterField operation
+
+
+def reverse_year_field(apps, schema_editor):
+    """Reverse year field conversion."""
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT data_type FROM information_schema.columns 
+                WHERE table_name='core_car' AND column_name='year'
+            """
+            )
+            result = cursor.fetchone()
+
+            if result and result[0] == "integer":
+                cursor.execute(
+                    """
+                    ALTER TABLE core_car ADD COLUMN year_temp DATE;
+                    UPDATE core_car SET year_temp = MAKE_DATE(year, 1, 1);
+                    ALTER TABLE core_car DROP COLUMN year;
+                    ALTER TABLE core_car RENAME COLUMN year_temp TO year;
+                """
+                )
+    elif connection.vendor == "sqlite":
+        pass  # Will be handled by subsequent AlterField operation
+
+
+def convert_year_to_integer(apps, schema_editor):
+    """Convert year from DateField to PositiveIntegerField for both SQLite and PostgreSQL."""
+    db_alias = schema_editor.connection.alias
+    Car = apps.get_model("core", "Car")
+
+    # Get all cars and update year field
+    for car in Car.objects.using(db_alias).all():
+        if car.year:
+            if hasattr(car.year, "year"):  # If it's a date object
+                car.year = car.year.year
+            # If it's already an integer, keep it as is
+            car.save(update_fields=["year"])
+
+
+def reverse_year_to_date(apps, schema_editor):
+    """Reverse: Convert year from integer back to DateField."""
+    from datetime import date
+
+    db_alias = schema_editor.connection.alias
+    Car = apps.get_model("core", "Car")
+
+    for car in Car.objects.using(db_alias).all():
+        if car.year and isinstance(car.year, int):
+            try:
+                car.year = date(car.year, 1, 1)
+                car.save(update_fields=["year"])
+            except (ValueError, TypeError):
+                pass  # Skip invalid years
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0002_userprofile'),
+        ("core", "0002_userprofile"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ServiceType',
+            name="ServiceType",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=200, verbose_name='Название услуги')),
-                ('description', models.TextField(blank=True, verbose_name='Описание')),
-                ('duration', models.PositiveIntegerField(help_text='Продолжительность услуги в минутах', verbose_name='Продолжительность (минуты)')),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Стоимость')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=200, verbose_name="Название услуги"),
+                ),
+                ("description", models.TextField(blank=True, verbose_name="Описание")),
+                (
+                    "duration",
+                    models.PositiveIntegerField(
+                        help_text="Продолжительность услуги в минутах",
+                        verbose_name="Продолжительность (минуты)",
+                    ),
+                ),
+                (
+                    "price",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=10, verbose_name="Стоимость"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Тип услуги',
-                'verbose_name_plural': 'Типы услуг',
+                "verbose_name": "Тип услуги",
+                "verbose_name_plural": "Типы услуг",
             },
         ),
         migrations.CreateModel(
-            name='WorkingHours',
+            name="WorkingHours",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('day_of_week', models.IntegerField(choices=[(1, 'Понедельник'), (2, 'Вторник'), (3, 'Среда'), (4, 'Четверг'), (5, 'Пятница'), (6, 'Суббота'), (7, 'Воскресенье')], unique=True, verbose_name='День недели')),
-                ('start_time', models.TimeField(verbose_name='Время начала работы')),
-                ('end_time', models.TimeField(verbose_name='Время окончания работы')),
-                ('is_working', models.BooleanField(default=True, verbose_name='Рабочий день')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "day_of_week",
+                    models.IntegerField(
+                        choices=[
+                            (1, "Понедельник"),
+                            (2, "Вторник"),
+                            (3, "Среда"),
+                            (4, "Четверг"),
+                            (5, "Пятница"),
+                            (6, "Суббота"),
+                            (7, "Воскресенье"),
+                        ],
+                        unique=True,
+                        verbose_name="День недели",
+                    ),
+                ),
+                ("start_time", models.TimeField(verbose_name="Время начала работы")),
+                ("end_time", models.TimeField(verbose_name="Время окончания работы")),
+                (
+                    "is_working",
+                    models.BooleanField(default=True, verbose_name="Рабочий день"),
+                ),
             ],
             options={
-                'verbose_name': 'Рабочее время',
-                'verbose_name_plural': 'Рабочее время',
+                "verbose_name": "Рабочее время",
+                "verbose_name_plural": "Рабочее время",
             },
         ),
         migrations.AlterModelOptions(
-            name='car',
-            options={'verbose_name': 'Автомобиль', 'verbose_name_plural': 'Автомобили'},
+            name="car",
+            options={"verbose_name": "Автомобиль", "verbose_name_plural": "Автомобили"},
         ),
+        # Convert year data from date to integer before changing field type
+        migrations.RunPython(
+            convert_year_to_integer,
+            reverse_year_to_date,
+        ),
+        # Convert field type - PostgreSQL needs special handling
+        migrations.RunPython(
+            convert_year_field,
+            reverse_year_field,
+        ),
+        # For SQLite: AlterField works fine after RunPython data conversion
         migrations.AlterField(
-            model_name='car',
-            name='year',
+            model_name="car",
+            name="year",
             field=models.PositiveIntegerField(),
         ),
         migrations.CreateModel(
-            name='Appointment',
+            name="Appointment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('scheduled_date', models.DateField(verbose_name='Дата записи')),
-                ('scheduled_time', models.TimeField(verbose_name='Время записи')),
-                ('end_time', models.TimeField(blank=True, null=True, verbose_name='Время окончания')),
-                ('status', models.CharField(choices=[('SCHEDULED', 'Запланировано'), ('IN_PROGRESS', 'В работе'), ('COMPLETED', 'Завершено'), ('CANCELLED', 'Отменено')], default='SCHEDULED', max_length=20, verbose_name='Статус')),
-                ('notes', models.TextField(blank=True, verbose_name='Примечания')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('car', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='core.car', verbose_name='Автомобиль')),
-                ('service_type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='core.servicetype', verbose_name='Тип услуги')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("scheduled_date", models.DateField(verbose_name="Дата записи")),
+                ("scheduled_time", models.TimeField(verbose_name="Время записи")),
+                (
+                    "end_time",
+                    models.TimeField(
+                        blank=True, null=True, verbose_name="Время окончания"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("SCHEDULED", "Запланировано"),
+                            ("IN_PROGRESS", "В работе"),
+                            ("COMPLETED", "Завершено"),
+                            ("CANCELLED", "Отменено"),
+                        ],
+                        default="SCHEDULED",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                ("notes", models.TextField(blank=True, verbose_name="Примечания")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "car",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="core.car",
+                        verbose_name="Автомобиль",
+                    ),
+                ),
+                (
+                    "service_type",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="core.servicetype",
+                        verbose_name="Тип услуги",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Запись на услугу',
-                'verbose_name_plural': 'Записи на услуги',
-                'ordering': ['-scheduled_date', 'scheduled_time'],
+                "verbose_name": "Запись на услугу",
+                "verbose_name_plural": "Записи на услуги",
+                "ordering": ["-scheduled_date", "scheduled_time"],
             },
         ),
     ]

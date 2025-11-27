@@ -1,0 +1,71 @@
+import uuid
+from django.db import models
+
+
+class Payment(models.Model):
+    """Модель для хранения информации о платежах через ЮKassa"""
+
+    STATUS_CHOICES = [
+        ("pending", "Ожидает оплаты"),
+        ("waiting_for_capture", "Ожидает подтверждения"),
+        ("succeeded", "Оплачено"),
+        ("canceled", "Отменено"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    appointment = models.ForeignKey(
+        "core.Appointment",
+        on_delete=models.CASCADE,
+        related_name="payments",
+        verbose_name="Запись",
+    )
+    payment_id = models.CharField(
+        max_length=100, unique=True, verbose_name="ID платежа в ЮKassa"
+    )
+
+    original_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Исходная цена",
+        help_text="Базовая цена услуги без скидок",
+    )
+    discount_applied = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,  # type: ignore
+        verbose_name="Применённая скидка",
+        help_text="Сумма персональной скидки клиента",
+    )
+    bonus_used = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,  # type: ignore
+        verbose_name="Использовано бонусов",
+        help_text="Количество списанных бонусов",
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Итоговая сумма",
+        help_text="Фактически оплаченная сумма после скидок и бонусов",
+    )
+
+    status = models.CharField(
+        max_length=30, choices=STATUS_CHOICES, default="pending", verbose_name="Статус"
+    )
+    description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
+    confirmation_url = models.URLField(
+        max_length=500, blank=True, null=True, verbose_name="Ссылка на оплату"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name="Оплачен")
+
+    class Meta:
+        verbose_name = "Платеж"
+        verbose_name_plural = "Платежи"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Платеж {self.payment_id} - {self.get_status_display()}"  # type: ignore

@@ -1,15 +1,124 @@
-<footer class="bg-dark text-white py-4 mt-5">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-6">
-                <h5>Контакты</h5>
-                <p>Телефон: +7 (495) 123-45-67</p>
-                <p>Email: info@fixall.ru</p>
+<footer class="footer-modern py-5 mt-auto" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.05; background-image: radial-gradient(circle, white 1px, transparent 1px); background-size: 30px 30px;"></div>
+    
+    <div class="container position-relative">
+        <div class="row g-4">
+            <div class="col-lg-4 mb-4" data-aos="fade-up">
+                <div class="footer-brand mb-4">
+                    <i class="bi bi-wrench-adjustable-circle-fill text-primary" style="font-size: 2.5rem;"></i>
+                    <h4 class="mt-3 mb-3" style="background: linear-gradient(135deg, #ffffff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">ПОЧИНИМ ВСЕ</h4>
+                    <p class="text-light opacity-75">Профессиональный автосервис с 2013 года. Доверьте свой автомобиль профессионалам.</p>
+                </div>
+                <div class="social-links d-flex gap-3">
+                    <a href="#" class="social-icon" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" aria-label="VK">
+                        <i class="bi bi-telegram text-white"></i>
+                    </a>
+                    <a href="#" class="social-icon" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" aria-label="Instagram">
+                        <i class="bi bi-instagram text-white"></i>
+                    </a>
+                    <a href="#" class="social-icon" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" aria-label="WhatsApp">
+                        <i class="bi bi-whatsapp text-white"></i>
+                    </a>
+                    <a href="#" class="social-icon" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;" aria-label="YouTube">
+                        <i class="bi bi-youtube text-white"></i>
+                    </a>
+                </div>
             </div>
-            <div class="col-md-6">
-                <h5>Адрес</h5>
-                <p>г. Москва, ул. Автозаводская, д. 123</p>
+
+            <div class="col-lg-2 col-md-4 mb-4" data-aos="fade-up" data-aos-delay="100">
+                <h6 class="text-white mb-4 fw-bold">Навигация</h6>
+                <ul class="list-unstyled footer-links">
+                    <li class="mb-2"><a href="{% url 'home' %}" class="text-light text-decoration-none opacity-75 d-inline-flex align-items-center"><i class="bi bi-chevron-right me-2"></i>Главная</a></li>
+                    <li class="mb-2"><a href="{% url 'branches' %}" class="text-light text-decoration-none opacity-75 d-inline-flex align-items-center"><i class="bi bi-chevron-right me-2"></i>Филиалы</a></li>
+                    <li class="mb-2"><a href="{% url 'about' %}" class="text-light text-decoration-none opacity-75 d-inline-flex align-items-center"><i class="bi bi-chevron-right me-2"></i>О нас</a></li>
+                    <li class="mb-2"><a href="{% url 'service_booking' %}" class="text-light text-decoration-none opacity-75 d-inline-flex align-items-center"><i class="bi bi-chevron-right me-2"></i>Запись</a></li>
+                </ul>
+            </div>
+
+            <div class="col-lg-3 col-md-4 mb-4" data-aos="fade-up" data-aos-delay="200">
+                <h6 class="text-white mb-4 fw-bold">Услуги</h6>
+                <ul class="list-unstyled footer-links">
+                    <li class="mb-2"><span class="text-light opacity-75 d-inline-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-2"></i>Техобслуживание</span></li>
+                    <li class="mb-2"><span class="text-light opacity-75 d-inline-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-2"></i>Диагностика</span></li>
+                    <li class="mb-2"><span class="text-light opacity-75 d-inline-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-2"></i>Ремонт двигателя</span></li>
+                    <li class="mb-2"><span class="text-light opacity-75 d-inline-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-2"></i>Кузовной ремонт</span></li>
+                    <li class="mb-2"><span class="text-light opacity-75 d-inline-flex align-items-center"><i class="bi bi-check-circle-fill text-success me-2"></i>Шиномонтаж</span></li>
+                </ul>
+            </div>
+
+            <div class="col-lg-3 col-md-4 mb-4" data-aos="fade-up" data-aos-delay="300">
+                <h6 class="text-white mb-4 fw-bold">Контакты</h6>
+                <div class="contact-info">
+                    <div class="mb-3 d-flex align-items-start">
+                        <i class="bi bi-telephone-fill text-primary me-3 mt-1" style="font-size: 1.2rem;"></i>
+                        <div>
+                            <p class="text-light mb-0 opacity-75 small">Телефон:</p>
+                            <a href="tel:+79050132351" class="text-white text-decoration-none fw-semibold">+7 (905) 013-23-51</a>
+                        </div>
+                    </div>
+                    <div class="mb-3 d-flex align-items-start">
+                        <i class="bi bi-envelope-fill text-primary me-3 mt-1" style="font-size: 1.2rem;"></i>
+                        <div>
+                            <p class="text-light mb-0 opacity-75 small">Email:</p>
+                            <a href="mailto:info@fixall.ru" class="text-white text-decoration-none fw-semibold">autoservice.nn@mail.ru</a>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-geo-alt-fill text-primary me-3 mt-1" style="font-size: 1.2rem;"></i>
+                        <div>
+                            <p class="text-light mb-0 opacity-75 small">Адрес:</p>
+                            <p class="text-white mb-0 fw-semibold">г. Нижний Новгород, пр. Гагарина, д. 23</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5 pt-4 border-top" style="border-color: rgba(255,255,255,0.1) !important;">
+            <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                <p class="text-light opacity-50 mb-0">&copy; 2025 ПОЧИНИМ ВСЕ. Все права защищены.</p>
+            </div>
+            <div class="col-md-6 text-center text-md-end">
+                <div class="d-flex justify-content-center justify-content-md-end gap-4">
+                    <a href="{% url 'privacy_policy' %}" class="text-light text-decoration-none opacity-50 hover-opacity-100" style="transition: opacity 0.3s;">Политика конфиденциальности</a>
+                    <a href="{% url 'terms_of_service' %}" class="text-light text-decoration-none opacity-50 hover-opacity-100" style="transition: opacity 0.3s;">Условия использования</a>
+                </div>
             </div>
         </div>
     </div>
+
+    <button id="scrollToTop" style="position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #0d6efd, #0b5ed7); border: none; color: white; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 16px rgba(13,110,253,0.4); display: none; transition: all 0.3s ease; z-index: 1000;" aria-label="Наверх">
+        <i class="bi bi-arrow-up"></i>
+    </button>
 </footer>
+
+<script>
+const scrollToTopBtn = document.getElementById('scrollToTop');
+
+window.addEventListener('scroll', () => {
+    if (window.pageYOffset > 300) {
+        scrollToTopBtn.style.display = 'flex';
+        scrollToTopBtn.style.alignItems = 'center';
+        scrollToTopBtn.style.justifyContent = 'center';
+    } else {
+        scrollToTopBtn.style.display = 'none';
+    }
+});
+
+scrollToTopBtn.addEventListener('click', () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+});
+
+scrollToTopBtn.addEventListener('mouseenter', function() {
+    this.style.transform = 'translateY(-5px) scale(1.1)';
+    this.style.boxShadow = '0 8px 24px rgba(13,110,253,0.6)';
+});
+
+scrollToTopBtn.addEventListener('mouseleave', function() {
+    this.style.transform = 'translateY(0) scale(1)';
+    this.style.boxShadow = '0 4px 16px rgba(13,110,253,0.4)';
+});
+</script>

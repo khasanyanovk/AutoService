@@ -3,15 +3,177 @@
 
 {% block title %}Редактирование филиала{% endblock %}
 
-{% block content %}
-<div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h4 mb-0">Редактирование филиала</h1>
-  <a class="btn btn-secondary" href="{% url 'admin_panel:admin_service_center_detail' service_center.id %}"><i class="bi bi-arrow-left me-1"></i> Назад</a>
-  </div>
+{% block extra_css %}
+<style>
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
 
-  <div class="card shadow-sm">
-    <div class="card-body">
+  .page-header {
+    animation: fadeInUp 0.6s ease;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+  }
+
+  .form-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    animation: scaleIn 0.6s ease;
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  input, select, textarea {
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    outline: none;
+  }
+
+  .photo-preview {
+    max-height: 200px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+  }
+
+  .photo-preview:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+
+  .btn {
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 0.65rem 1.5rem;
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+  }
+
+  .btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+  }
+
+  .btn-outline-danger {
+    border: 2px solid #dc3545;
+    color: #dc3545;
+    background: transparent;
+  }
+
+  .btn-outline-danger:hover {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+  }
+
+  .table-card {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    margin-top: 2rem;
+    animation: scaleIn 0.6s ease 0.1s both;
+  }
+
+  .table-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 1rem;
+    border: none;
+  }
+
+  .table tbody tr {
+    transition: all 0.3s ease;
+  }
+
+  .table tbody tr:hover {
+    background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+  }
+
+  .table tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+  }
+
+  input[type="time"] {
+    width: 100%;
+    min-width: 120px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1 class="page-title"><i class="bi bi-building me-2"></i>Редактирование филиала</h1>
+      <a class="btn" href="{% url 'admin_panel:admin_service_center_detail' service_center.id %}"><i class="bi bi-arrow-left me-1"></i> Назад</a>
+    </div>
+  </div>
+</div>
+
+<div class="container py-4">
+
+  <div class="form-card">
       <form method="post" enctype="multipart/form-data" class="row g-3">
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -33,20 +195,81 @@
           <label class="form-label">{{ form.photo.label }}</label>
           {{ form.photo }}
           {{ form.photo.errors }}
-          <div class="mt-2">
+          <div class="mt-3">
             {% with url=service_center.get_photo_url %}
               {% if url %}
-                <img id="photoPreview" src="{{ url }}" alt="" style="max-height:160px; border-radius:8px;">
+                <img id="photoPreview" class="photo-preview" src="{{ url }}" alt="">
               {% else %}
-                <img id="photoPreview" src="{% static 'core/img/default_service_center.jpg' %}" alt="" style="max-height:160px; border-radius:8px;">
+                <img id="photoPreview" class="photo-preview" src="{% static 'core/img/default_service_center.jpg' %}" alt="">
               {% endif %}
             {% endwith %}
           </div>
         </div>
+      </form>
+    </div>
 
-        <div class="col-12 d-flex justify-content-between">
-          <a class="btn btn-outline-danger" href="{% url 'admin_panel:admin_service_center_delete' service_center.id %}">Удалить филиал</a>
-          <button class="btn btn-primary">Сохранить</button>
+    <div class="table-card">
+      <div class="table-header">
+        <i class="bi bi-clock-history me-2"></i>График работы по дням недели
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="address" value="{{ service_center.address }}">
+        <input type="hidden" name="phone" value="{{ service_center.phone }}">
+        
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width:120px;">День</th>
+                <th style="width:140px;">Открытие</th>
+                <th style="width:140px;">Закрытие</th>
+                <th style="width:140px;">Обед с</th>
+                <th style="width:140px;">до</th>
+                <th style="width:120px;">Рабочий</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for day_data in weekdays_with_hours %}
+              {% with d=day_data.day_num name=day_data.day_name wh=day_data.working_hours %}
+              <tr>
+                <td><strong>{{ name }}</strong></td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_start" class="form-control form-control-sm" 
+                         value="{% if wh %}{{ wh.start_time|time:'H:i' }}{% else %}09:00{% endif %}">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_end" class="form-control form-control-sm" 
+                         value="{% if wh %}{{ wh.end_time|time:'H:i' }}{% else %}18:00{% endif %}">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_lstart" class="form-control form-control-sm" 
+                         value="{% if wh and wh.lunch_start %}{{ wh.lunch_start|time:'H:i' }}{% endif %}"
+                         placeholder="13:00">
+                </td>
+                <td>
+                  <input type="time" name="wh_{{ d }}_lend" class="form-control form-control-sm" 
+                         value="{% if wh and wh.lunch_end %}{{ wh.lunch_end|time:'H:i' }}{% endif %}"
+                         placeholder="14:00">
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="form-check-input" name="wh_{{ d }}_work" 
+                         {% if wh %}{% if wh.is_working %}checked{% endif %}{% else %}{% if d <= 5 %}checked{% endif %}{% endif %}>
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-3 d-flex justify-content-between">
+          <a class="btn btn-outline-danger" href="{% url 'admin_panel:admin_service_center_delete' service_center.id %}">
+            <i class="bi bi-trash me-1"></i> Удалить филиал
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check2 me-1"></i> Сохранить всё
+          </button>
         </div>
       </form>
     </div>

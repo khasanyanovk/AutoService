@@ -3,7 +3,7 @@ name: Build Docker image artifact
 on:
   pull_request:
     types: [closed]
-    branches: [ master ]
+    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:

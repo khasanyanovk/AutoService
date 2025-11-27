@@ -6,48 +6,163 @@
 {% block extra_css %}
 <style>
     body {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
     }
+
+    .page-header {
+        animation: fadeInUp 0.6s ease;
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+
+    .page-subtitle {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+
     .appointment-card {
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         border: none;
         overflow: hidden;
         background: white;
+        animation: scaleIn 0.6s ease;
     }
+
+    @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
     .card-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
         padding: 1.5rem;
         border-bottom: none;
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
     }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 10s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .card-header h4 {
+        position: relative;
+        z-index: 1;
+    }
+
     .info-item {
         padding: 1rem 0;
         border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s ease;
     }
+
     .info-item:last-child {
         border-bottom: none;
     }
-    .status-badge {
-        font-size: 0.9rem;
+
+    .info-item:hover {
+        background: linear-gradient(90deg, #f8f9fa 0%, transparent 100%);
+        padding-left: 0.5rem;
+    }
+
+    .info-item strong {
+        color: #495057;
+        font-weight: 600;
+    }
+
+    .form-select {
+        border-radius: 12px;
+        border: 2px solid #0d6efd;
         padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .form-select:focus {
+        border-color: #0b5ed7;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+    }
+
+    #statusSaved {
+        font-weight: 600;
+        color: #198754;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .btn {
+        border-radius: 50px;
+        font-weight: 600;
+        padding: 0.65rem 1.5rem;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+    }
+
+    .bg-light {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border-left: 4px solid #0d6efd;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-header admin-header" data-aos="fade-down">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-1">Запись на услугу</h1>
-                    <p class="text-muted mb-0">Детальная информация о записи</p>
+                    <h1 class="page-title"><i class="bi bi-calendar-event me-2"></i>Запись на услугу</h1>
+                    <p class="page-subtitle mb-0 mt-2">Детальная информация о записи</p>
                 </div>
-                <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
+                <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn">
+                    <i class="bi bi-arrow-left me-1"></i> Назад
                 </a>
             </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center py-4">
 
             <div class="appointment-card mb-4">
                 <div class="card-header">
@@ -112,6 +227,39 @@
                             <div class="info-item">
                                 <strong>Стоимость:</strong>
                                 <div class="mt-1">{{ appointment.service_type.price }} руб.</div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <strong>Оплата:</strong>
+                                <div class="mt-1">
+                                    {% if payment %}
+                                        {% if payment.status == 'succeeded' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Оплачено
+                                            </span>
+                                            <br><small class="text-muted">
+                                                {{ payment.paid_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        {% elif payment.status == 'pending' or payment.status == 'waiting_for_capture' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-clock-history me-1"></i>Ожидает оплаты
+                                            </span>
+                                            <br><small class="text-muted">
+                                                Создан: {{ payment.created_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        {% elif payment.status == 'canceled' %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-x-circle me-1"></i>Отменено
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-dash-circle me-1"></i>Не оплачено
+                                        </span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>

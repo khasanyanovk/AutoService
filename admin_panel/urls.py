@@ -12,6 +12,7 @@ urlpatterns = [
         name="admin_service_center_create",
     ),
     path("admin-users/", views.admin_users, name="admin_users"),
+    path("admin-users/create/", views.admin_user_create, name="admin_user_create"),
     path("admin-services/", views.admin_services, name="admin_services"),
     path(
         "admin-services/create/",
@@ -134,5 +135,10 @@ urlpatterns = [
         "admin-cars/model/<uuid:model_id>/delete/",
         views.admin_model_delete,
         name="admin_model_delete",
+    ),
+    path(
+        "admin-api/service-center/<uuid:service_center_id>/toggle-slot-block/",
+        views.admin_toggle_slot_block,
+        name="admin_toggle_slot_block",
     ),
 ]

@@ -1,0 +1,54 @@
+{% load static %}
+{% if center_cards %}
+  <div class="row g-4">
+    {% for item in center_cards %}
+    {% with c=item.center wh=item.today_wh %}
+    <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{% widthratio forloop.counter0 1 50 %}">
+      <div class="card branch-card h-100">
+        {% with url=c.get_photo_url %}
+          {% if url %}
+            <img class="branch-photo" src="{{ url }}" alt="{{ c.address }}">
+          {% else %}
+            <img class="branch-photo" src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ c.address }}">
+          {% endif %}
+        {% endwith %}
+        <div class="card-body d-flex flex-column">
+          <div class="branch-title mb-2">{{ c.address }}</div>
+          <div class="branch-meta mb-3">
+            {% if c.phone %}
+              <div class="mb-1"><i class="bi bi-telephone-fill me-2"></i>{{ c.phone }}</div>
+            {% endif %}
+            <div>
+              <i class="bi bi-clock-fill me-2"></i>
+              {% if wh and wh.is_working %}
+                <span class="text-success fw-semibold">Открыто:</span> {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
+                {% if wh.lunch_start and wh.lunch_end %}
+                  <div class="text-muted small ms-4">Обед: {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }}</div>
+                {% endif %}
+              {% else %}
+                <span class="text-danger fw-semibold">Сегодня выходной</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="branch-actions mt-auto">
+            <a href="{% url 'branch_detail' c.id %}" class="btn btn-primary btn-sm">
+              <i class="bi bi-arrow-right-circle-fill me-1"></i> Подробнее
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-warning text-center" data-aos="fade-up">
+    <i class="bi bi-search me-2"></i>По вашему запросу ничего не найдено. Попробуйте изменить параметры поиска.
+  </div>
+{% endif %}
+<script>
+  // Reinitialize AOS for dynamically loaded content
+  if (typeof AOS !== 'undefined') {
+    AOS.refresh();
+  }
+</script>

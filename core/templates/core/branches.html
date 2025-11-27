@@ -5,67 +5,74 @@
 
 {% block extra_css %}
 <style>
-  .branch-card { border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.08); overflow:hidden; border:none; background:#fff; }
-  .branch-photo { height: 180px; object-fit: cover; width:100%; }
-  .branch-title { font-weight: 600; }
-  .branch-meta { color:#6c757d; font-size:.95rem; }
-  .branch-actions .btn { border-radius: 20px; }
-  body { background:#f8f9fa; }
-  .page-header { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color:#fff; padding:1.75rem 0; margin-bottom:1.25rem; }
-  .page-header h2 { margin:0; font-weight:600; }
+  .branch-card {
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    transition: all 0.3s ease;
+  }
+  .branch-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+  }
+  .branch-photo {
+    height: 220px;
+    object-fit: cover;
+    width: 100%;
+    transition: transform 0.5s ease;
+  }
+  .branch-card:hover .branch-photo {
+    transform: scale(1.1);
+  }
+  .branch-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #212529;
+  }
+  .branch-meta {
+    color: #6c757d;
+    font-size: 0.95rem;
+  }
+  .branch-meta i {
+    color: #0d6efd;
+  }
+  .branch-actions .btn {
+    border-radius: 50px;
+    transition: all 0.3s ease;
+  }
+  .branch-actions .btn:hover {
+    transform: translateX(5px);
+  }
+  body {
+    background: #f8f9fa;
+  }
+  .page-header {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    color: #fff;
+    padding: 2.5rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .page-header h2 {
+    margin: 0;
+    font-weight: 600;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header" data-aos="fade-down">
   <div class="container">
-    <h2><i class="bi me-2"></i>Наши филиалы</h2>
+    <h2><i class="bi bi-geo-alt-fill me-2"></i>Наши филиалы</h2>
+    <p class="mb-0 mt-2">Выберите удобный для вас автосервис</p>
   </div>
- </div>
+</div>
 
-<div class="container mb-4">
-  {% if center_cards %}
-    <div class="row g-3">
-      {% for item in center_cards %}
-      {% with c=item.center wh=item.today_wh %}
-      <div class="col-md-6 col-lg-4">
-        <div class="card branch-card h-100">
-          {% with url=c.get_photo_url %}
-            {% if url %}
-              <img class="branch-photo" src="{{ url }}" alt="{{ c.address }}">
-            {% else %}
-              <img class="branch-photo" src="{% static 'core/img/default_service_center.jpg' %}" alt="{{ c.address }}">
-            {% endif %}
-          {% endwith %}
-          <div class="card-body">
-            <div class="branch-title mb-1">{{ c.address }}</div>
-            <div class="branch-meta mb-2">
-              {% if c.phone %}<div><i class="bi bi-telephone me-1"></i>{{ c.phone }}</div>{% endif %}
-              <div>
-                <i class="bi bi-clock me-1"></i>
-                {% if wh and wh.is_working %}
-                  Сегодня: {{ wh.start_time|time:'H:i' }}–{{ wh.end_time|time:'H:i' }}
-                  {% if wh.lunch_start and wh.lunch_end %}
-                    <span class="text-muted small">(обед {{ wh.lunch_start|time:'H:i' }}–{{ wh.lunch_end|time:'H:i' }})</span>
-                  {% endif %}
-                {% else %}
-                  <span class="text-muted">Сегодня: выходной</span>
-                {% endif %}
-              </div>
-            </div>
-            <div class="branch-actions">
-              <a href="{% url 'branch_detail' c.id %}" class="btn btn-primary btn-sm">
-                <i class="bi bi-arrow-right-circle me-1"></i> Подробнее
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endwith %}
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="alert alert-info">Филиалы пока не добавлены.</div>
-  {% endif %}
+<div class="container mb-5">
+  <div id="branches-list">
+    {% include 'core/_branches_cards.html' %}
+  </div>
 </div>
 {% endblock %}

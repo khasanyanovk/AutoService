@@ -7,54 +7,151 @@
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
 <style>
     body {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
     }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     .dashboard-card {
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         border: none;
         overflow: hidden;
         background: white;
+        animation: scaleIn 0.6s ease;
+        transition: all 0.3s ease;
     }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+    }
+
     .card-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
         padding: 1.5rem;
         border-bottom: none;
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
     }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 10s linear infinite;
+    }
+
+    .card-header h4 {
+        position: relative;
+        z-index: 1;
+    }
+
     .service-center-header {
         background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
-        padding: 2rem 0;
+        padding: 2.5rem 0;
         margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(13, 110, 253, 0.3);
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.6s ease;
     }
+
+    .service-center-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 15s linear infinite;
+    }
+
+    .service-center-header .container {
+        position: relative;
+        z-index: 1;
+    }
+
     .stats-card {
         background: white;
-        border-radius: 12px;
+        border-radius: 15px;
         padding: 1.5rem;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         height: 100%;
+        transition: all 0.3s ease;
     }
+
+    .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+
     .stat-value {
         font-size: 2rem;
-        font-weight: bold;
-        color: #0d6efd;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
     /* Стили для FullCalendar */
     #calendar {
-        background: white;
-        border-radius: 12px;
+        background: transparent;
+        border-radius: 0;
         overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
     }
     .fc-toolbar {
-        padding: 1rem;
+        padding: 1.5rem;
         margin-bottom: 0 !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
     .fc-toolbar-title {
         font-size: 1.5rem !important;
-        font-weight: 600;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .fc-button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .fc-button-primary {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+        border: none !important;
+    }
+
+    .fc-button-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4) !important;
+    }
+
+    .fc-button-active {
+        background: linear-gradient(135deg, #0b5ed7, #0a58ca) !important;
     }
 
     .fc .fc-daygrid-day-number {
@@ -77,10 +174,10 @@
         background: #0d6efd;
         color: #fff;
     }
-    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; }
-    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; }
-    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; }
-    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    .appointment-status-scheduled { background-color: #0d6efd !important; border-color: #0d6efd !important; color: #000 !important; }
+    .appointment-status-in_progress { background-color: #fd7e14 !important; border-color: #fd7e14 !important; color: #000 !important; }
+    .appointment-status-completed { background-color: #198754 !important; border-color: #198754 !important; color: #000 !important; }
+    .appointment-status-cancelled { background-color: #dc3545 !important; border-color: #dc3545 !important; color: #000 !important; }
     
     .chart-container {
         position: relative;
@@ -90,13 +187,99 @@
     .small-chart {
         height: 250px;
     }
-    .schedule-list .slot { display:flex; justify-content:space-between; align-items:center; padding:.6rem .9rem; border-bottom:1px solid #f1f3f5; }
-    .slot.free { background:#f8f9fa; }
-    .slot.busy { background:#fff5f5; }
-    .slot-time { font-weight:600; }
-    .slot-title { color:#495057; }
-    .slot-status { font-size:.85rem; }
-    .empty-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#6c757d; font-size:.95rem; text-align:center; padding:0 1rem; }
+    .schedule-list .slot { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 1rem 1.25rem; 
+        border-bottom: 1px solid #f1f3f5;
+        transition: all 0.3s ease;
+    }
+    .slot:hover {
+        background: linear-gradient(90deg, #f8f9fa 0%, transparent 100%);
+        padding-left: 1.5rem;
+    }
+    .slot.free { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
+    .slot.busy { background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); }
+    .slot.blocked { 
+        background: linear-gradient(135deg, #fff9e6 0%, #ffe6cc 100%); 
+        border-left: 4px solid #ffc107;
+    }
+    .slot-time { font-weight: 700; color: #212529; }
+    .slot-title { color: #495057; font-weight: 500; }
+    .slot-status { font-size: .85rem; font-weight: 600; }
+    .empty-overlay { 
+        position: absolute; 
+        inset: 0; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        color: #6c757d; 
+        font-size: .95rem; 
+        text-align: center; 
+        padding: 0 1rem;
+        font-weight: 500;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+
+    .btn {
+        border-radius: 50px;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .btn-light {
+        background: white;
+        color: #495057;
+        border: 2px solid #dee2e6;
+    }
+
+    .btn-light:hover {
+        background: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ffc107, #ffb300);
+        color: #000;
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+    }
+
+    .btn-outline-primary {
+        border: 2px solid #0d6efd;
+        color: #0d6efd;
+        background: transparent;
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    }
+
+    .badge {
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+    }
     @media (max-width: 991.98px) {
         .chart-container { height: 240px; }
         .small-chart { height: 200px; }
@@ -109,18 +292,19 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h1 class="h2 mb-2">Автосервис</h1>
-                <p class="mb-2">
-                    <i class="bi bi-geo-alt me-1"></i>{{ service_center.address }}
+                <h1 class="h2 mb-3" style="font-weight: 700;">Автосервис</h1>
+                <p class="mb-2" style="font-size: 1.1rem;">
+                    <i class="bi bi-geo-alt-fill me-2"></i>{{ service_center.address }}
                 </p>
-                <p class="mb-0">
-                    <i class="bi bi-clock me-1"></i>{{ service_center.opening_hours }} | 
-                    <i class="bi bi-telephone me-1"></i>{{ service_center.phone }}
+                <p class="mb-0" style="font-size: 1rem; opacity: 0.95;">
+                    <i class="bi bi-clock-fill me-2"></i>{{ service_center.opening_hours }}
+                    <span class="mx-2">|</span>
+                    <i class="bi bi-telephone-fill me-2"></i>{{ service_center.phone }}
                 </p>
             </div>
-            <div class="col-md-4 text-md-end">
-                <a href="{% url 'admin_panel:admin_branches' %}" class="btn btn-light">
-                    <i class="bi bi-arrow-left me-1"></i> Назад к списку
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <a href="{% url 'admin_panel:admin_branches' %}" class="btn btn-light mb-2 mb-md-0">
+                    <i class="bi bi-arrow-left me-1"></i> Назад
                 </a>
                 <a href="{% url 'admin_panel:admin_service_center_edit' service_center.id %}" class="btn btn-warning ms-2">
                     <i class="bi bi-pencil-square me-1"></i> Редактировать
@@ -155,7 +339,7 @@
                 <div class="card-body p-0 schedule-list">
                     {% if todays_schedule %}
                         {% for s in todays_schedule %}
-                        <div class="slot {% if s.busy %}busy{% else %}free{% endif %}">
+                        <div class="slot {% if s.busy %}busy{% elif s.blocked %}blocked{% else %}free{% endif %}">
                             <div>
                                 <div class="slot-time">
                                     {% if s.busy %}
@@ -166,14 +350,31 @@
                                 </div>
                                 {% if s.busy %}
                                     <div class="slot-title small">{{ s.title }}</div>
+                                {% elif s.blocked %}
+                                    <div class="text-warning small">
+                                        <i class="bi bi-lock-fill me-1"></i>Заблокирован
+                                        {% if s.blocked_reason %}<br><small>{{ s.blocked_reason }}</small>{% endif %}
+                                    </div>
                                 {% else %}
                                     <div class="text-muted small">Свободно</div>
                                 {% endif %}
                             </div>
                             {% if s.busy %}
                             <a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/{{ s.appointment_id }}/">Открыть</a>
+                            {% elif s.blocked %}
+                            <button class="btn btn-outline-success btn-sm btn-unblock-slot" 
+                                    data-date="{{ s.selected_date }}"
+                                    data-time="{{ s.time }}"
+                                    title="Разблокировать">
+                                <i class="bi bi-unlock"></i>
+                            </button>
                             {% else %}
-                            <span class="badge bg-success slot-status">Свободно</span>
+                            <button class="btn btn-outline-warning btn-sm btn-block-slot" 
+                                    data-date="{{ s.selected_date }}"
+                                    data-time="{{ s.time }}"
+                                    title="Заблокировать">
+                                <i class="bi bi-lock"></i>
+                            </button>
                             {% endif %}
                         </div>
                         {% endfor %}
@@ -241,24 +442,38 @@
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
                 </div>
-                <div class="card-body" style="min-height:300px; position:relative;">
-                    {% if status_total > 0 %}
-                        {% for stat in status_stats %}
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="badge 
-                                {% if stat.status == 'SCHEDULED' %}bg-primary
-                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
-                                {% elif stat.status == 'COMPLETED' %}bg-success
-                                {% elif stat.status == 'CANCELLED' %}bg-danger
-                                {% endif %}">
-                                {{ stat.label }}
-                            </span>
-                            <strong class="text-dark">{{ stat.count }}</strong>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-overlay">Нет записей со статусами за выбранный период</div>
-                    {% endif %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Статус</th>
+                                    <th class="text-end">Количество</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if status_total > 0 %}
+                                    {% for stat in status_stats %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge 
+                                                {% if stat.status == 'SCHEDULED' %}bg-primary
+                                                {% elif stat.status == 'IN_PROGRESS' %}bg-warning
+                                                {% elif stat.status == 'COMPLETED' %}bg-success
+                                                {% elif stat.status == 'CANCELLED' %}bg-danger
+                                                {% endif %}">
+                                                {{ stat.label }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end"><strong>{{ stat.count }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -317,11 +532,23 @@
                                     '</div>'+
                                     '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
                                 '</div>';
+                            } else if (s.blocked) {
+                                html += '<div class="slot blocked">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-warning small"><i class="bi bi-lock-fill me-1"></i>Заблокирован'+(s.blocked_reason ? '<br><small>'+s.blocked_reason+'</small>' : '')+'</div>'+
+                                    '</div>'+
+                                    '<button class="btn btn-outline-success btn-sm btn-unblock-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Разблокировать">'+
+                                        '<i class="bi bi-unlock"></i>'+
+                                    '</button>'+
+                                '</div>';
                             } else {
                                 html += '<div class="slot free">' +
                                     '<div><div class="slot-time">'+s.time+'</div>'+
                                     '<div class="text-muted small">Свободно</div></div>'+
-                                    '<span class="badge bg-success slot-status">Свободно</span>'+
+                                    '<button class="btn btn-outline-warning btn-sm btn-block-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Заблокировать">'+
+                                        '<i class="bi bi-lock"></i>'+
+                                    '</button>'+
                                 '</div>';
                             }
                         });
@@ -329,6 +556,7 @@
                         html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
                     }
                     container.innerHTML = html;
+                    attachSlotHandlers();
                 });
             },
             dayCellDidMount: function(arg) {
@@ -369,34 +597,47 @@
                     var clientNow = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
                     fetch('{% url "admin_panel:admin_api_day_schedule" service_center.id %}?date=' + iso + '&is_today=1&client_now=' + encodeURIComponent(clientNow), {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    }).then(function(r){ return r.json(); }).then(function(data){
-                        var container = document.querySelector('.schedule-list');
-                        if (!container) return;
-                        var html = '';
-                        if (data.slots && data.slots.length) {
-                            data.slots.forEach(function(s){
-                                if (s.busy) {
-                                    var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
-                                    html += '<div class="slot busy">' +
-                                        '<div>'+
-                                            '<div class="slot-time">'+ timeLabel +'</div>'+
-                                            '<div class="slot-title small">'+ (s.title || '') +'</div>'+
-                                        '</div>'+
-                                        '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
-                                    '</div>';
-                                } else {
-                                    html += '<div class="slot free">' +
-                                        '<div><div class="slot-time">'+s.time+'</div>'+
-                                        '<div class="text-muted small">Свободно</div></div>'+
-                                        '<span class="badge bg-success slot-status">Свободно</span>'+
-                                    '</div>';
-                                }
-                            });
-                        } else {
-                            html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
-                        }
-                        container.innerHTML = html;
-                    });
+                }).then(function(r){ return r.json(); }).then(function(data){
+                    var container = document.querySelector('.schedule-list');
+                    if (!container) return;
+                    var html = '';
+                    if (data.slots && data.slots.length) {
+                        data.slots.forEach(function(s){
+                            if (s.busy) {
+                                var timeLabel = (s.start && s.end) ? (s.start + '–' + s.end) : (s.time || '');
+                                html += '<div class="slot busy">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+ timeLabel +'</div>'+
+                                        '<div class="slot-title small">'+ (s.title || '') +'</div>'+
+                                    '</div>'+
+                                    '<a class="btn btn-outline-primary btn-sm" href="/admin-dashboard/appointment/'+ s.appointment_id +'/">Открыть</a>'+
+                                '</div>';
+                            } else if (s.blocked) {
+                                html += '<div class="slot blocked">' +
+                                    '<div>'+
+                                        '<div class="slot-time">'+s.time+'</div>'+
+                                        '<div class="text-warning small"><i class="bi bi-lock-fill me-1"></i>Заблокирован'+(s.blocked_reason ? '<br><small>'+s.blocked_reason+'</small>' : '')+'</div>'+
+                                    '</div>'+
+                                    '<button class="btn btn-outline-success btn-sm btn-unblock-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Разблокировать">'+
+                                        '<i class="bi bi-unlock"></i>'+
+                                    '</button>'+
+                                '</div>';
+                            } else {
+                                html += '<div class="slot free">' +
+                                    '<div><div class="slot-time">'+s.time+'</div>'+
+                                    '<div class="text-muted small">Свободно</div></div>'+
+                                    '<button class="btn btn-outline-warning btn-sm btn-block-slot" data-date="'+s.selected_date+'" data-time="'+s.time+'" title="Заблокировать">'+
+                                        '<i class="bi bi-lock"></i>'+
+                                    '</button>'+
+                                '</div>';
+                            }
+                        });
+                    } else {
+                        html = '<div class="p-4 text-center text-muted">Нет рабочего времени на выбранную дату</div>';
+                    }
+                    container.innerHTML = html;
+                    attachSlotHandlers();
+                });
                 }
             } catch(e) {}
         })();
@@ -502,6 +743,81 @@
                 });
             });
         });
+
+        function attachSlotHandlers() {
+            
+            document.querySelectorAll('.btn-block-slot').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const date = this.getAttribute('data-date');
+                    const time = this.getAttribute('data-time');
+                    
+                    if (confirm(`Заблокировать слот ${time}?`)) {
+                        const formData = new FormData();
+                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                        formData.append('date', date);
+                        formData.append('time', time);
+                        formData.append('action', 'block');
+                        
+                        fetch('{% url "admin_panel:admin_toggle_slot_block" service_center.id %}', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('success', 'Слот заблокирован');
+                                location.reload();
+                            } else {
+                                showToast('danger', data.error || 'Ошибка при блокировке');
+                            }
+                        })
+                        .catch(err => {
+                            showToast('danger', 'Ошибка сети');
+                        });
+                    }
+                });
+            });
+
+            // Обработчики для разблокировки слотов
+            document.querySelectorAll('.btn-unblock-slot').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const date = this.getAttribute('data-date');
+                    const time = this.getAttribute('data-time');
+                    
+                    if (confirm(`Разблокировать слот ${time}?`)) {
+                        const formData = new FormData();
+                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                        formData.append('date', date);
+                        formData.append('time', time);
+                        formData.append('action', 'unblock');
+                        
+                        fetch('{% url "admin_panel:admin_toggle_slot_block" service_center.id %}', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('success', 'Слот разблокирован');
+                                location.reload();
+                            } else {
+                                showToast('danger', data.error || 'Ошибка при разблокировке');
+                            }
+                        })
+                        .catch(err => {
+                            showToast('danger', 'Ошибка сети');
+                        });
+                    }
+                });
+            });
+        }
+        attachSlotHandlers();
     });
 </script>
 {% endblock %}

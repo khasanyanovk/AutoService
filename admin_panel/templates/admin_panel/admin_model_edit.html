@@ -3,35 +3,127 @@
 
 {% block title %}{% if create %}Новая модель{% else %}Редактирование модели{% endif %}{% endblock %}
 
+{% block extra_css %}
+<style>
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  .page-header {
+    animation: fadeInUp 0.6s ease;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+  }
+
+  .form-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    animation: scaleIn 0.6s ease;
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  input, select, textarea {
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    outline: none;
+  }
+
+  .btn {
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 0.65rem 1.5rem;
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+  }
+
+  .btn-secondary {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+    background: transparent;
+  }
+
+  .btn-secondary:hover {
+    background: #6c757d;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="page-header admin-header" data-aos="fade-down">
+  <div class="container">
+    <h1 class="page-title"><i class="bi bi-car-front-fill me-2"></i>{% if create %}Новая модель{% else %}Редактировать модель{% endif %}</h1>
+  </div>
+</div>
+
 <div class="container py-4">
-  <div class="card">
-    <div class="card-header">
-      <h1 class="h5 mb-0">{% if create %}Новая модель{% else %}Редактировать модель{% endif %}</h1>
-    </div>
-    <div class="card-body">
-      <form method="post" novalidate>
-        {% csrf_token %}
-        <div class="mb-3">
-          <label class="form-label">Марка</label>
-          {{ form.brand }}
-          {% if form.brand.errors %}
-          <div class="text-danger small mt-1">{{ form.brand.errors }}</div>
-          {% endif %}
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Модель</label>
-          {{ form.name }}
-          {% if form.name.errors %}
-          <div class="text-danger small mt-1">{{ form.name.errors }}</div>
-          {% endif %}
-        </div>
-        <div class="d-flex justify-content-end gap-2">
-          <a href="{% url 'admin_panel:admin_cars' %}" class="btn btn-secondary">Отмена</a>
-          <button type="submit" class="btn btn-primary">Сохранить</button>
-        </div>
-      </form>
-    </div>
+
+  <div class="form-card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="form-label">Марка</label>
+        {{ form.brand }}
+        {% if form.brand.errors %}
+        <div class="text-danger small mt-1">{{ form.brand.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Модель</label>
+        {{ form.name }}
+        {% if form.name.errors %}
+        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="d-flex justify-content-end gap-3">
+        <a href="{% url 'admin_panel:admin_cars' %}" class="btn btn-secondary">Отмена</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check2 me-1"></i> Сохранить
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

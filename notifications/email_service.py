@@ -1,3 +1,7 @@
+"""
+Email notification service for sending various notifications to users and admins
+"""
+
 import threading
 import logging
 from typing import Iterable, List
@@ -7,14 +11,19 @@ from django.template.loader import render_to_string
 from django.contrib.auth.models import User
 
 
+logger = logging.getLogger(__name__)
+
+
 def admin_recipients() -> List[str]:
+    """Get list of admin email addresses for notifications"""
     if getattr(settings, "NOTIFY_ADMINS_EMAILS", None):
         return [e for e in settings.NOTIFY_ADMINS_EMAILS if e]
     return [u.email for u in User.objects.filter(is_staff=True).exclude(email="")]
 
 
 def _render_template(template_base: str, context: dict) -> tuple[str, str | None]:
-    """Render text and html bodies for given template base name.
+    """
+    Render text and html bodies for given template base name.
     Expects files: emails/{template_base}.txt and optional emails/{template_base}.html
     """
     text_body = render_to_string(f"emails/{template_base}.txt", context)
@@ -30,10 +39,8 @@ def _render_template(template_base: str, context: dict) -> tuple[str, str | None
     return text_body, html_body
 
 
-logger = logging.getLogger(__name__)
-
-
 def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | None):
+    """Send email asynchronously in a background thread"""
     recipients = [e for e in recipients if e]
     if not recipients:
         return
@@ -55,16 +62,28 @@ def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | 
                 getattr(settings, "DEFAULT_FROM_EMAIL", None),
             )
         except Exception as exc:
-            # Ensure visibility even in threads
-            logger.error("Email send failed: %s", exc, exc_info=True)
+            error_msg = f"Email send failed: {type(exc).__name__}: {exc}"
+            logger.error(
+                "%s\nSubject: %s\nRecipients: %s\nBackend: %s\nHost: %s:%s",
+                error_msg,
+                subject,
+                recipients,
+                getattr(settings, "EMAIL_BACKEND", "unknown"),
+                getattr(settings, "EMAIL_HOST", "unknown"),
+                getattr(settings, "EMAIL_PORT", "unknown"),
+                exc_info=True,
+            )
             if getattr(settings, "DEBUG", False):
-                # Best-effort console output during development
-                print(f"[email_service] send failed: {exc}")
+                print(f"[email_service] {error_msg}")
+                print(
+                    "[email_service] Check your EMAIL settings and network connection"
+                )
 
     threading.Thread(target=_runner, daemon=True).start()
 
 
 def _appointment_context(appt) -> dict:
+    """Build context dictionary for appointment-related emails"""
     return {
         "user": appt.car.owner,
         "appointment": appt,
@@ -78,6 +97,7 @@ def _appointment_context(appt) -> dict:
 
 
 def send_appointment_created_email(appt) -> None:
+    """Send notification when a new appointment is created"""
     ctx = _appointment_context(appt)
     text, html = _render_template("appointment_created", ctx)
     subject_user = "Подтверждение записи"
@@ -90,23 +110,19 @@ def send_appointment_created_email(appt) -> None:
 
 
 def send_appointment_status_changed_email(appt) -> None:
+    """Send notification when appointment status changes"""
     ctx = _appointment_context(appt)
     text, html = _render_template("appointment_status_changed", ctx)
-    subject = f"Статус вашей записи: {dict(getattr(appt, 'STATUS_CHOICES', [] )).get(appt.status, appt.status)}"
+    subject = f"Статус вашей записи: {dict(getattr(appt, 'STATUS_CHOICES', [])).get(appt.status, appt.status)}"
     _send_async(subject, [appt.car.owner.email], text, html)
-
-    admins = admin_recipients()
-    if admins:
-        subject_admin = f"Статус изменён — {appt.service_center}"
-        _send_async(subject_admin, admins, text, html)
 
 
 def send_appointment_cancelled_email(appt) -> None:
+    """Send notification when an appointment is cancelled"""
     ctx = _appointment_context(appt)
     text, html = _render_template("appointment_cancelled", ctx)
     subject = "Ваша запись отменена"
     _send_async(subject, [ctx["user"].email], text, html)
-    print(ctx["user"].email)
 
     admins = admin_recipients()
     if admins:
@@ -115,6 +131,7 @@ def send_appointment_cancelled_email(appt) -> None:
 
 
 def send_review_reply_email(review) -> None:
+    """Send notification when admin replies to a review"""
     if not review.admin_reply:
         return
     ctx = {
@@ -131,6 +148,7 @@ def send_review_reply_email(review) -> None:
 
 
 def send_account_created_email(user: User) -> None:
+    """Send welcome email when a new user account is created"""
     ctx = {"user": user}
     text, html = _render_template("account_created", ctx)
     subject = "Добро пожаловать в AutoService"
@@ -138,7 +156,7 @@ def send_account_created_email(user: User) -> None:
 
 
 def send_appointment_reminder_email(appt) -> None:
-    """Notify the user about an upcoming appointment (typically ~24h before)."""
+    """Send reminder email about an upcoming appointment (typically ~24h before)"""
     ctx = _appointment_context(appt)
     text, html = _render_template("appointment_reminder", ctx)
     subject = "Напоминание о вашей записи"

@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
 from django.db.models import Count, Min
 from django.db.models.functions import ExtractWeekDay
 from django.utils import timezone
@@ -21,13 +22,13 @@ from datetime import datetime, timedelta
 from .decorators import admin_required
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.contrib.auth.models import User
 from core.forms import UserUpdateForm, ProfileUpdateForm
 from .forms import (
     ServiceTypeForm,
     ServiceTypeBaseCreateForm,
     CarBrandForm,
     CarModelForm,
+    UserCreateForm,
 )
 from core.models import CarBrand, CarModel
 from django.template.loader import render_to_string
@@ -111,9 +112,11 @@ def admin_review_reply(request, review_id):
     review.admin_reply = reply_text
     review.admin_reply_at = timezone.localtime(timezone.now()) if reply_text else None
     review.save(update_fields=["admin_reply", "admin_reply_at"])
-    messages.success(request, "Ответ сохранен.")
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"ok": True})
+
+    messages.success(request, "Ответ сохранен.")
     referer = request.META.get("HTTP_REFERER")
     return redirect(referer or "admin_panel:admin_reviews")
 
@@ -126,9 +129,11 @@ def admin_review_delete(request, review_id):
     review = get_object_or_404(Review, id=review_id)
     if request.method == "POST":
         review.delete()
-        messages.success(request, "Отзыв удален.")
+
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({"ok": True})
+
+        messages.success(request, "Отзыв удален.")
         referer = request.META.get("HTTP_REFERER")
         return redirect(referer or "admin_panel:admin_reviews")
     return redirect("admin_panel:admin_reviews")
@@ -197,13 +202,13 @@ def admin_dashboard(request):
         .annotate(count=Count("id"))
         .order_by("scheduled_date")
     )
+    by_date = {row["scheduled_date"]: row["count"] for row in visits_qs}
     overall_visits_labels = []
     overall_visits_data = []
     current = chart_start
     while current <= today:
         overall_visits_labels.append(current.strftime("%d.%m"))
-        found = next((v for v in visits_qs if v["scheduled_date"] == current), None)
-        overall_visits_data.append(found["count"] if found else 0)
+        overall_visits_data.append(by_date.get(current, 0))
         current += timedelta(days=1)
 
     services_qs = (
@@ -332,6 +337,32 @@ def admin_users(request):
 
 @login_required
 @admin_required
+def admin_user_create(request):
+    """Создание нового пользователя администратором"""
+    _auto_cancel_overdue_appointments()
+
+    if request.method == "POST":
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+
+            from core.models import UserProfile
+
+            UserProfile.objects.get_or_create(user=user)
+
+            user_type = "администратор" if user.is_staff else "пользователь"
+            messages.success(
+                request, f'Пользователь "{user.username}" ({user_type}) успешно создан'
+            )
+            return redirect("admin_panel:admin_user_detail", user_id=user.id)
+    else:
+        form = UserCreateForm()
+
+    return render(request, "admin_panel/admin_user_create.html", {"form": form})
+
+
+@login_required
+@admin_required
 def admin_user_detail(request, user_id):
     """Детальный просмотр пользователя"""
     _auto_cancel_overdue_appointments()
@@ -432,21 +463,31 @@ def admin_user_stats(request, user_id):
     )
 
     today = timezone.localtime(timezone.now()).date()
-    start = today - timedelta(days=89)
-    appts_range = appts.filter(scheduled_date__gte=start, scheduled_date__lte=today)
-    by_date = (
-        appts_range.values("scheduled_date")
-        .annotate(count=Count("id"))
-        .order_by("scheduled_date")
-    )
+    from dateutil.relativedelta import relativedelta
+
+    start_month = today.replace(day=1) - relativedelta(months=11)
+
     labels = []
     data = []
-    current = start
-    by_date_map = {row["scheduled_date"]: row["count"] for row in by_date}
-    while current <= today:
-        labels.append(current.strftime("%d.%m"))
-        data.append(by_date_map.get(current, 0))
-        current += timedelta(days=1)
+    current_month = start_month
+
+    for _ in range(12):
+        # Начало и конец текущего месяца
+        month_start = current_month
+        if current_month.month == 12:
+            month_end = current_month.replace(day=31)
+        else:
+            next_month = current_month + relativedelta(months=1)
+            month_end = next_month - timedelta(days=1)
+
+        # Подсчет записей за месяц
+        month_count = appts.filter(
+            scheduled_date__gte=month_start, scheduled_date__lte=month_end
+        ).count()
+
+        labels.append(current_month.strftime("%b %Y"))
+        data.append(month_count)
+        current_month = current_month + relativedelta(months=1)
 
     top_services_qs = (
         appts.values("service_type__name")
@@ -558,6 +599,9 @@ def admin_appointments(request):
 @admin_required
 def admin_api_update_appointment(request, appointment_id):
     """AJAX: Обновление статуса и добавление комментария администратора"""
+    from decimal import Decimal, InvalidOperation
+    from loyalty_program.models import LoyaltyAccount
+
     _auto_cancel_overdue_appointments()
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -565,11 +609,35 @@ def admin_api_update_appointment(request, appointment_id):
     appt = get_object_or_404(Appointment, id=appointment_id)
     new_status = request.POST.get("status")
     comment = request.POST.get("comment", "").strip()
+    paid_amount_str = request.POST.get("paid_amount", "").strip()
 
     payload = {}
     if new_status and new_status in dict(Appointment.STATUS_CHOICES):
+        old_status = appt.status
         appt.status = new_status
         payload["status"] = new_status
+
+        if new_status == "COMPLETED" and paid_amount_str:
+            try:
+                paid_amount = Decimal(paid_amount_str)
+                appt.paid_amount = paid_amount
+                payload["paid_amount"] = str(paid_amount)
+            except (InvalidOperation, ValueError):
+                pass
+        elif new_status == "COMPLETED" and not appt.paid_amount:
+            try:
+                loyalty_account, _ = LoyaltyAccount.objects.get_or_create(
+                    user=appt.car.owner
+                )
+                base_price = appt.get_base_price()
+                discount_amount = loyalty_account.calculate_discount(base_price)
+                final_price = base_price - discount_amount
+                appt.paid_amount = final_price
+                payload["paid_amount"] = str(final_price)
+                payload["auto_calculated"] = True
+            except Exception as e:
+                print(f"Error calculating paid_amount: {e}")
+
     if comment:
         prefix = "admin: "
         appt.notes = (appt.notes + "\n" if appt.notes else "") + prefix + comment
@@ -582,11 +650,33 @@ def admin_api_update_appointment(request, appointment_id):
 @login_required
 @admin_required
 def admin_api_overall_statuses(request):
-    """AJAX: Статистика по статусам записей за период (неделя/месяц) по всем филиалам"""
+    """AJAX: Статистика по статусам записей за период (неделя/месяц/все время) по всем филиалам"""
+    from datetime import timedelta
+
     _auto_cancel_overdue_appointments()
-    qs = Appointment.objects.values("status").annotate(count=Count("id"))
+    period = request.GET.get("period", "week")
+
+    if period == "all":
+        qs = Appointment.objects.values("status").annotate(count=Count("id"))
+    else:
+        today = timezone.localtime(timezone.now()).date()
+
+        if period == "month":
+            start_date = today - timedelta(days=29)
+        else:
+            start_date = today - timedelta(days=6)
+
+        qs = (
+            Appointment.objects.filter(
+                scheduled_date__gte=start_date, scheduled_date__lte=today
+            )
+            .values("status")
+            .annotate(count=Count("id"))
+        )
+
     status_label_map = {k: v for k, v in Appointment.STATUS_CHOICES}
     counts_map = {row["status"]: row["count"] for row in qs}
+
     data = [
         {
             "status": key,
@@ -601,13 +691,22 @@ def admin_api_overall_statuses(request):
 @login_required
 @admin_required
 def admin_api_overall_visits(request):
-    """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц"""
+    """AJAX: Общая посещаемость по всем филиалам для периода неделя/месяц/все время"""
+    from datetime import timedelta
+
     _auto_cancel_overdue_appointments()
     today = timezone.localtime(timezone.now()).date()
     period = request.GET.get("period", "week")
-    if period == "month":
+
+    if period == "all":
+        first_appointment = Appointment.objects.order_by("scheduled_date").first()
+        if first_appointment:
+            chart_start = first_appointment.scheduled_date
+        else:
+            chart_start = today - timedelta(days=6)
+    elif period == "month":
         chart_start = today - timedelta(days=29)
-    else:
+    else:  # week
         chart_start = today - timedelta(days=6)
 
     visits_qs = (
@@ -623,10 +722,30 @@ def admin_api_overall_visits(request):
     labels = []
     data = []
     current = chart_start
-    while current <= today:
-        labels.append(current.strftime("%d.%m"))
-        data.append(by_date.get(current, 0))
-        current += timedelta(days=1)
+
+    if period == "all":
+        total_days = (today - chart_start).days + 1
+        if total_days > 90:
+            step = 7
+            while current <= today:
+                week_end = min(current + timedelta(days=6), today)
+                week_count = sum(
+                    by_date.get(current + timedelta(days=i), 0)
+                    for i in range((week_end - current).days + 1)
+                )
+                labels.append(current.strftime("%d.%m"))
+                data.append(week_count)
+                current += timedelta(days=step)
+        else:
+            while current <= today:
+                labels.append(current.strftime("%d.%m"))
+                data.append(by_date.get(current, 0))
+                current += timedelta(days=1)
+    else:
+        while current <= today:
+            labels.append(current.strftime("%d.%m"))
+            data.append(by_date.get(current, 0))
+            current += timedelta(days=1)
 
     return JsonResponse({"labels": labels, "data": data})
 
@@ -767,6 +886,14 @@ def admin_service_center_detail(request, service_center_id):
                 .select_related("car", "service_type", "car__owner")
                 .order_by("scheduled_time")
             )
+
+            from core.models import BlockedTimeSlot
+
+            blocked_slots = BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=selected_date
+            )
+            blocked_times = {bs.time: bs for bs in blocked_slots}
+
             all_slots = generate_time_slots(
                 working_hours.start_time,
                 working_hours.end_time,
@@ -784,6 +911,21 @@ def admin_service_center_detail(request, service_center_id):
             last_app_id = None
             for slot in all_slots:
                 slot_time = datetime.strptime(slot, "%H:%M").time()
+
+                if slot_time in blocked_times:
+                    blocked_slot = blocked_times[slot_time]
+                    todays_schedule.append(
+                        {
+                            "time": slot,
+                            "busy": False,
+                            "blocked": True,
+                            "blocked_id": str(blocked_slot.id),
+                            "blocked_reason": blocked_slot.reason or "",
+                            "selected_date": selected_date.isoformat(),
+                        }
+                    )
+                    continue
+
                 matched = None
                 for a in day_appointments:
                     end_t = a.end_time
@@ -824,7 +966,14 @@ def admin_service_center_detail(request, service_center_id):
                         )
                         last_app_id = str(matched.id)
                 else:
-                    todays_schedule.append({"time": slot, "busy": False})
+                    todays_schedule.append(
+                        {
+                            "time": slot,
+                            "busy": False,
+                            "blocked": False,
+                            "selected_date": selected_date.isoformat(),
+                        }
+                    )
 
     if period == "month":
         chart_start = today - timedelta(days=29)
@@ -909,15 +1058,70 @@ def admin_service_center_edit(request, service_center_id):
         )
         if form.is_valid():
             form.save()
+
+            from core.models import WorkingHours
+
+            for d in range(1, 8):
+                start = request.POST.get(f"wh_{d}_start")
+                end = request.POST.get(f"wh_{d}_end")
+                lstart = request.POST.get(f"wh_{d}_lstart")
+                lend = request.POST.get(f"wh_{d}_lend")
+                work = request.POST.get(f"wh_{d}_work") == "on"
+
+                if start and end:
+                    WorkingHours.objects.update_or_create(
+                        service_center=service_center,
+                        day_of_week=d,
+                        defaults={
+                            "start_time": start,
+                            "end_time": end,
+                            "lunch_start": lstart if lstart else None,
+                            "lunch_end": lend if lend else None,
+                            "is_working": work,
+                        },
+                    )
+
             messages.success(request, "Информация о филиале обновлена")
             return redirect("admin_panel:admin_branches")
     else:
         form = ServiceCenterEditForm(instance=service_center)
 
+    from core.models import WorkingHours
+
+    weekdays_with_hours = []
+    weekday_names = [
+        (1, "Понедельник"),
+        (2, "Вторник"),
+        (3, "Среда"),
+        (4, "Четверг"),
+        (5, "Пятница"),
+        (6, "Суббота"),
+        (7, "Воскресенье"),
+    ]
+
+    for day_num, day_name in weekday_names:
+        try:
+            wh = WorkingHours.objects.get(
+                service_center=service_center, day_of_week=day_num
+            )
+        except WorkingHours.DoesNotExist:
+            wh = None
+        weekdays_with_hours.append(
+            {
+                "day_num": day_num,
+                "day_name": day_name,
+                "working_hours": wh,
+            }
+        )
+
     return render(
         request,
         "admin_panel/admin_service_center_edit.html",
-        {"form": form, "service_center": service_center},
+        {
+            "form": form,
+            "service_center": service_center,
+            "weekdays_with_hours": weekdays_with_hours,
+        },
     )
 
 
@@ -1129,6 +1333,14 @@ def admin_api_day_schedule(request, service_center_id):
         .select_related("car", "service_type", "car__owner")
         .order_by("scheduled_time")
     )
+
+    from core.models import BlockedTimeSlot
+
+    blocked_slots = BlockedTimeSlot.objects.filter(
+        service_center=service_center, date=selected_date
+    )
+    blocked_times = {bs.time: bs for bs in blocked_slots}
+
     all_slots = generate_time_slots(
         working_hours.start_time,
         working_hours.end_time,
@@ -1152,6 +1364,21 @@ def admin_api_day_schedule(request, service_center_id):
     last_app_id = None
     for slot in all_slots:
         slot_time = datetime.strptime(slot, "%H:%M").time()
+
+        if slot_time in blocked_times:
+            blocked_slot = blocked_times[slot_time]
+            slots.append(
+                {
+                    "time": slot,
+                    "busy": False,
+                    "blocked": True,
+                    "blocked_id": str(blocked_slot.id),
+                    "blocked_reason": blocked_slot.reason or "",
+                    "selected_date": selected_date.isoformat(),
+                }
+            )
+            continue
+
         matched = None
         for a in day_appointments:
             end_t = a.end_time
@@ -1188,7 +1415,13 @@ def admin_api_day_schedule(request, service_center_id):
                 )
                 last_app_id = str(matched.id)
         else:
-            slots.append({"time": slot, "busy": False})
+            slots.append(
+                {
+                    "time": slot,
+                    "busy": False,
+                    "selected_date": selected_date.isoformat(),
+                }
+            )
 
     return JsonResponse({"slots": slots})
 
@@ -1197,6 +1430,8 @@ def admin_api_day_schedule(request, service_center_id):
 @admin_required
 def admin_appointment_detail(request, appointment_id):
     """Детальная информация о записи"""
+    from payments.models import Payment
+
     _auto_cancel_overdue_appointments()
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
@@ -1207,9 +1442,15 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
+    # Получаем последний платёж для записи
+    payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
     context = {
         "appointment": appointment,
         "status_choices": Appointment.STATUS_CHOICES,
+        "payment": payment,
     }
     return render(request, "admin_panel/admin_appointment_detail.html", context)
 
@@ -1226,9 +1467,15 @@ def admin_api_appointments(request):
     appointments = Appointment.objects.all()
 
     if start_date:
-        appointments = appointments.filter(scheduled_date__gte=start_date)
+        from datetime import datetime
+
+        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        appointments = appointments.filter(scheduled_date__gte=start_dt.date())
     if end_date:
-        appointments = appointments.filter(scheduled_date__lte=end_date)
+        from datetime import datetime
+
+        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        appointments = appointments.filter(scheduled_date__lte=end_dt.date())
     if service_center_id:
         appointments = appointments.filter(service_center_id=service_center_id)
 
@@ -1463,3 +1710,51 @@ def admin_model_delete(request, model_id):
         messages.success(request, "Модель удалена")
         return redirect("admin_panel:admin_cars")
     return render(request, "admin_panel/admin_model_delete.html", {"model": model})
+
+
+@login_required
+@admin_required
+def admin_toggle_slot_block(request, service_center_id):
+    """API для блокировки/разблокировки временного слота"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    service_center = get_object_or_404(ServiceCenter, id=service_center_id)
+
+    try:
+        from core.models import BlockedTimeSlot
+
+        date_str = request.POST.get("date")
+        time_str = request.POST.get("time")
+        action = request.POST.get("action")  # "block" or "unblock"
+
+        if not date_str or not time_str or not action:
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+
+        slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        slot_time = datetime.strptime(time_str, "%H:%M").time()
+
+        if action == "block":
+            blocked_slot, created = BlockedTimeSlot.objects.get_or_create(
+                service_center=service_center,
+                date=slot_date,
+                time=slot_time,
+                defaults={
+                    "blocked_by": request.user,
+                    "reason": request.POST.get("reason", ""),
+                },
+            )
+            return JsonResponse(
+                {"success": True, "action": "blocked", "id": str(blocked_slot.id)}
+            )
+
+        elif action == "unblock":
+            BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=slot_date, time=slot_time
+            ).delete()
+            return JsonResponse({"success": True, "action": "unblocked"})
+        else:
+            return JsonResponse({"error": "Invalid action"}, status=400)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

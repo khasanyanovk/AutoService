@@ -27,7 +27,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Sum
-from .email_service import (
+from notifications.email_service import (
     send_appointment_cancelled_email,
 )
 
@@ -40,13 +40,29 @@ def about(request):
     return render(request, "core/about.html")
 
 
+def privacy_policy(request):
+    """Страница политики конфиденциальности"""
+    return render(request, "core/privacy_policy.html")
+
+
+def terms_of_service(request):
+    """Страница условий использования"""
+    return render(request, "core/terms_of_service.html")
+
+
 def branches(request):
     """Публичная страница со списком филиалов без редактирования."""
-    centers = (
-        ServiceCenter.objects.all()
-        .prefetch_related("working_hours")
-        .order_by("address")
+    search_query = (
+        request.POST.get("search", "").strip() if request.method == "POST" else ""
     )
+
+    centers = ServiceCenter.objects.all().prefetch_related("working_hours")
+    if search_query:
+        centers = centers.filter(
+            Q(address__icontains=search_query) | Q(phone__icontains=search_query)
+        )
+
+    centers = centers.order_by("address")
     today_dow = timezone.localtime(timezone.now()).isoweekday()
     center_cards = []
     for c in centers:
@@ -58,11 +74,17 @@ def branches(request):
             wh = None
         center_cards.append({"center": c, "today_wh": wh})
 
+    if request.headers.get("HX-Request"):
+        return render(
+            request, "core/_branches_cards.html", {"center_cards": center_cards}
+        )
+
     return render(request, "core/branches.html", {"center_cards": center_cards})
 
 
 def branch_detail(request, service_center_id):
-    """Детальная страница филиала: услуги, график, отзывы и форма отзыва (если доступна)."""
+    """Детальная страница филиала: услуги, график,
+    отзывы и форма отзыва (если доступна)."""
     sc = get_object_or_404(
         ServiceCenter.objects.prefetch_related("working_hours"),
         id=service_center_id,
@@ -174,8 +196,11 @@ def profile(request):
         .order_by("-scheduled_date", "scheduled_time")
     )
 
+    from loyalty_program.models import LoyaltyAccount
+
+    loyalty_account, created = LoyaltyAccount.objects.get_or_create(user=request.user)
+
     today = timezone.localtime(timezone.now()).date()
-    # Базовый queryset за последние 90 дней для остальных виджетов (как было)
     start_date = today - timedelta(days=89)
     appt_qs = Appointment.objects.filter(
         car__owner=request.user,
@@ -218,13 +243,6 @@ def profile(request):
     labels = [f"{mm:02d}.{yy}" for (yy, mm) in months]
     data = [month_map.get((yy, mm), 0) for (yy, mm) in months]
 
-    total_cost = (
-        appt_qs.filter(status="COMPLETED").aggregate(total=Sum("service_type__price"))[
-            "total"
-        ]
-        or 0
-    )
-
     top_services_qs = (
         appt_qs.values("service_type__name").annotate(c=Count("id")).order_by("-c")[:5]
     )
@@ -258,12 +276,15 @@ def profile(request):
     hour_data = hour_counts
 
     top_service_name = top_services_labels[0] if top_services_labels else "—"
-    avg_cost = (
-        appt_qs.filter(status="COMPLETED")
-        .aggregate(avg=Avg("service_type__price"))
-        .get("avg")
-        or 0
-    )
+
+    total_cost = loyalty_account.total_spent
+
+    all_completed = Appointment.objects.filter(
+        car__owner=request.user, status="COMPLETED"
+    ).select_related("service_type")
+
+    avg_cost = total_cost / all_completed.count() if all_completed.count() > 0 else 0
+
     now_local = timezone.localtime(timezone.now())
     upcoming_appt = (
         Appointment.objects.filter(
@@ -282,6 +303,7 @@ def profile(request):
         "profile": user_profile,
         "cars": user_cars,
         "appointments": appointments,
+        "loyalty_account": loyalty_account,
         "labels": labels,
         "data": data,
         "visits_count_90": sum(data),
@@ -455,14 +477,24 @@ def service_booking(request):
                     request,
                     f'Запись на услугу "{appointment.service_type}" успешно создана в {appointment.service_center} на {appointment.scheduled_date} в {appointment.scheduled_time}',
                 )
-                return redirect("appointment_list")
+                return redirect("home")
 
             except Exception as e:
+                import traceback
+
+                traceback.print_exc()
                 messages.error(request, f"Ошибка при создании записи: {str(e)}")
         else:
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{error}")
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = form.fields.get(field, None)
+                        if field_label and hasattr(field_label, "label"):
+                            messages.error(request, f"{field_label.label}: {error}")
+                        else:
+                            messages.error(request, f"{error}")
     else:
         initial = {}
         if preselect_car_id:
@@ -539,6 +571,7 @@ def get_available_time_slots(request):
                 slot_duration=30,
                 lunch_start=working_hours.lunch_start,
                 lunch_end=working_hours.lunch_end,
+                service_duration=service_type.duration,
             )
 
             now = timezone.localtime(timezone.now())
@@ -565,9 +598,19 @@ def get_available_time_slots(request):
                 service_center=service_center,
             )
 
+            from core.models import BlockedTimeSlot
+
+            blocked_slots = BlockedTimeSlot.objects.filter(
+                service_center=service_center, date=selected_date
+            ).values_list("time", flat=True)
+            blocked_times = set(blocked_slots)
+
             available_slots = []
             for slot in all_slots:
                 slot_time = datetime.strptime(slot, "%H:%M").time()
+                if slot_time in blocked_times:
+                    continue
+
                 slot_end_time = (
                     datetime.combine(selected_date, slot_time)
                     + timedelta(minutes=service_type.duration)
@@ -607,9 +650,14 @@ def get_available_time_slots(request):
 
 
 def generate_time_slots(
-    start_time, end_time, slot_duration=30, lunch_start=None, lunch_end=None
+    start_time,
+    end_time,
+    slot_duration=30,
+    lunch_start=None,
+    lunch_end=None,
+    service_duration=None,
 ):
-    """Генерирует список временных слотов, исключая время обеда при наличии"""
+    """Генерирует список временных слотов, исключая время обеда и учитывая длительность услуги"""
     slots = []
     start_datetime = datetime.combine(date.today(), start_time)
     end_datetime = datetime.combine(date.today(), end_time)
@@ -621,32 +669,30 @@ def generate_time_slots(
 
     current_time = start_datetime
     step = timedelta(minutes=slot_duration)
-    while current_time + step <= end_datetime:
+
+    effective_duration = service_duration if service_duration else slot_duration
+
+    while current_time < end_datetime:
+        slot_end_time = current_time + timedelta(minutes=effective_duration)
+
+        if slot_end_time > end_datetime:
+            break
+
         in_lunch = False
         if lunch_start_dt and lunch_end_dt:
-            in_lunch = lunch_start_dt <= current_time < lunch_end_dt
+            in_lunch = not (
+                slot_end_time <= lunch_start_dt or current_time >= lunch_end_dt
+            )
+
         if not in_lunch:
             slots.append(current_time.strftime("%H:%M"))
+
         current_time += step
 
     return slots
 
 
 @login_required
-def appointment_list(request):
-    """Список записей пользователя"""
-    auto_update_appointments()
-    appointments = (
-        Appointment.objects.filter(car__owner=request.user)
-        .select_related("service_center", "service_type", "car")
-        .order_by("-scheduled_date", "scheduled_time")
-    )
-
-    context = {"appointments": appointments}
-
-    return render(request, "core/appointment_list.html", context)
-
-
 @login_required
 def cancel_appointment(request, appointment_id):
     """Отмена записи"""
@@ -662,7 +708,7 @@ def cancel_appointment(request, appointment_id):
         else:
             messages.error(request, "Невозможно отменить запись в текущем статусе")
 
-    return redirect("appointment_list")
+    return redirect("profile")
 
 
 @login_required
@@ -736,3 +782,98 @@ def admin_delete_review(request, review_id):
         review.delete()
         messages.success(request, "Отзыв удалён")
     return redirect("admin_panel:admin_service_center_detail", service_center_id=sc_id)
+
+
+@login_required
+def appointment_detail(request, appointment_id):
+    """Детальная страница записи с возможностью оплаты"""
+    from payments.models import Payment
+    from loyalty_program.models import LoyaltyAccount
+    from decimal import Decimal
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
+    )
+
+    latest_payment = (
+        Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
+    )
+
+    loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+    base_price = appointment.get_base_price()
+    discount_amount = loyalty_account.calculate_discount(base_price)
+    price_after_discount = base_price - discount_amount
+    max_bonus_usage = loyalty_account.calculate_max_bonus_usage(price_after_discount)
+
+    from loyalty_program.models import LoyaltySettings
+
+    settings = LoyaltySettings.get_settings()
+
+    status_discount_percent = Decimal("0.00")
+    if loyalty_account.status == "BRONZE":
+        status_discount_percent = settings.bronze_discount_percent
+    elif loyalty_account.status == "SILVER":
+        status_discount_percent = settings.silver_discount_percent
+    elif loyalty_account.status == "GOLD":
+        status_discount_percent = settings.gold_discount_percent
+    elif loyalty_account.status == "PLATINUM":
+        status_discount_percent = settings.platinum_discount_percent
+
+    total_discount_percent = (
+        status_discount_percent + loyalty_account.personal_discount_percent
+    )
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        payment_data = None
+        if latest_payment:
+            payment_data = {
+                "status": latest_payment.status,
+                "confirmation_url": latest_payment.confirmation_url,
+                "paid_at": (
+                    latest_payment.paid_at.strftime("%d.%m.%Y в %H:%M")
+                    if latest_payment.paid_at
+                    else None
+                ),
+            }
+
+        data = {
+            "id": str(appointment.id),
+            "service_type": appointment.service_type.name,
+            "service_center": appointment.service_center.address,  # type: ignore
+            "scheduled_date": appointment.scheduled_date.strftime("%d.%m.%Y"),
+            "scheduled_time": appointment.scheduled_time.strftime("%H:%M"),
+            "car": str(appointment.car),
+            "status": appointment.status,
+            "status_display": appointment.get_status_display(),  # type: ignore
+            "price": float(appointment.service_type.price),
+            "payment": payment_data,
+            "loyalty": {
+                "base_price": float(base_price),
+                "discount_amount": float(discount_amount),
+                "price_after_discount": float(price_after_discount),
+                "bonus_balance": float(loyalty_account.bonus_balance),
+                "max_bonus_usage": float(max_bonus_usage),
+                "status": loyalty_account.status,
+                "status_display": loyalty_account.get_status_display(),  # type: ignore
+                "status_discount_percent": float(status_discount_percent),
+                "personal_discount_percent": float(
+                    loyalty_account.personal_discount_percent
+                ),
+                "total_discount_percent": float(total_discount_percent),
+            },
+        }
+        return JsonResponse(data)
+
+    context = {
+        "appointment": appointment,
+        "payment": latest_payment,
+        "loyalty_account": loyalty_account,
+        "base_price": base_price,
+        "discount_amount": discount_amount,
+        "price_after_discount": price_after_discount,
+        "max_bonus_usage": max_bonus_usage,
+        "status_discount_percent": status_discount_percent,
+        "total_discount_percent": total_discount_percent,
+    }
+
+    return render(request, "core/appointment_detail.html", context)

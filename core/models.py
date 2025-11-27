@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import os
-from PIL import Image
+from PIL import Image  # type: ignore
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
@@ -319,6 +319,15 @@ class Appointment(models.Model):
         verbose_name="Статус",
     )
     notes = models.TextField(verbose_name="Примечания", blank=True)
+    paid_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Оплаченная сумма",
+        help_text="Фактическая сумма с учетом скидок и использованных бонусов",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -330,6 +339,18 @@ class Appointment(models.Model):
             )
             self.end_time = end_datetime.time()
         super().save(*args, **kwargs)
+
+    def get_base_price(self):
+        """Получить базовую цену услуги"""
+        from decimal import Decimal
+
+        return Decimal(str(self.service_type.price))
+
+    def get_final_price(self):
+        """Получить фактически оплаченную сумму или базовую цену"""
+        if self.paid_amount is not None:
+            return self.paid_amount
+        return self.get_base_price()
 
     def __str__(self):
         return f"{self.car} - {self.service_type} - {self.scheduled_date} {self.scheduled_time}"
@@ -413,3 +434,37 @@ class AdminDashboard(models.Model):
     class Meta:
         verbose_name = "Дашборд администратора"
         verbose_name_plural = "Дашборды администраторов"
+
+
+class BlockedTimeSlot(models.Model):
+    """Модель для блокировки временных слотов администратором"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service_center = models.ForeignKey(
+        ServiceCenter,
+        on_delete=models.CASCADE,
+        related_name="blocked_slots",
+        verbose_name="Автосервис",
+    )
+    date = models.DateField(verbose_name="Дата")
+    time = models.TimeField(verbose_name="Время")
+    blocked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Заблокировал",
+    )
+    blocked_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата блокировки")
+    reason = models.CharField(
+        max_length=200, blank=True, null=True, verbose_name="Причина блокировки"
+    )
+
+    class Meta:
+        verbose_name = "Заблокированный слот"
+        verbose_name_plural = "Заблокированные слоты"
+        unique_together = ("service_center", "date", "time")
+        ordering = ["date", "time"]
+
+    def __str__(self):
+        return f"{self.service_center} - {self.date} {self.time}"

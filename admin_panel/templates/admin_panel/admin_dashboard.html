@@ -6,71 +6,369 @@
 {% block extra_css %}
 <style>
     body {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
     }
+
+    /* Modern Dashboard Card */
     .dashboard-card {
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         border: none;
         overflow: hidden;
-        transition: all 0.3s ease;
+        transition: all 0.4s ease;
         background: white;
+        animation: fadeInUp 0.6s ease;
     }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .dashboard-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+
+    /* Modern Stats Cards */
+    .stats-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        border-radius: 16px;
+        padding: 1.5rem 1.25rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        position: relative;
+        overflow: hidden;
+        animation: scaleIn 0.5s ease backwards;
+    }
+
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .stats-card:nth-child(1) { animation-delay: 0.1s; }
+    .stats-card:nth-child(2) { animation-delay: 0.15s; }
+    .stats-card:nth-child(3) { animation-delay: 0.2s; }
+    .stats-card:nth-child(4) { animation-delay: 0.25s; }
+
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #0d6efd, #6610f2);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .stats-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 30px rgba(13,110,253,0.2);
     }
-    .quick-action {
-        border-radius: 10px;
-        border: 1px solid #e9ecef;
-        padding: 1rem 1.25rem;
-        background: #fff;
-        transition: all .2s ease;
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0;
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
     }
-    .quick-action:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
-    .stats-card { background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:.9rem 1rem; }
-    .stat-number { font-size:1.25rem; font-weight:700; margin:0; }
-    .stat-label { font-size:.8rem; color:#6c757d; margin-top:.2rem; }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    /* Modern Card Header */
     .card-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
-        padding: 1.5rem;
+        padding: 1.75rem 1.5rem;
         border-bottom: none;
+        position: relative;
+        overflow: hidden;
     }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .card-header h4 {
+        position: relative;
+        z-index: 1;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .card-header .btn {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Modern Buttons */
     .btn-admin {
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
+        border-radius: 50px;
+        padding: 0.75rem 1.75rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid;
+    }
+
+    .btn-admin:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .btn-light {
+        background: rgba(255,255,255,0.9);
+        border: none;
         transition: all 0.3s ease;
     }
-    .table thead th { background:#f8f9fa; }
+
+    .btn-light:hover {
+        background: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        border-radius: 50px;
+        border: 2px solid #0d6efd;
+        color: #0d6efd !important;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+        color: white !important;
+        border-color: #0d6efd;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(13,110,253,0.4);
+    }
+
+    .btn-outline-primary.active {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+        color: white !important;
+        border-color: #0d6efd;
+    }
+
+    /* Table Improvements */
+    .table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table thead th {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #495057;
+        border: none;
+        padding: 1rem;
+    }
+
+    .table tbody tr {
+        transition: background 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    }
+
+    .table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* Badge Improvements */
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        letter-spacing: 0.3px;
+    }
+
+    .bg-primary {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+    }
+
+    .bg-success {
+        background: linear-gradient(135deg, #198754, #157347) !important;
+    }
+
+    .bg-warning {
+        background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+        color: #000 !important;
+    }
+
+    .bg-danger {
+        background: linear-gradient(135deg, #dc3545, #c82333) !important;
+    }
+
+    /* Page Title */
+    .page-title {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #212529, #495057);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Dropdown Menu */
+    .dropdown-menu {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        padding: 0.5rem;
+        margin-top: 0.75rem !important;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    .dropdown-item {
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .dropdown-item:hover {
+        background: linear-gradient(135deg, #f8f9ff, #e7f1ff);
+        color: #0d6efd;
+    }
+
+    .dropdown-item i {
+        color: #0d6efd;
+        transition: transform 0.2s ease;
+    }
+
+    .dropdown-item:hover i {
+        transform: scale(1.1);
+    }
+
+    /* Button Group */
+    .btn-group .btn {
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .btn-group .btn:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .btn-group .btn:last-child {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .btn-group .btn:not(:first-child):not(:last-child) {
+        border-radius: 0;
+    }
+
+    /* Chart Container */
+    canvas {
+        border-radius: 12px;
+    }
+
+    /* Date Badge */
+    .date-badge {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" data-aos="fade-in">
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-2">Панель администратора</h1>
+                    <h1 class="page-title mb-2">Панель администратора</h1>
                     <p class="text-muted">Управление автосервисами и записями</p>
                 </div>
                 <div class="text-end">
-                    <div class="text-muted small">Сегодня: {% now "d.m.Y" %}</div>
+                    <span class="date-badge d-inline-block mb-2"><i class="bi bi-calendar3 me-1"></i>{% now "d.m.Y" %}</span>
                     <div class="mt-2 d-inline-flex align-items-center gap-2">
                         <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-admin dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Действия
+                            <button class="btn btn-light btn-admin dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>Действия
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{% url 'service_booking' %}"><i class="bi bi-plus-circle me-1"></i> Новая запись</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-check me-1"></i> Все записи</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_branches' %}"><i class="bi bi-building me-1"></i> Филиалы</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_reviews' %}"><i class="bi bi-chat-dots me-1"></i> Отзывы</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_users' %}"><i class="bi bi-people me-1"></i> Пользователи</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_services' %}"><i class="bi bi-wrench me-1"></i> Услуги</a></li>
-                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_cars' %}"><i class="bi bi-car-front me-1"></i> Автомобили</a></li>
+                                <li><a class="dropdown-item" href="{% url 'service_booking' %}"><i class="bi bi-plus-circle me-2"></i>Новая запись</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-check me-2"></i>Все записи</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_branches' %}"><i class="bi bi-building me-2"></i>Филиалы</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_reviews' %}"><i class="bi bi-chat-dots me-2"></i>Отзывы</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_users' %}"><i class="bi bi-people me-2"></i>Пользователи</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_services' %}"><i class="bi bi-wrench me-2"></i>Услуги</a></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_cars' %}"><i class="bi bi-car-front me-2"></i>Автомобили</a></li>
                             </ul>
                         </div>
                     </div>
@@ -79,27 +377,27 @@
         </div>
     </div>
 
-    <div class="row g-2 mb-4">
-        <div class="col-6 col-lg-3">
-            <div class="stats-card text-center py-2">
+    <div class="row g-4 mb-4">
+        <div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
+            <div class="stats-card text-center py-3">
                 <div class="stat-number">{{ total_appointments }}</div>
                 <div class="stat-label">Всего записей</div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="stats-card text-center py-2">
+        <div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="150">
+            <div class="stats-card text-center py-3">
                 <div class="stat-number">{{ active_services }}</div>
                 <div class="stat-label">Активные услуги</div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="stats-card text-center py-2">
+        <div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
+            <div class="stats-card text-center py-3">
                 <div class="stat-number">{{ customers_count }}</div>
                 <div class="stat-label">Клиентов</div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="stats-card text-center py-2">
+        <div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="250">
+            <div class="stats-card text-center py-3">
                 <div class="stat-number">{{ branches_count }}</div>
                 <div class="stat-label">Филиалы</div>
             </div>
@@ -107,12 +405,12 @@
     </div>
 
     <div class="row">
-        <div class="col-xl-8 mb-4">
+        <div class="col-xl-8 mb-4" data-aos="fade-right">
             <div class="dashboard-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Ближайшие записи</h4>
                     <div>
-                        <a class="btn btn-light btn-sm" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-ul me-1"></i> Все записи</a>
+                        <a class="btn btn-light btn-sm btn-admin" href="{% url 'admin_panel:admin_appointments' %}"><i class="bi bi-list-ul me-1"></i> Все записи</a>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -153,13 +451,14 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-4 mb-4">
-            <div class="dashboard-card mb-4">
+        <div class="col-xl-4 mb-4" data-aos="fade-left">
+            <div class="dashboard-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Статусы записей</h4>
                     <div class="btn-group btn-group-sm" role="group" aria-label="status-period">
-                        <button type="button" class="btn btn-light btn-status-period" data-period="week">Неделя</button>
-                        <button type="button" class="btn btn-light btn-status-period" data-period="month">Месяц</button>
+                        <button type="button" class="btn btn-outline-primary btn-status-period" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-outline-primary btn-status-period" data-period="month">Месяц</button>
+                        <button type="button" class="btn btn-outline-primary btn-status-period active" data-period="all">Все</button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -200,13 +499,13 @@
     </div>
 
     <div class="row mt-3">
-        <div class="col-12 col-xl-8 mb-4">
+        <div class="col-12 col-xl-8 mb-4" data-aos="fade-up">
             <div class="dashboard-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i>Посещаемость (все филиалы)</h4>
                     <div class="btn-group btn-group-sm" role="group" aria-label="period">
-                        <button type="button" class="btn btn-light btn-overall-period" data-period="week">Неделя</button>
-                        <button type="button" class="btn btn-light btn-overall-period" data-period="month">Месяц</button>
+                        <button type="button" class="btn btn-outline-primary btn-overall-period active" data-period="week">Неделя</button>
+                        <button type="button" class="btn btn-outline-primary btn-overall-period" data-period="month">Месяц</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -214,10 +513,10 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-xl-4 mb-4">
+        <div class="col-12 col-xl-4 mb-4" data-aos="fade-up" data-aos-delay="100">
             <div class="dashboard-card">
                 <div class="card-header">
-                    <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Популярность услуг</h4>
+                    <h4 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Популярность услуг</h4>
                 </div>
                 <div class="card-body">
                     <div style="height:320px"><canvas id="overallServicesChart"></canvas></div>
@@ -232,9 +531,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     (function(){
+        // Modern Chart.js defaults
+        Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        Chart.defaults.color = '#6c757d';
+        
         const visitsCtx = document.getElementById('overallVisitsChart');
         let visitsChart = null;
         if (visitsCtx) {
+            const gradient = visitsCtx.getContext('2d').createLinearGradient(0, 0, 0, 320);
+            gradient.addColorStop(0, 'rgba(13, 110, 253, 0.3)');
+            gradient.addColorStop(1, 'rgba(13, 110, 253, 0.01)');
+            
             visitsChart = new Chart(visitsCtx.getContext('2d'), {
                 type: 'line',
                 data: {
@@ -243,17 +550,61 @@
                         label: 'Записей',
                         data: {{ overall_visits_data|safe }},
                         borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13,110,253,.15)',
-                        tension: .3,
-                        pointRadius: 2
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0d6efd',
+                        pointBorderWidth: 2,
+                        pointHoverBackgroundColor: '#0d6efd',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 3,
+                        fill: true
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, padding: 10 },
+                            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { padding: 10 }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
             });
         }
 
         document.querySelectorAll('.btn-overall-period').forEach(btn => {
             btn.addEventListener('click', function(){
+                // Update active state
+                document.querySelectorAll('.btn-overall-period').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
                 const period = this.getAttribute('data-period');
                 fetch('{% url "admin_panel:admin_api_overall_visits" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(r => r.json())
@@ -268,6 +619,9 @@
 
         document.querySelectorAll('.btn-status-period').forEach(btn => {
             btn.addEventListener('click', function(){
+                document.querySelectorAll('.btn-status-period').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
                 const period = this.getAttribute('data-period');
                 fetch('{% url "admin_panel:admin_api_overall_statuses" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(r => r.json())
@@ -297,12 +651,50 @@
                     labels: {{ overall_service_labels|safe }},
                     datasets: [{
                         data: {{ overall_service_data|safe }},
-                        backgroundColor: ['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'],
-                        borderWidth: 2,
-                        borderColor: '#fff'
+                        backgroundColor: [
+                            '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
+                            '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        hoverOffset: 15
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed + ' записей';
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
             });
         }
     })();

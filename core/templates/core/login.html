@@ -4,60 +4,256 @@
 
 {% block extra_css %}
 <style>
-    body { background-color:#f8f9fa; }
-    .auth-card { border:none; border-radius:16px; box-shadow: 0 20px 60px rgba(0,0,0,.12); overflow:hidden; }
-    .auth-header { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color:#fff; padding: 1.25rem 1.25rem; }
-    .auth-header .title { font-weight:600; margin:0; }
-    .auth-body { padding: 1.25rem; }
-    .auth-footer { padding: .75rem 1.25rem 1.25rem; }
-    .form-floating>.form-control { border-radius: .75rem; }
-    .form-floating .form-control::placeholder { color: transparent; }
-    .form-floating .form-control:focus { box-shadow: 0 0 0 .15rem rgba(13,110,253,.15); }
-    .muted-link { color:#6c757d; text-decoration:none; }
-    .muted-link:hover { color:#495057; text-decoration:underline; }
-    .toggle-password { position:absolute; right: .75rem; top:50%; transform: translateY(-50%); border:none; background:transparent; color:#6c757d; }
-    .pos-relative { position:relative; }
+    body { 
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        min-height: 100vh;
+    }
+    
+    .auth-wrapper {
+        min-height: calc(100vh - 200px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+    
+    .auth-card { 
+        border: none; 
+        border-radius: 20px; 
+        box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+        background: rgba(255,255,255,0.98);
+        animation: scaleIn 0.5s ease;
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+    
+    .auth-header { 
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: #fff; 
+        padding: 2rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .auth-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .auth-header .title { 
+        font-weight: 700; 
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .auth-header .btn-light {
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s ease;
+    }
+    
+    .auth-header .btn-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .auth-body { 
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-footer { 
+        padding: 1rem 1.5rem 1.5rem;
+        background: rgba(248,249,250,0.5);
+    }
+    
+    .form-floating {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-floating > .form-control { 
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+        padding: 1.25rem 1rem;
+    }
+    
+    .form-floating > .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+        transform: translateY(-2px);
+    }
+    
+    .form-floating label {
+        padding: 1.25rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        border-radius: 12px;
+        padding: 0.875rem;
+        font-weight: 600;
+        border: none;
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .btn-primary:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(13,110,253,0.4);
+    }
+    
+    .toggle-password { 
+        position: absolute; 
+        right: 1rem; 
+        top: 50%; 
+        transform: translateY(-50%); 
+        border: none; 
+        background: transparent; 
+        color: #6c757d;
+        transition: all 0.3s ease;
+        z-index: 10;
+        cursor: pointer;
+    }
+    
+    .toggle-password:hover {
+        color: #0d6efd;
+        transform: translateY(-50%) scale(1.2);
+    }
+    
+    .muted-link { 
+        color: #0d6efd; 
+        text-decoration: none; 
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .muted-link:hover { 
+        color: #0b5ed7; 
+        text-decoration: underline;
+    }
+    
+    .alert {
+        border-radius: 12px;
+        border: none;
+        animation: slideInDown 0.3s ease;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .auth-icon {
+        font-size: 3rem;
+        color: rgba(255,255,255,0.9);
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-7 col-lg-5">
-            <div class="card auth-card">
-                <div class="auth-header d-flex align-items-center justify-content-between">
-                    <h3 class="title mb-0"><i class="bi bi-box-arrow-in-right me-2"></i>Вход</h3>
-                    <a class="btn btn-sm btn-light" href="{% url 'register' %}"><i class="bi bi-person-plus me-1"></i>Регистрация</a>
+<div class="auth-wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5">
+                <div class="auth-icon text-center mb-4">
+                    <i class="bi bi-shield-lock-fill"></i>
                 </div>
-                <div class="auth-body">
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
-                    {% endif %}
-                    <form method="post" novalidate>
-                        {% csrf_token %}
+                <div class="card auth-card">
+                    <div class="auth-header d-flex align-items-center justify-content-between">
+                        <h3 class="title mb-0"><i class="bi bi-box-arrow-in-right me-2"></i>Вход в систему</h3>
+                        <a class="btn btn-sm btn-light" href="{% url 'register' %}"><i class="bi bi-person-plus me-1"></i>Регистрация</a>
+                    </div>
+                    <div class="auth-body">
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger py-2 mb-3">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        <form method="post" novalidate>
+                            {% csrf_token %}
 
-                        {# Username #}
-                        <div class="form-floating mb-3">
-                            {{ form.username }}
-                            <label for="{{ form.username.id_for_label }}">Логин</label>
-                            {% for error in form.username.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
-                        </div>
+                            {# Username #}
+                            <div class="form-floating">
+                                {{ form.username }}
+                                <label for="{{ form.username.id_for_label }}"><i class="bi bi-person me-2"></i>Логин</label>
+                                {% for error in form.username.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
 
-                        <div class="form-floating mb-3 pos-relative">
-                            {{ form.password }}
-                            <label for="{{ form.password.id_for_label }}">Пароль</label>
-                            <button class="toggle-password" type="button" aria-label="Показать пароль" onclick="(function(btn){var i=document.getElementById('passwordInput'); if(i){ i.type = i.type==='password'?'text':'password'; btn.innerHTML = i.type==='password'? '<i class=\'bi bi-eye\'></i>' : '<i class=\'bi bi-eye-slash\'></i>'; }})(this)"><i class="bi bi-eye"></i></button>
-                            {% for error in form.password.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
-                        </div>
+                            <div class="form-floating position-relative">
+                                {{ form.password }}
+                                <label for="{{ form.password.id_for_label }}"><i class="bi bi-lock me-2"></i>Пароль</label>
+                                <button class="toggle-password" type="button" aria-label="Показать пароль" onclick="(function(btn){var i=document.getElementById('passwordInput'); if(i){ i.type = i.type==='password'?'text':'password'; btn.innerHTML = i.type==='password'? '<i class=\'bi bi-eye\'></i>' : '<i class=\'bi bi-eye-slash\'></i>'; }})(this)"><i class="bi bi-eye"></i></button>
+                                {% for error in form.password.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
 
-                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right me-1"></i> Войти</button>
-                    </form>
-                </div>
-                <div class="auth-footer text-center">
-                    <small class="text-muted">Нет аккаунта? <a class="muted-link" href="{% url 'register' %}">Создайте его</a></small>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">
+                                <span style="position: relative; z-index: 1;">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Войти в систему
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="auth-footer text-center">
+                        <small class="text-muted">Нет аккаунта? <a class="muted-link" href="{% url 'register' %}">Создайте его бесплатно</a></small>
+                    </div>
                 </div>
             </div>
-        </div>
     </div>
 </div>
 {% endblock %}

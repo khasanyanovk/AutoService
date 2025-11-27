@@ -3,6 +3,197 @@
 
 {% block title %}Марки и модели{% endblock %}
 
+{% block extra_css %}
+<style>
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  /* Page Title */
+  .h5 {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #212529, #495057);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Card */
+  .card {
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    border: none;
+    overflow: hidden;
+    background: white;
+    animation: fadeInUp 0.6s ease;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* List Group */
+  .list-group-item {
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 1.25rem 1.5rem;
+    transition: background 0.3s ease;
+  }
+
+  .list-group-item:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  }
+
+  .list-group-item:last-child {
+    border-bottom: none;
+  }
+
+  /* Brand Button */
+  .btn-link {
+    color: #212529;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+  }
+
+  .btn-link:hover {
+    color: #0d6efd;
+    text-decoration: none !important;
+  }
+
+  /* Nested Models List */
+  .list-group-flush .list-group-item {
+    background: #f8f9ff;
+    padding: 0.75rem 1rem;
+    margin: 0.25rem 0;
+    border-radius: 12px;
+    border: 2px solid #e7f1ff;
+  }
+
+  .list-group-flush .list-group-item:hover {
+    background: white;
+    border-color: #0d6efd;
+    transform: translateX(5px);
+  }
+
+  /* Buttons */
+  .btn {
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .btn-sm {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    border: none;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4);
+  }
+
+  .btn-outline-primary {
+    border: 2px solid #0d6efd;
+    color: #0d6efd;
+  }
+
+  .btn-outline-primary:hover {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+  }
+
+  .btn-outline-secondary {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+  }
+
+  .btn-outline-secondary:hover {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+  }
+
+  .btn-outline-danger {
+    border: 2px solid #dc3545;
+    color: #dc3545;
+  }
+
+  .btn-outline-danger:hover {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+  }
+
+  /* Button Group */
+  .btn-group .btn {
+    border-radius: 8px;
+    margin: 0 2px;
+  }
+
+  .btn-group .btn:first-child {
+    margin-left: 0;
+  }
+
+  .btn-group .btn:last-child {
+    margin-right: 0;
+  }
+
+  /* Collapse Animation */
+  .collapse {
+    transition: height 0.35s ease;
+  }
+
+  .collapsing {
+    transition: height 0.35s ease;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .h5 {
+      font-size: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .d-flex.gap-2 {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .d-flex.gap-2 .btn {
+      width: 100%;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">

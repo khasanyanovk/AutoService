@@ -5,140 +5,543 @@
 
 {% block extra_css %}
 <style>
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
     .profile-card {
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         overflow: hidden;
         background: white;
+        border: none;
+        animation: fadeIn 0.5s ease;
     }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     .profile-header {
-        background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
-        padding: 2rem 1.5rem;
+        padding: 2.5rem 1.5rem;
         position: relative;
         overflow: hidden;
+    }
+
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     .profile-header .row { align-items: center; }
     .profile-header .container-fluid { position: relative; z-index: 1; }
     .avatar-wrapper {
-        display: flex; align-items: center; gap: 16px;
+        display: flex; 
+        align-items: center; 
+        gap: 20px;
     }
-    .profile-identity h2 { font-size: 1.6rem; margin: 0; }
-    .profile-identity .username { opacity: .85; font-size: .95rem; }
+    .profile-identity h2 { 
+        font-size: 1.8rem; 
+        margin: 0; 
+        font-weight: 700;
+    }
+    .profile-identity .username { 
+        opacity: .9; 
+        font-size: 1rem; 
+        margin-top: 0.25rem;
+    }
     .profile-actions { text-align: right; }
     .profile-avatar {
         width: 120px;
         height: 120px;
         object-fit: cover;
-        border: 4px solid white;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        border: 5px solid rgba(255,255,255,0.3);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
     }
-    .info-pills { display:flex; flex-wrap:wrap; gap:.5rem; margin-top: .75rem; }
-    .info-pill { background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18); color:#fff; border-radius: 999px; padding: .3rem .65rem; font-size:.9rem; }
-    .info-pill .bi { margin-right: .35rem; opacity:.9; }
+    .profile-avatar:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    }
+    .info-pills { 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 0.75rem; 
+        margin-top: 1rem; 
+    }
+    .info-pill { 
+        background: rgba(255,255,255,0.2); 
+        border: 1px solid rgba(255,255,255,0.3); 
+        color: #fff; 
+        border-radius: 50px; 
+        padding: 0.5rem 1rem; 
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    .info-pill:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-2px);
+    }
+    .info-pill .bi { 
+        margin-right: 0.5rem; 
+        opacity: 1;
+    }
+
+    /* Loyalty Status Styles */
+    .loyalty-status {
+        font-weight: 600;
+        border: 2px solid rgba(255,255,255,0.5);
+    }
+    
+    .loyalty-status[data-status="BRONZE"] {
+        background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%) !important;
+    }
+    
+    .loyalty-status[data-status="SILVER"] {
+        background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%) !important;
+    }
+    
+    .loyalty-status[data-status="GOLD"] {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important;
+        color: #000 !important;
+    }
+    
+    .loyalty-status[data-status="PLATINUM"] {
+        background: linear-gradient(135deg, #E5E4E2 0%, #B4B4B8 100%) !important;
+        box-shadow: 0 0 20px rgba(229, 228, 226, 0.6);
+    }
+    
+    .bonus-balance {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        font-weight: 600;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    /* Modern Car Cards */
     .carousel-card {
-        border-radius: 12px;
+        border-radius: 24px;
         overflow: hidden;
         border: none;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
         margin: 0 auto;
         max-width: 1100px;
         background: white;
+        transition: all 0.4s ease;
+        position: relative;
     }
+
+    .carousel-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #0d6efd, #0b5ed7, #6610f2);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .carousel-card:hover::before {
+        opacity: 1;
+    }
+
+    .carousel-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+    }
+
     .car-image {
-        height: 480px;
+        height: 500px;
         object-fit: cover;
         width: 100%;
+        transition: transform 0.5s ease;
+        position: relative;
     }
+
+    .carousel-item.active .car-image {
+        animation: zoomIn 0.8s ease;
+    }
+
+    @keyframes zoomIn {
+        from { 
+            opacity: 0;
+            transform: scale(1.05); 
+        }
+        to { 
+            opacity: 1;
+            transform: scale(1); 
+        }
+    }
+
+    .carousel-card:hover .car-image {
+        transform: scale(1.05);
+    }
+
     .carousel-control-prev,
     .carousel-control-next {
-        width: 45px;
-        height: 45px;
-        background-color: rgba(0,0,0,0.7);
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
         border-radius: 50%;
         top: 50%;
         transform: translateY(-50%);
-        margin: 0 15px;
+        margin: 0 20px;
+        opacity: 0.9;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(13,110,253,0.4);
     }
+
+    .carousel-control-prev:hover,
+    .carousel-control-next:hover {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: 0 6px 20px rgba(13,110,253,0.6);
+    }
+
     .carousel-control-prev-icon,
     .carousel-control-next-icon {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
     }
+
     .stats-card {
         background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(13, 110, 253, 0.1);
     }
-    .stat-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #495057;
+
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #0d6efd, #6610f2);
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
-    .btn-action {
-        border-radius: 20px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 500;
+
+    .stats-card:hover::before {
+        opacity: 1;
     }
-    .car-details {
-        padding: 1.5rem;
-        background: white;
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
     }
-    .car-title {
+
+    .stats-card h6 {
+        font-weight: 700;
+        color: #212529;
+        margin-bottom: 1.5rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stats-card h6::before {
+        content: '•';
+        color: #0d6efd;
         font-size: 1.5rem;
-        margin-bottom: 1.2rem;
-        color: #333;
+    }
+
+    .stats-card .h4 {
+        font-weight: 700;
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .btn-action {
+        border-radius: 50px;
+        padding: 0.65rem 1.75rem;
         font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
+
+    .btn-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    .car-details {
+        padding: 2.5rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        position: relative;
+    }
+
+    .car-title {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+        color: #212529;
+        font-weight: 700;
+        background: linear-gradient(135deg, #212529, #495057);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
     .car-info {
-        font-size: 1rem;
-        margin-bottom: 0.6rem;
-        color: #555;
+        font-size: 1.05rem;
+        margin-bottom: 0.85rem;
+        color: #495057;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        padding: 0.5rem;
+        border-radius: 8px;
     }
+
+    .car-info:hover {
+        background: rgba(13,110,253,0.05);
+        transform: translateX(5px);
+    }
+
+    .car-info strong {
+        color: #212529;
+        min-width: 120px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .car-info strong::before {
+        content: '•';
+        margin-right: 8px;
+        font-size: 1.5rem;
+        color: #212529;
+    }
+
     .car-actions {
         margin-top: 2rem;
         display: flex;
-        gap: 10px;
+        gap: 12px;
         justify-content: flex-start;
     }
+
     .car-actions .btn {
-        padding: 0.5rem 1.2rem;
-        font-size: 0.9rem;
-        border-radius: 6px;
+        padding: 0.65rem 1.5rem;
+        font-size: 0.95rem;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid;
+    }
+
+    .car-actions .btn-outline-primary {
+        border-color: #0d6efd;
+        color: #0d6efd;
+    }
+
+    .car-actions .btn-outline-primary:hover {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        border-color: #0d6efd;
+        color: #ffffff;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(13,110,253,0.4);
+    }
+
+    .car-actions .btn-outline-danger {
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+
+    .car-actions .btn-outline-danger:hover {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border-color: #dc3545;
+        color: #ffffff;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(220,53,69,0.4);
     }
 
     .btn-compact {
-        padding: 0.15rem 0.45rem;
-        font-size: 0.75rem;
-        line-height: 1.1;
-        border-radius: 0.2rem;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        border-radius: 50px;
     }
-    .carousel-indicators { bottom: -40px; }
+
+    .carousel-indicators { 
+        bottom: -50px; 
+    }
+
     .carousel-indicators button {
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        margin: 0 5px;
+        margin: 0 6px;
+        background-color: #dee2e6;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .carousel-indicators button.active {
         background-color: #adb5bd;
     }
-    .carousel-indicators button.active {
-        background-color: #495057;
-    }
+
     .section-title {
-        color: #333;
+        color: #212529;
         margin-bottom: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.5rem;
     }
-    body {
-        background-color: #f8f9fa;
-    }
+
     .container.mt-4.min-vh-80 {
         padding-top: 2rem;
-        padding-bottom: 2rem;
+        padding-bottom: 4rem;
+    }
+
+    .nav-tabs {
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-tabs .nav-link::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #0d6efd, #0b5ed7);
+        transition: all 0.3s ease;
+        transform: translateX(-50%);
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #0d6efd;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        background: none;
+        border: none;
+    }
+
+    .nav-tabs .nav-link.active::after {
+        width: 100%;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #198754, #157347);
+        border: none;
+        border-radius: 50px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(25,135,84,0.3);
+    }
+
+    .btn-success:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(25,135,84,0.4);
+    }
+
+    /* Empty state styling */
+    .text-center.py-5 {
+        animation: fadeIn 0.6s ease;
+    }
+
+    .carousel-inner {
+        padding-bottom: 60px;
+    }
+
+    /* Appointment list styling */
+    .list-group {
+        border-radius: 20px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #f1f3f5;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .list-group-item:hover {
+        background: linear-gradient(90deg, #f8f9fa 0%, transparent 100%);
+        padding-left: 2rem;
+    }
+
+    .list-group-item:first-child {
+        border-radius: 20px 20px 0 0;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+        border-radius: 0 0 20px 20px;
+    }
+
+    .list-group-item .fw-semibold {
+        font-size: 1.05rem;
+        color: #212529;
+        font-weight: 700;
+    }
+
+    .list-group-item .text-muted {
+        color: #6c757d;
+        font-size: 0.95rem;
+    }
+
+    .list-group-item .badge {
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+    }
+
+    .tab-pane {
+        animation: fadeIn 0.4s ease;
     }
 </style>
 {% endblock %}
@@ -176,6 +579,19 @@
                             <span class="info-pill"><i class="bi bi-envelope"></i>{{ user.email }}</span>
                             <span class="info-pill"><i class="bi bi-car-front"></i>{{ cars.count }} авто</span>
                             <span class="info-pill"><i class="bi bi-graph-up"></i>{{ visits_count_90 }} записей / 90 дн.</span>
+                            
+                            {% comment %} Статус лояльности {% endcomment %}
+                            <span class="info-pill loyalty-status" data-status="{{ loyalty_account.status }}" 
+                                  title="Скидка: {{ loyalty_account.get_status_discount_percent }}%">
+                                <i class="bi bi-award"></i>
+                                {{ loyalty_account.get_status_display }}
+                            </span>
+                            
+                            {% comment %} Баланс бонусов {% endcomment %}
+                            <span class="info-pill bonus-balance" title="1 бонус = 1 рубль">
+                                <i class="bi bi-gift"></i>
+                                {{ loyalty_account.bonus_balance|floatformat:0 }} бонусов
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -312,47 +728,50 @@
             {% endif %}
         </div>
         <div class="tab-pane fade" id="stats-pane" role="tabpanel" aria-labelledby="stats-tab">
-            <div class="row g-3">
+            <h2 class="section-title mb-4">
+                <i class="bi bi-graph-up me-2" style="color: #0d6efd;"></i>Статистика посещений
+            </h2>
+            <div class="row g-4">
                 <div class="col-xl-8">
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Посещения (12 месяцев)</h6>
-                        <div style="height:240px">
+                    <div class="stats-card">
+                        <h6><i class="bi bi-calendar-range me-2"></i>Посещения (12 месяцев)</h6>
+                        <div style="height:280px">
                             <canvas id="visitsChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <div class="col-xl-4">
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Сумма завершённых услуг</h6>
-                        <div class="h4 mb-0">{{ total_cost }} ₽</div>
+                    <div class="stats-card mb-4">
+                        <h6><i class="bi bi-currency-exchange me-2"></i>Сумма завершённых услуг</h6>
+                        <div class="h4 mb-0 mt-3">{{ total_cost }} ₽</div>
                     </div>
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Активность по дням недели</h6>
+                    <div class="stats-card">
+                        <h6><i class="bi bi-calendar-week me-2"></i>Активность по дням недели</h6>
                         <div style="height:240px">
                             <canvas id="weekdayChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <div class="col-xl-6">
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Топ услуг</h6>
-                        <div style="height:240px">
+                    <div class="stats-card">
+                        <h6><i class="bi bi-wrench me-2"></i>Топ услуг</h6>
+                        <div style="height:280px">
                             <canvas id="servicesChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <div class="col-xl-6">
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Топ филиалов</h6>
-                        <div style="height:240px">
+                    <div class="stats-card">
+                        <h6><i class="bi bi-building me-2"></i>Топ филиалов</h6>
+                        <div style="height:280px">
                             <canvas id="centersChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <div class="col-12">
-                    <div class="stats-card mb-3">
-                        <h6 class="mb-2">Активность по часам</h6>
-                        <div style="height:180px">
+                    <div class="stats-card">
+                        <h6><i class="bi bi-clock-history me-2"></i>Активность по часам</h6>
+                        <div style="height:200px">
                             <canvas id="hoursChart"></canvas>
                         </div>
                     </div>
@@ -360,32 +779,41 @@
             </div>
         </div>
         <div class="tab-pane fade" id="appts-pane" role="tabpanel" aria-labelledby="appts-tab">
+            <h2 class="section-title mb-4">
+                <i class="bi bi-journal-text me-2" style="color: #0d6efd;"></i>Мои записи
+            </h2>
             {% if appointments %}
-            <div class="list-group shadow-sm">
+            <div class="list-group">
                 {% for a in appointments %}
-                <div class="list-group-item py-3">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div>
-                            <div class="fw-semibold mb-1">
+                <div class="list-group-item appointment-item" data-appointment-id="{{ a.id }}" style="cursor: pointer; transition: all 0.3s ease;">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold mb-2">
+                                <i class="bi bi-calendar-event me-2" style="color: #0d6efd;"></i>
                                 {{ a.scheduled_date|date:"d.m.Y" }} {{ a.scheduled_time|time:"H:i" }} — {{ a.service_type.name }}
                             </div>
+                            <div class="text-muted small mb-1">
+                                <i class="bi bi-geo-alt me-1"></i>{{ a.service_center.address }}
+                            </div>
+                            <div class="text-muted small mb-1">
+                                <i class="bi bi-car-front me-1"></i>{{ a.car.model.brand }} {{ a.car.model.name }} ({{ a.car.license_plate }})
+                            </div>
                             <div class="text-muted small">
-                                {{ a.service_center.address }} • {{ a.car.model.brand }} {{ a.car.model.name }} ({{ a.car.license_plate }})
+                                <i class="bi bi-cash-coin me-1"></i><strong>{{ a.service_type.price }} ₽</strong>
                             </div>
                             {% if a.notes %}
-                                <div class="mt-1 small">Примечание: {{ a.notes }}</div>
+                                <div class="mt-2 small p-2 rounded" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-left: 3px solid #0d6efd;">
+                                    <i class="bi bi-chat-left-text me-1"></i><strong>Примечание:</strong> {{ a.notes }}
+                                </div>
                             {% endif %}
                         </div>
-                        <div class="text-end">
-                            <span class="badge {% if a.status == 'SCHEDULED' %}bg-primary{% elif a.status == 'IN_PROGRESS' %}bg-warning text-dark{% elif a.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">{{ a.get_status_display }}</span>
-                            {% if a.status == 'SCHEDULED' %}
-                                <form action="{% url 'cancel_appointment' a.id %}" method="post" class="d-inline ms-2" onsubmit="return confirm('Отменить эту запись?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-outline-danger btn-compact">
-                                        <i class="bi bi-x-circle"></i> Отменить
-                                    </button>
-                                </form>
-                            {% endif %}
+                        <div class="text-end d-flex flex-column align-items-end gap-2">
+                            <span class="badge {% if a.status == 'SCHEDULED' %}bg-primary{% elif a.status == 'IN_PROGRESS' %}bg-warning text-dark{% elif a.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ a.get_status_display }}
+                            </span>
+                            <button type="button" class="btn btn-outline-primary btn-compact btn-appointment-details" data-appointment-id="{{ a.id }}">
+                                <i class="bi bi-eye"></i> Подробнее
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -393,14 +821,40 @@
             </div>
             {% else %}
                 <div class="text-center py-5">
-                    <div class="mb-3"><i class="bi bi-journal-text" style="font-size: 2.4rem; color:#6c757d;"></i></div>
-                    <h5 class="mb-1">Записей пока нет</h5>
-                    <div class="text-muted">Когда вы запишетесь на услугу, они появятся здесь</div>
+                    <div class="mb-4">
+                        <i class="bi bi-journal-text" style="font-size: 4rem; color:#6c757d; opacity: 0.5;"></i>
+                    </div>
+                    <h4 class="section-title">Записей пока нет</h4>
+                    <p class="text-muted mb-4">Когда вы запишетесь на услугу, они появятся здесь</p>
+                    <a href="{% url 'service_booking' %}" class="btn btn-primary btn-action">
+                        <i class="bi bi-plus-circle me-1"></i> Записаться на услугу
+                    </a>
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-labelledby="appointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%); color: white; border: none; padding: 2rem;">
+                <h5 class="modal-title fw-bold" id="appointmentModalLabel">
+                    <i class="bi bi-calendar-check me-2"></i>Детали записи
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="appointmentModalBody" style="padding: 2rem;">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 
 
 {% block extra_js %}
@@ -453,6 +907,334 @@
         statsTab.addEventListener('shown.bs.tab', function(){
             requestAnimationFrame(()=> setTimeout(initCharts, 0));
         });
+  }
+
+  document.querySelectorAll('.btn-appointment-details').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const appointmentId = this.getAttribute('data-appointment-id');
+      loadAppointmentDetails(appointmentId);
+    });
+  });
+
+  document.querySelectorAll('.appointment-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const appointmentId = this.getAttribute('data-appointment-id');
+      loadAppointmentDetails(appointmentId);
+    });
+    
+    item.addEventListener('mouseenter', function() {
+      this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+      this.style.transform = 'translateX(5px)';
+    });
+    
+    item.addEventListener('mouseleave', function() {
+      this.style.background = '';
+      this.style.transform = '';
+    });
+  });
+
+  function loadAppointmentDetails(appointmentId) {
+    const modal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+    const modalBody = document.getElementById('appointmentModalBody');
+    
+    modalBody.innerHTML = `
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Загрузка...</span>
+        </div>
+      </div>
+    `;
+    
+    modal.show();
+    
+    fetch(`/appointments/${appointmentId}/`, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      modalBody.innerHTML = renderAppointmentDetails(data);
+      attachModalHandlers(appointmentId);
+    })
+    .catch(error => {
+      modalBody.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>Ошибка загрузки данных
+        </div>
+      `;
+    });
+  }
+
+  function renderAppointmentDetails(data) {
+    const statusClass = data.status === 'SCHEDULED' ? 'primary' : 
+                       data.status === 'IN_PROGRESS' ? 'warning' :
+                       data.status === 'COMPLETED' ? 'success' : 'secondary';
+    
+    const loyalty = data.loyalty || {};
+    let paymentSection = '';
+    
+    if (data.status !== 'CANCELLED') {
+      if (data.payment && data.payment.status === 'succeeded') {
+        paymentSection = `
+          <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
+            <div class="payment-status text-success">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено онлайн</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="text-muted">Платеж выполнен ${data.payment.paid_at}</p>
+          </div>
+        `;
+      } else if (data.status === 'COMPLETED') {
+        paymentSection = `
+          <div class="payment-section paid" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #28a745; text-align: center;">
+            <div class="payment-status text-success">
+              <i class="bi bi-check-circle-fill fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплачено в центре</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #198754, #157347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${data.price} ₽
+            </div>
+            <p class="text-muted">Услуга завершена</p>
+          </div>
+        `;
+      } else if (data.payment && data.payment.status === 'pending') {
+        paymentSection = `
+          <div class="payment-section" style="background: linear-gradient(135deg, #fff8e1 0%, #ffe4b5 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 3px dashed #ffc107; text-align: center;">
+            <div class="payment-status text-warning">
+              <i class="bi bi-hourglass-split fs-1"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Ожидает оплаты</p>
+            </div>
+            <div class="payment-amount" style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+              ${loyalty.price_after_discount || data.price} ₽
+            </div>
+            <p class="mb-3">Платеж создан, но еще не завершен</p>
+            <a href="/payments/appointments/${data.id}/check-payment/" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise me-2"></i>Проверить статус
+            </a>
+            ${data.payment.confirmation_url ? `
+              <a href="${data.payment.confirmation_url}" class="btn btn-success ms-2">
+                <i class="bi bi-credit-card me-2"></i>Продолжить оплату
+              </a>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        // Формируем строку описания скидки
+        let discountText = '';
+        if (loyalty.discount_amount > 0) {
+          if (loyalty.status_discount_percent > 0 && loyalty.personal_discount_percent > 0) {
+            discountText = `(${loyalty.status_display}: ${loyalty.status_discount_percent}% + Персональная: ${loyalty.personal_discount_percent}%)`;
+          } else if (loyalty.status_discount_percent > 0) {
+            discountText = `(${loyalty.status_display}: ${loyalty.status_discount_percent}%)`;
+          } else {
+            discountText = `(Персональная: ${loyalty.personal_discount_percent}%)`;
+          }
+        }
+        
+        paymentSection = `
+          <div class="payment-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 16px; padding: 2rem; margin-top: 2rem; border: 2px solid #2196f3;">
+            <div class="text-center mb-3">
+              <i class="bi bi-credit-card fs-1 text-primary"></i>
+              <p class="mt-2 mb-0 fw-bold fs-5">Оплата онлайн</p>
+            </div>
+            
+            <!-- Информация о ценах и скидках -->
+            <div class="price-breakdown" style="background: #f8f9fa; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Базовая цена:</span>
+                <span class="fw-bold">${loyalty.base_price || data.price} ₽</span>
+              </div>
+              ${loyalty.discount_amount > 0 ? `
+                <div class="d-flex justify-content-between mb-2 text-success">
+                  <span><i class="bi bi-tag-fill me-1"></i>Скидка ${discountText}:</span>
+                  <span class="fw-bold">-${loyalty.discount_amount} ₽</span>
+                </div>
+              ` : ''}
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Доступно бонусов:</span>
+                <span class="fw-bold text-primary">${loyalty.bonus_balance || 0} ₽</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2 text-info">
+                <span><i class="bi bi-info-circle me-1"></i>Можно использовать (макс 70%):</span>
+                <span class="fw-bold">до ${loyalty.max_bonus_usage || 0} ₽</span>
+              </div>
+              <hr style="margin: 1rem 0; opacity: 0.3;">
+              <div class="d-flex justify-content-between">
+                <span class="fs-5 fw-bold">Итого к оплате:</span>
+                <span class="fs-4 fw-bold text-primary" id="modal-final-price">${loyalty.price_after_discount || data.price} ₽</span>
+              </div>
+            </div>
+            
+            <!-- Форма с выбором бонусов -->
+            <div class="bonus-selector mb-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 12px; padding: 1.5rem; border: 2px solid #2196f3;">
+              <label for="modal-bonus-amount" class="form-label fw-bold">
+                <i class="bi bi-gift me-1"></i>Использовать бонусы:
+              </label>
+              <div class="input-group mb-3">
+                <input type="number" 
+                       class="form-control form-control-lg" 
+                       id="modal-bonus-amount" 
+                       min="0" 
+                       max="${loyalty.max_bonus_usage || 0}" 
+                       value="0"
+                       step="1"
+                       style="border-radius: 8px; border: 2px solid #2196f3; font-size: 1.1rem; font-weight: 600;">
+                <span class="input-group-text" style="background: #2196f3; color: white; font-weight: 700; border: 2px solid #2196f3;">₽</span>
+              </div>
+              <button type="button" class="btn btn-info w-100 mb-2" id="modal-use-max-bonus">
+                <i class="bi bi-arrow-up-circle me-1"></i>Использовать максимум (${loyalty.max_bonus_usage || 0} ₽)
+              </button>
+              <small class="text-muted d-block text-center">
+                <i class="bi bi-info-circle me-1"></i>Можно оплатить до 70% стоимости бонусами
+              </small>
+            </div>
+            
+            <div class="text-center">
+              <button type="button" class="btn btn-success btn-lg" id="modal-pay-button" data-appointment-id="${data.id}">
+                <i class="bi bi-credit-card me-2"></i>Оплатить <span id="modal-pay-amount">${loyalty.price_after_discount || data.price}</span> ₽
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    return `
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-wrench-adjustable-circle" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Услуга
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.service_type}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-geo-alt" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Филиал
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.service_center}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-calendar3" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Дата
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.scheduled_date}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-clock" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Время
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.scheduled_time}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-car-front" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Автомобиль
+        </div>
+        <div class="info-value" style="font-weight: 700; color: #212529; font-size: 1.1rem;">${data.car}</div>
+      </div>
+
+      <div class="info-row" style="display: flex; justify-content: space-between; padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+        <div class="info-label" style="font-weight: 600; color: #6c757d; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="bi bi-info-circle" style="font-size: 1.25rem; color: #0d6efd;"></i>
+          Статус
+        </div>
+        <div class="info-value">
+          <span class="badge bg-${statusClass}" style="padding: 0.5rem 1.25rem; border-radius: 50px; font-size: 0.95rem; text-transform: uppercase;">
+            ${data.status_display}
+          </span>
+        </div>
+      </div>
+
+      ${paymentSection}
+
+      <div class="mt-4 d-flex gap-2 justify-content-end">
+        ${data.status === 'SCHEDULED' && (!data.payment || data.payment.status !== 'succeeded') ? `
+          <button type="button" class="btn btn-danger btn-cancel-appointment" data-appointment-id="${data.id}">
+            <i class="bi bi-x-circle me-2"></i>Отменить запись
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function attachModalHandlers(appointmentId) {
+    const bonusInput = document.getElementById('modal-bonus-amount');
+    const useMaxBtn = document.getElementById('modal-use-max-bonus');
+    const payButton = document.getElementById('modal-pay-button');
+    const finalPriceEl = document.getElementById('modal-final-price');
+    const payAmountEl = document.getElementById('modal-pay-amount');
+    
+    // Получаем данные из атрибутов
+    const maxBonusUsage = bonusInput ? parseFloat(bonusInput.getAttribute('max')) : 0;
+    const priceAfterDiscount = parseFloat(finalPriceEl ? finalPriceEl.textContent : 0);
+    
+    // Обновление цены при изменении бонусов
+    function updatePrice() {
+      if (!bonusInput || !finalPriceEl || !payAmountEl) return;
+      
+      let bonusAmount = parseFloat(bonusInput.value) || 0;
+      bonusAmount = Math.min(bonusAmount, maxBonusUsage);
+      bonusAmount = Math.max(0, bonusAmount);
+      bonusInput.value = Math.floor(bonusAmount);
+      
+      const finalPrice = Math.max(0, priceAfterDiscount - bonusAmount);
+      finalPriceEl.textContent = finalPrice.toFixed(2) + ' ₽';
+      payAmountEl.textContent = finalPrice.toFixed(2);
+    }
+    
+    if (bonusInput) {
+      bonusInput.addEventListener('input', updatePrice);
+    }
+    
+    if (useMaxBtn) {
+      useMaxBtn.addEventListener('click', function() {
+        if (bonusInput) {
+          bonusInput.value = maxBonusUsage;
+          updatePrice();
+        }
+      });
+    }
+    
+    if (payButton) {
+      payButton.addEventListener('click', function() {
+        const bonusAmount = bonusInput ? (bonusInput.value || 0) : 0;
+        const url = `/payments/appointments/${appointmentId}/pay/?bonus_amount=${bonusAmount}`;
+        window.location.href = url;
+      });
+    }
+
+    const cancelBtn = document.querySelector('.btn-cancel-appointment');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        if (confirm('Вы уверены, что хотите отменить запись?')) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = `/appointments/${appointmentId}/cancel/`;
+          
+          const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrfmiddlewaretoken';
+          csrfInput.value = csrfToken;
+          form.appendChild(csrfInput);
+          
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    }
   }
 })();
 </script>
