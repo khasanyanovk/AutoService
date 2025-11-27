@@ -506,7 +506,7 @@ def admin_user_stats(request, user_id):
     top_centers_data = [r["count"] for r in top_centers_qs]
 
     completed_qs = appts.filter(status="COMPLETED")
-    total_cost = sum(a.service_type.price for a in completed_qs)
+    total_cost = sum(a.get_final_price() for a in completed_qs)
 
     weekday_counts = [0] * 7
     for row in appts.values("scheduled_date").annotate(count=Count("id")):
