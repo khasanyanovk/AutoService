@@ -100,27 +100,9 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    $(document).ready(function() {
-        $("#id_brand").change(function () {
-            const url = "{% url 'load_models' %}";
-            const brandId = $(this).val();
-            
-            if (brandId) {
-                $.ajax({
-                    url: url,
-                    data: {
-                        'brand_id': brandId
-                    },
-                    success: function (data) {
-                        $("#id_model").html(data.options);
-                    }
-                });
-            } else {
-                $("#id_model").html('<option value="">Сначала выберите марку</option>');
-            }
-        });
-
-        $('select, input[type="text"], input[type="number"]').addClass('form-control');
-    });
+    window.editCarData = {
+        loadModelsUrl: "{% url 'load_models' %}"
+    };
 </script>
+<script src="{% static 'core/scripts/edit-car.js' %}"></script>
 {% endblock %}

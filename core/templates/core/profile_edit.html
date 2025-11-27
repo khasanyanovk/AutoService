@@ -113,23 +113,9 @@
 </div>
 
 <script>
-    document.getElementById('{{ p_form.avatar.id_for_label }}').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('avatarPreview').src = e.target.result;
-            }
-            reader.readAsDataURL(file);
-        }
-    });
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputs = document.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            if (!input.classList.contains('btn')) {
-                input.classList.add('form-control');
-            }
-        });
-    });
+    window.profileEditData = {
+        avatarFieldId: '{{ p_form.avatar.id_for_label }}'
+    };
 </script>
+<script src="{% static 'core/scripts/profile-edit.js' %}"></script>
 {% endblock %}

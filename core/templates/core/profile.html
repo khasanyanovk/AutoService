@@ -322,55 +322,18 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-(function(){
-  const visits = { labels: {{ labels|safe }}, data: {{ data|safe }} };
-  const services = { labels: {{ top_services_labels|safe }}, data: {{ top_services_data|safe }} };
-  const centers = { labels: {{ top_centers_labels|safe }}, data: {{ top_centers_data|safe }} };
-  const weekday = { labels: {{ weekday_labels|safe }}, data: {{ weekday_data|safe }} };
-  const hours = { labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), data: {{ hour_data|safe }} };
-
-        function makeLine(ctx, labels, data, color){
-            return new Chart(ctx, { type:'line', data:{ labels, datasets:[{ data, label:'Записей', borderColor: color, backgroundColor: 'rgba(13,110,253,.1)', tension:.3, pointRadius: 2 }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
-        }
-        function makeBar(ctx, labels, data, color){
-            return new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ data, label:'Кол-во', backgroundColor: color }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
-        }
-        function makeDoughnut(ctx, labels, data){
-            return new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data, backgroundColor:['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } } });
-        }
-
-    let chartsInitialized = false;
-    let charts = [];
-  function initCharts(){
-    if (chartsInitialized) return;
-    chartsInitialized = true;
-                const dpr = window.devicePixelRatio || 1;
-                function init(id, builder){
-                        const canvas = document.getElementById(id);
-                        const parent = canvas.parentElement;
-                        const width = parent.clientWidth;
-                        const height = parent.clientHeight;
-                        canvas.width = Math.floor(width * dpr);
-                        canvas.height = Math.floor(height * dpr);
-                        canvas.style.width = width + 'px';
-                        canvas.style.height = height + 'px';
-                        const ctx = canvas.getContext('2d');
-                        return builder(ctx);
-                }
-                charts.push(init('visitsChart', (ctx)=> makeLine(ctx, visits.labels, visits.data, '#0d6efd')));
-                charts.push(init('servicesChart', (ctx)=> makeDoughnut(ctx, services.labels, services.data)));
-                charts.push(init('centersChart', (ctx)=> makeDoughnut(ctx, centers.labels, centers.data)));
-                charts.push(init('weekdayChart', (ctx)=> makeBar(ctx, weekday.labels, weekday.data, '#198754')));
-                charts.push(init('hoursChart', (ctx)=> makeBar(ctx, hours.labels, hours.data, '#6c757d')));
-  }
-
-  const statsTab = document.getElementById('stats-tab');
-  if (statsTab){
-        statsTab.addEventListener('shown.bs.tab', function(){
-            requestAnimationFrame(()=> setTimeout(initCharts, 0));
-        });
-  }
-})();
+  window.profileData = {
+    labels: {{ labels|safe }},
+    data: {{ data|safe }},
+    top_services_labels: {{ top_services_labels|safe }},
+    top_services_data: {{ top_services_data|safe }},
+    top_centers_labels: {{ top_centers_labels|safe }},
+    top_centers_data: {{ top_centers_data|safe }},
+    weekday_labels: {{ weekday_labels|safe }},
+    weekday_data: {{ weekday_data|safe }},
+    hour_data: {{ hour_data|safe }}
+  };
 </script>
+<script src="{% static 'core/scripts/profile.js' %}"></script>
 <script src="{% static 'loyalty_program/js/appointment-modal.js' %}"></script>
 {% endblock %}
