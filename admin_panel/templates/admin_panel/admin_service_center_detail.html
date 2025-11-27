@@ -7,44 +7,10 @@
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
 <style>
-        border: none;
-        overflow: hidden;
-        background: white;
-        animation: scaleIn 0.6s ease;
-        transition: all 0.3s ease;
-    }
-
     .dashboard-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 15px 50px rgba(0,0,0,0.15);
     }
-
-    .card-header {
-        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-        color: white;
-        padding: 1.5rem;
-        border-bottom: none;
-        font-weight: 600;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .card-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: rotate 10s linear infinite;
-    }
-
-    .card-header h4 {
-        position: relative;
-        z-index: 1;
-    }
-
     .service-center-header {
         background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         color: white;
@@ -55,7 +21,6 @@
         overflow: hidden;
         animation: fadeInUp 0.6s ease;
     }
-
     .service-center-header::before {
         content: '';
         position: absolute;

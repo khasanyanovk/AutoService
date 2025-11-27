@@ -4,59 +4,11 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <style>
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .dashboard-card:hover {
-    box-shadow: 0 15px 50px rgba(0,0,0,0.15);
-  }
-
   .dashboard-card:nth-child(2) {
     animation-delay: 0.1s;
   }
-
   .dashboard-card:nth-child(3) {
     animation-delay: 0.2s;
-  }
-
-  .card-header {
-    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-    color: white;
-    padding: 1.25rem 1.5rem;
-    border-bottom: none;
-    font-weight: 600;
-    font-size: 1.1rem;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .card-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    animation: rotate 10s linear infinite;
-  }
-
-  @keyframes rotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .card-header strong,
-  .card-header .badge,
-  .card-header .text-muted {
-    position: relative;
-    z-index: 1;
   }
 
   .card-header .text-muted {

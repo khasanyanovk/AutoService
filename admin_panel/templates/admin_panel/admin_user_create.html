@@ -3,6 +3,18 @@
 
 {% block title %}Создание пользователя — Администратор{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
+<style>
+  .page-header.admin-header {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    padding: 2rem 0;
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header admin-header" data-aos="fade-down">
   <div class="container-fluid">
@@ -158,58 +170,4 @@
   </div>
 </div>
 
-<style>
-  .page-header.admin-header {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-    padding: 2rem 0;
-    margin-bottom: 0;
-    border-radius: 0;
-  }
-
-  .card {
-    border-radius: 15px;
-    overflow: hidden;
-  }
-
-  .card-header {
-    border-bottom: none;
-    padding: 1.25rem 1.5rem;
-  }
-
-  .form-label {
-    color: #374151;
-    margin-bottom: 0.5rem;
-  }
-
-  .form-control, .form-select {
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    padding: 0.625rem 0.875rem;
-  }
-
-  .form-control:focus, .form-select:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-  }
-
-  .btn {
-    border-radius: 8px;
-    padding: 0.5rem 1.5rem;
-    font-weight: 600;
-  }
-
-  .invalid-feedback {
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-  }
-
-  .alert {
-    border-radius: 10px;
-  }
-
-  .form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-  }
-</style>
 {% endblock %}

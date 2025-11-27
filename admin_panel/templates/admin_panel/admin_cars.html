@@ -6,48 +6,28 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <style>
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* List Group */
   .list-group-item {
     border: none;
     border-bottom: 1px solid #f0f0f0;
     padding: 1.25rem 1.5rem;
     transition: background 0.3s ease;
   }
-
   .list-group-item:hover {
     background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
   }
-
   .list-group-item:last-child {
     border-bottom: none;
   }
-
-  /* Brand Button */
   .btn-link {
     color: #212529;
     font-weight: 700;
     font-size: 1.1rem;
     transition: all 0.3s ease;
   }
-
   .btn-link:hover {
     color: #0d6efd;
     text-decoration: none !important;
   }
-
-  /* Nested Models List */
   .list-group-flush .list-group-item {
     background: #f8f9ff;
     padding: 0.75rem 1rem;
@@ -55,25 +35,15 @@
     border-radius: 12px;
     border: 2px solid #e7f1ff;
   }
-
   .list-group-flush .list-group-item:hover {
     background: white;
     border-color: #0d6efd;
     transform: translateX(5px);
   }
-
-  /* Buttons */
-  .btn {
-    border-radius: 50px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-
   .btn-sm {
     padding: 0.5rem 1.25rem;
     font-size: 0.875rem;
   }
-
   .btn-primary {
     background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
     border: none;
