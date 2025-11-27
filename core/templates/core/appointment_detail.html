@@ -5,11 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'loyalty_program/css/loyalty-status.css' %}">
-<style>
-    body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-    }
+<link rel="stylesheet" href="{% static 'core/css/appointment-detail.css' %}">
 
     .appointment-card {
         background: white;
@@ -282,13 +278,7 @@
         }
 
         .action-buttons .btn {
-            width: 100%;
-        }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
+{% endblock %}{% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">

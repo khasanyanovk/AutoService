@@ -1,0 +1,54 @@
+.branch-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  overflow: hidden;
+  border: 1px solid #e9ecef;
+  background: #fff;
+  transition: all 0.3s ease;
+}
+.branch-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+.branch-photo {
+  height: 220px;
+  object-fit: cover;
+  width: 100%;
+  transition: transform 0.5s ease;
+}
+.branch-card:hover .branch-photo {
+  transform: scale(1.1);
+}
+.branch-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #212529;
+}
+.branch-meta {
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+.branch-meta i {
+  color: #0d6efd;
+}
+.branch-actions .btn {
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+.branch-actions .btn:hover {
+  transform: translateX(5px);
+}
+body {
+  background: #f8f9fa;
+}
+.page-header {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  color: #fff;
+  padding: 2.5rem 0;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.page-header h2 {
+  margin: 0;
+  font-weight: 600;
+}

@@ -4,11 +4,7 @@
 {% block title %}Добавление автомобиля{% endblock %}
 
 {% block extra_css %}
-<style>
-    body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-    }
+<link rel="stylesheet" href="{% static 'core/css/add-car.css' %}">
 
     .form-card {
         border-radius: 24px;
@@ -254,12 +250,7 @@
     .form-text {
         color: #6c757d;
         font-size: 0.875rem;
-        margin-top: 0.5rem;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
+{% endblock %}{% block content %}
 <div class="container mt-4 min-vh-80">
     <div class="row justify-content-center">
         <div class="col-lg-8">

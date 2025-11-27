@@ -4,11 +4,7 @@
 {% block title %}О нашей компании{% endblock %}
 
 {% block extra_css %}
-<style>
-    body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-    }
+<link rel="stylesheet" href="{% static 'core/css/about.css' %}">
     
     .container {
         max-width: 1200px;
@@ -383,13 +379,7 @@
         }
         
         h2.section-title {
-            font-size: 2rem;
-        }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
+{% endblock %}{% block content %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="container">
     <header>
