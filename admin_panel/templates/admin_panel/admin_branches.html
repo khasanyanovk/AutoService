@@ -4,31 +4,8 @@
 {% block title %}Филиалы автосервиса{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <style>
-  body {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-  }
-
-  /* Page Title */
-  .h3 {
-    font-size: 2rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #212529, #495057);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-  }
-
-  /* Branch Cards */
-  .branch-card {
-    position: relative;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    overflow: hidden;
-    border: none;
-    transition: all 0.4s ease;
-    background: white;
     animation: fadeInUp 0.6s ease backwards;
   }
 

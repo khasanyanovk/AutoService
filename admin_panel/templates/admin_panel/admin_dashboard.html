@@ -4,13 +4,8 @@
 {% block title %}Панель администратора{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <style>
-    body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-    }
-
-    /* Modern Dashboard Card */
     .dashboard-card {
         border-radius: 20px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.1);
@@ -529,174 +524,20 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'admin_panel/js/admin-dashboard.js' %}"></script>
 <script>
-    (function(){
-        // Modern Chart.js defaults
-        Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        Chart.defaults.color = '#6c757d';
-        
-        const visitsCtx = document.getElementById('overallVisitsChart');
-        let visitsChart = null;
-        if (visitsCtx) {
-            const gradient = visitsCtx.getContext('2d').createLinearGradient(0, 0, 0, 320);
-            gradient.addColorStop(0, 'rgba(13, 110, 253, 0.3)');
-            gradient.addColorStop(1, 'rgba(13, 110, 253, 0.01)');
-            
-            visitsChart = new Chart(visitsCtx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: {{ overall_visits_labels|safe }},
-                    datasets: [{
-                        label: 'Записей',
-                        data: {{ overall_visits_data|safe }},
-                        borderColor: '#0d6efd',
-                        backgroundColor: gradient,
-                        borderWidth: 3,
-                        tension: 0.4,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: '#fff',
-                        pointBorderColor: '#0d6efd',
-                        pointBorderWidth: 2,
-                        pointHoverBackgroundColor: '#0d6efd',
-                        pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            cornerRadius: 8,
-                            titleFont: { size: 14, weight: 'bold' },
-                            bodyFont: { size: 13 },
-                            displayColors: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, padding: 10 },
-                            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false }
-                        },
-                        x: {
-                            grid: { display: false, drawBorder: false },
-                            ticks: { padding: 10 }
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    }
-                }
-            });
-        }
-
-        document.querySelectorAll('.btn-overall-period').forEach(btn => {
-            btn.addEventListener('click', function(){
-                // Update active state
-                document.querySelectorAll('.btn-overall-period').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                
-                const period = this.getAttribute('data-period');
-                fetch('{% url "admin_panel:admin_api_overall_visits" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(r => r.json())
-                    .then(payload => {
-                        if (!visitsChart) return;
-                        visitsChart.data.labels = payload.labels;
-                        visitsChart.data.datasets[0].data = payload.data;
-                        visitsChart.update();
-                    });
-            })
-        });
-
-        document.querySelectorAll('.btn-status-period').forEach(btn => {
-            btn.addEventListener('click', function(){
-                document.querySelectorAll('.btn-status-period').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                
-                const period = this.getAttribute('data-period');
-                fetch('{% url "admin_panel:admin_api_overall_statuses" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(r => r.json())
-                    .then(payload => {
-                        const tbody = document.getElementById('overallStatusTableBody');
-                        if (!tbody) return;
-                        const rows = (payload.items || []).map(item => {
-                            const badgeClass = item.status === 'SCHEDULED' ? 'bg-primary' :
-                                               item.status === 'IN_PROGRESS' ? 'bg-warning' :
-                                               item.status === 'COMPLETED' ? 'bg-success' :
-                                               item.status === 'CANCELLED' ? 'bg-danger' : 'bg-secondary';
-                            return `<tr>
-                                <td><span class="badge ${badgeClass}">${item.label}</span></td>
-                                <td class="text-end"><strong>${item.count}</strong></td>
-                            </tr>`;
-                        });
-                        tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>';
-                    });
-            })
-        });
-
-        const serviceCtx = document.getElementById('overallServicesChart');
-        if (serviceCtx) {
-            new Chart(serviceCtx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: {{ overall_service_labels|safe }},
-                    datasets: [{
-                        data: {{ overall_service_data|safe }},
-                        backgroundColor: [
-                            '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
-                            '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
-                        ],
-                        borderWidth: 3,
-                        borderColor: '#fff',
-                        hoverOffset: 15
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 20,
-                                font: {
-                                    size: 12,
-                                    weight: '600'
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            cornerRadius: 8,
-                            titleFont: { size: 14, weight: 'bold' },
-                            bodyFont: { size: 13 },
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    label += context.parsed + ' записей';
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    cutout: '65%'
-                }
-            });
-        }
-    })();
+    // Initialize dashboard with data from Django
+    initAdminDashboard({
+        visitsChart: {
+            labels: {{ overall_visits_labels|safe }},
+            data: {{ overall_visits_data|safe }}
+        },
+        visitsUpdateUrl: '{% url "admin_panel:admin_api_overall_visits" %}',
+        servicesChart: {
+            labels: {{ overall_service_labels|safe }},
+            data: {{ overall_service_data|safe }}
+        },
+        statusUpdateUrl: '{% url "admin_panel:admin_api_overall_statuses" %}'
+    });
 </script>
 {% endblock %}
