@@ -4,47 +4,7 @@
 {% block title %}Панель администратора{% endblock %}
 
 {% block extra_css %}
-<style>
-    body {
-        background-color: #f8f9fa;
-    }
-    .dashboard-card {
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-        border: none;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        background: white;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-    }
-    .quick-action {
-        border-radius: 10px;
-        border: 1px solid #e9ecef;
-        padding: 1rem 1.25rem;
-        background: #fff;
-        transition: all .2s ease;
-    }
-    .quick-action:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
-    .stats-card { background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:.9rem 1rem; }
-    .stat-number { font-size:1.25rem; font-weight:700; margin:0; }
-    .stat-label { font-size:.8rem; color:#6c757d; margin-top:.2rem; }
-    .card-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
-        color: white;
-        padding: 1.5rem;
-        border-bottom: none;
-    }
-    .btn-admin {
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    .table thead th { background:#f8f9fa; }
-</style>
+<link rel="stylesheet" href="{% static 'core/css/admin-dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
