@@ -1,6 +1,5 @@
 FROM python:3.12-slim
 
-# Отключаем создание .pyc файлов и буферизацию stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -8,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Устанавливаем системные зависимости
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        build-essential \
@@ -17,29 +15,22 @@ RUN apt-get update \
        zlib1g-dev \
        libpng-dev \
        netcat-traditional \
+       dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем и устанавливаем Python зависимости
 COPY requirements.txt ./
+
 RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir gunicorn
 
-# Копируем код приложения
-COPY . .
+COPY . /app/
 
-# Создаем директории для статики и медиа
+RUN dos2unix /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
 RUN mkdir -p /app/staticfiles /app/media
-
-# Копируем и делаем исполняемым entrypoint скрипт
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
-# Создаем непривилегированного пользователя
-RUN useradd -m -u 1000 django && chown -R django:django /app
-USER django
 
 EXPOSE 8000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["gunicorn", "autoservice_project.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+ENTRYPOINT ["/app/entrypoint.sh"]
