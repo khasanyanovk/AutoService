@@ -47,6 +47,8 @@ services:
       - autoservice_media_volume:/app/media
     ports:
       - "8000:8000"
+    networks:
+      - autoservice_network
     depends_on:
       db:
         condition: service_healthy
@@ -57,8 +59,9 @@ volumes:
   autoservice_postgres_data:
   autoservice_static_volume:
   autoservice_media_volume:
-  autoserveice_caddy_data:
+  autoservice_caddy_data:
   autoservice_caddy_config:
 
 networks:
   autoservice_network:
+    driver: bridge
