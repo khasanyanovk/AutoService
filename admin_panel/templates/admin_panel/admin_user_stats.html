@@ -101,19 +101,26 @@
 <script src="{% static 'admin_panel/js/admin-charts.js' %}"></script>
 <script>
 (function(){
-  Chart.defaults.font.family = "'Inter', 'Segoe UI', system-ui, sans-serif";
-  Chart.defaults.font.size = 13;
-  Chart.defaults.color = '#495057';
-  Chart.defaults.borderColor = 'rgba(0,0,0,0.05)';
-
   const visits = {
     labels: {{ labels|safe }},
     data: {{ data|safe }}
   };
-  const services = { labels: {{ top_services_labels|safe }}, data: {{ top_services_data|safe }} };
-  const centers = { labels: {{ top_centers_labels|safe }}, data: {{ top_centers_data|safe }} };
-  const weekday = { labels: {{ weekday_labels|safe }}, data: {{ weekday_data|safe }} };
-  const hours = { labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), data: {{ hour_data|safe }} };
+  const services = { 
+    labels: {{ top_services_labels|safe }}, 
+    data: {{ top_services_data|safe }} 
+  };
+  const centers = { 
+    labels: {{ top_centers_labels|safe }}, 
+    data: {{ top_centers_data|safe }} 
+  };
+  const weekday = { 
+    labels: {{ weekday_labels|safe }}, 
+    data: {{ weekday_data|safe }} 
+  };
+  const hours = { 
+    labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), 
+    data: {{ hour_data|safe }} 
+  };
 
 
   const visitsCtx = document.getElementById('visitsChart').getContext('2d');

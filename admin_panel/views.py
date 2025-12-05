@@ -521,16 +521,16 @@ def admin_user_stats(request, user_id):
 
     context = {
         "user_obj": user,
-        "labels": json.dumps(labels, ensure_ascii=False),
-        "data": json.dumps(data, ensure_ascii=False),
-        "top_services_labels": json.dumps(top_services_labels, ensure_ascii=False),
-        "top_services_data": json.dumps(top_services_data, ensure_ascii=False),
-        "top_centers_labels": json.dumps(top_centers_labels, ensure_ascii=False),
-        "top_centers_data": json.dumps(top_centers_data, ensure_ascii=False),
+        "labels": labels,
+        "data": data,
+        "top_services_labels": top_services_labels,
+        "top_services_data": top_services_data,
+        "top_centers_labels": top_centers_labels,
+        "top_centers_data": top_centers_data,
         "total_cost": float(total_cost),
-        "weekday_labels": json.dumps(weekday_labels, ensure_ascii=False),
-        "weekday_data": json.dumps(weekday_counts, ensure_ascii=False),
-        "hour_data": json.dumps(hour_counts, ensure_ascii=False),
+        "weekday_labels": weekday_labels,
+        "weekday_data": weekday_counts,
+        "hour_data": hour_counts,
     }
 
     return render(request, "admin_panel/admin_user_stats.html", context)
