@@ -71,7 +71,6 @@
     </div>
   </div>
 
-  <!-- Активность по дням недели и часам -->
   <div class="row g-4">
     <div class="col-lg-6">
       <div class="dashboard-card">
@@ -99,9 +98,9 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'admin_panel/js/admin-charts.js' %}"></script>
 <script>
 (function(){
-  // Modern Chart.js defaults
   Chart.defaults.font.family = "'Inter', 'Segoe UI', system-ui, sans-serif";
   Chart.defaults.font.size = 13;
   Chart.defaults.color = '#495057';
@@ -116,130 +115,6 @@
   const weekday = { labels: {{ weekday_labels|safe }}, data: {{ weekday_data|safe }} };
   const hours = { labels: Array.from({length:24}, (_,i)=> (i<10? '0':'')+i+':00'), data: {{ hour_data|safe }} };
 
-  function makeLine(ctx, labels, data, color){
-    return new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Записей',
-          data,
-          borderColor: color,
-          backgroundColor: 'rgba(13,110,253,0.1)',
-          tension: 0.4,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointBackgroundColor: color,
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            borderRadius: 8,
-            titleFont: { size: 14, weight: 'bold' },
-            bodyFont: { size: 13 }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
-
-  function makeBar(ctx, labels, data, color){
-    return new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Количество',
-          data,
-          backgroundColor: color,
-          borderRadius: 8,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            borderRadius: 8
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
-
-  function makeDoughnut(ctx, labels, data){
-    return new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: [
-            '#0d6efd', '#6610f2', '#6f42c1', '#d63384',
-            '#dc3545', '#fd7e14', '#ffc107', '#198754',
-            '#20c997', '#0dcaf0'
-          ],
-          borderWidth: 3,
-          borderColor: '#fff',
-          hoverOffset: 10
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 15,
-              usePointStyle: true,
-              font: { size: 12 }
-            }
-          },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            borderRadius: 8
-          }
-        }
-      }
-    });
-  }
 
   const visitsCtx = document.getElementById('visitsChart').getContext('2d');
   makeLine(visitsCtx, visits.labels, visits.data, '#0d6efd');

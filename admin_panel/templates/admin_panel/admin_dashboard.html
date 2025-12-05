@@ -194,7 +194,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'admin_panel/js/admin-dashboard.js' %}"></script>
 <script>
-    // Initialize dashboard with data from Django
     initAdminDashboard({
         visitsChart: {
             labels: {{ overall_visits_labels|safe }},

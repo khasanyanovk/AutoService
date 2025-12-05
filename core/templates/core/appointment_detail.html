@@ -69,7 +69,6 @@
                         </div>
                     </div>
 
-                    <!-- Секция оплаты -->
                     {% if appointment.status != 'CANCELLED' %}
                     <div class="payment-section {% if payment and payment.status == 'succeeded' or appointment.status == 'COMPLETED' %}paid{% endif %}">
                         {% if payment and payment.status == 'succeeded' %}
@@ -107,7 +106,6 @@
                                 <p class="mt-2 mb-0">Оплата онлайн</p>
                             </div>
                             
-                            <!-- Информация о ценах и скидках -->
                             <div class="price-breakdown mt-4 mb-3">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Базовая цена:</span>
@@ -143,7 +141,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Форма с выбором бонусов -->
                             <div class="bonus-selector mb-3">
                                 <label for="bonus-amount" class="form-label fw-bold">
                                     <i class="bi bi-gift me-1"></i>Использовать бонусы:
@@ -198,8 +195,7 @@
                                 
                                 function updatePrice() {
                                     let bonusToUse = parseFloat(bonusInput.value) || 0;
-                                    
-                                    // Валидация
+  
                                     if (bonusToUse < 0) bonusToUse = 0;
                                     if (bonusToUse > maxBonusUsage) bonusToUse = maxBonusUsage;
                                     if (bonusToUse > bonusBalance) bonusToUse = bonusBalance;
@@ -234,7 +230,6 @@
                     </div>
                     {% endif %}
 
-                    <!-- Кнопки действий -->
                     <div class="action-buttons">
                         <a href="{% url 'profile' %}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left me-1"></i>Назад в профиль
