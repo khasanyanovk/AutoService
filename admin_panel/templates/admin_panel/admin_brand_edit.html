@@ -4,83 +4,8 @@
 {% block title %}{% if create %}Новая марка{% else %}Редактирование марки{% endif %}{% endblock %}
 
 {% block extra_css %}
-<style>
-  body {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-  }
-
-  .page-header {
-    animation: fadeInUp 0.6s ease;
-  }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .page-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #212529;
-  }
-
-  .form-card {
-    background: white;
-    border-radius: 20px;
-    padding: 2rem;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    animation: scaleIn 0.6s ease;
-  }
-
-  @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  .form-label {
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 0.5rem;
-  }
-
-  input, select, textarea {
-    border-radius: 12px;
-    border: 1px solid #dee2e6;
-    padding: 0.75rem 1rem;
-    transition: all 0.3s ease;
-    width: 100%;
-  }
-
-  input:focus, select:focus, textarea:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-    outline: none;
-  }
-
-  .btn {
-    border-radius: 50px;
-    font-weight: 600;
-    padding: 0.65rem 1.5rem;
-    transition: all 0.3s ease;
-    border: none;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-    color: white;
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
-  }
-
-  .btn-secondary {
-    border: 2px solid #6c757d;
-    color: #6c757d;
-    background: transparent;
-  }
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
+{% endblock %}
 
   .btn-secondary:hover {
     background: #6c757d;

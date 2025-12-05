@@ -1,0 +1,405 @@
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+
+/* Modern Booking Card */
+.booking-card {
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    border: none;
+    overflow: hidden;
+    background: white;
+    animation: fadeInUp 0.6s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modern Card Header */
+.card-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    padding: 1.75rem 1.5rem;
+    border-bottom: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.card-header h4 {
+    position: relative;
+    z-index: 1;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Section Titles */
+.section-title {
+    color: #212529;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #e9ecef;
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
+}
+
+.section-title .badge {
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0d6efd, #6610f2);
+    box-shadow: 0 4px 10px rgba(13,110,253,0.3);
+}
+
+/* Time Slots */
+.time-slot {
+    padding: 14px 10px;
+    margin: 6px;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: 600;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.time-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(13,110,253,0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.time-slot:hover::before {
+    left: 100%;
+}
+
+.time-slot:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    border-color: #0d6efd;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(13,110,253,0.2);
+}
+
+.time-slot.selected {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: white;
+    border-color: #0d6efd;
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+    transform: scale(1.05);
+}
+
+.time-slot.disabled {
+    background: #f8f9fa;
+    color: #adb5bd;
+    cursor: not-allowed;
+    border-color: #e9ecef;
+    opacity: 0.6;
+}
+
+.time-slot.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    background: #f8f9fa;
+    border-color: #e9ecef;
+}
+
+/* Service Cards */
+.service-card {
+    transition: all 0.4s ease;
+    cursor: pointer;
+    border: 2px solid #e9ecef;
+    border-radius: 16px;
+    height: 100%;
+    background: white;
+    position: relative;
+}
+
+.service-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    border-color: #0d6efd;
+}
+
+.service-card.selected {
+    border-color: #0d6efd;
+    box-shadow: 0 12px 35px rgba(13, 110, 253, 0.3);
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+}
+
+/* Service Center Cards */
+.service-center-card {
+    transition: all 0.4s ease;
+    cursor: pointer;
+    border: 2px solid #e9ecef;
+    border-radius: 16px;
+    height: 100%;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.service-center-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.service-center-card:hover::before {
+    transform: scaleX(1);
+}
+
+.service-center-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    border-color: #0d6efd;
+}
+
+.service-center-card.selected {
+    border-color: #0d6efd;
+    box-shadow: 0 12px 35px rgba(13, 110, 253, 0.3);
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+}
+
+.service-center-card.selected::before {
+    transform: scaleX(1);
+}
+
+/* Form Controls */
+.form-select, .form-control {
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+    padding: 0.875rem 1rem;
+    transition: all 0.3s ease;
+    background: white;
+    font-weight: 500;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+    transform: translateY(-2px);
+}
+
+.form-label {
+    font-weight: 700;
+    color: #495057;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+}
+
+/* Date Picker */
+.date-picker-container {
+    position: relative;
+}
+
+.date-picker-container .form-control {
+    cursor: pointer;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 50px;
+    padding: 0.875rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+}
+
+/* Alerts */
+.alert {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    padding: 1rem 1.25rem;
+    animation: slideDown 0.4s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #e7f3ff 0%, #cfe2ff 100%);
+    color: #084298;
+    border-left: 4px solid #0d6efd;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+    color: #664d03;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c2c7 100%);
+    color: #842029;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
+    color: #0f5132;
+    border-left: 4px solid #198754;
+}
+
+/* Badges */
+.badge {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    letter-spacing: 0.3px;
+}
+
+/* Notes Textarea */
+.notes-textarea {
+    min-height: 120px;
+    resize: vertical;
+    border-radius: 12px;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0d6efd;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Card Body */
+.card-body {
+    animation: fadeIn 0.8s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 1.1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+    }
+}

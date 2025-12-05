@@ -4,16 +4,7 @@
 {% block title %}{{ service_center.address }}{% endblock %}
 
 {% block extra_css %}
-<style>
-  body { background:#f8f9fa; }
-  .header-band { background:linear-gradient(135deg,#0d6efd 0%,#0b5ed7 100%); color:#fff; padding:2rem 0; margin-bottom:1.25rem; }
-  .header-band .subtitle { opacity:.9; }
-  .sc-card { border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.08); border:none; background:#fff; }
-  .photo { width:100%; height: 340px; object-fit:cover; border-radius: 12px; }
-  .section-title { font-weight:600; }
-  .badge-dot { display:inline-flex; align-items:center; gap:.4rem; }
-  .badge-dot::before { content:""; width:.5rem; height:.5rem; border-radius:50%; display:inline-block; background: currentColor; }
-</style>
+<link rel="stylesheet" href="{% static 'core/css/branch-detail.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -151,47 +142,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  (function() {
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-
-    const form = document.getElementById('reviewForm');
-    if (form) {
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const url = window.location.href;
-        const formData = new FormData(form);
-        fetch(url, {
-          method: 'POST',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': getCookie('csrftoken') || ''
-          },
-          body: formData
-        }).then(async (resp) => {
-          const data = await resp.json().catch(() => ({}));
-          if (resp.ok && data.success) {
-            document.getElementById('reviewFormArea').innerHTML = data.html;
-          } else {
-            // Re-render form with errors
-            if (data.form_html) {
-              document.getElementById('reviewFormArea').innerHTML = '<h6 class="mb-2">Оставить отзыв</h6>' + '<form id="reviewForm" method="post">' + data.form_html + '</form>';
-              // re-bind submit handler after replacing HTML
-              setTimeout(() => {
-                const newForm = document.getElementById('reviewForm');
-                if (newForm) {
-                  newForm.addEventListener('submit', arguments.callee.bind(this));
-                }
-              }, 0);
-            }
-          }
-        }).catch(() => {});
-      });
-    }
-  })();
-</script>
+<script src="{% static 'core/scripts/branch-detail.js' %}"></script>
 {% endblock %}

@@ -4,47 +4,7 @@
 {% block title %}Панель администратора{% endblock %}
 
 {% block extra_css %}
-<style>
-    body {
-        background-color: #f8f9fa;
-    }
-    .dashboard-card {
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-        border: none;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        background: white;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-    }
-    .quick-action {
-        border-radius: 10px;
-        border: 1px solid #e9ecef;
-        padding: 1rem 1.25rem;
-        background: #fff;
-        transition: all .2s ease;
-    }
-    .quick-action:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
-    .stats-card { background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:.9rem 1rem; }
-    .stat-number { font-size:1.25rem; font-weight:700; margin:0; }
-    .stat-label { font-size:.8rem; color:#6c757d; margin-top:.2rem; }
-    .card-header {
-        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
-        color: white;
-        padding: 1.5rem;
-        border-bottom: none;
-    }
-    .btn-admin {
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    .table thead th { background:#f8f9fa; }
-</style>
+<link rel="stylesheet" href="{% static 'core/css/admin-dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -258,80 +218,14 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    (function(){
-        const visitsCtx = document.getElementById('overallVisitsChart');
-        let visitsChart = null;
-        if (visitsCtx) {
-            visitsChart = new Chart(visitsCtx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: {{ overall_visits_labels|safe }},
-                    datasets: [{
-                        label: 'Записей',
-                        data: {{ overall_visits_data|safe }},
-                        borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13,110,253,.15)',
-                        tension: .3,
-                        pointRadius: 2
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
-        }
-
-        document.querySelectorAll('.btn-overall-period').forEach(btn => {
-            btn.addEventListener('click', function(){
-                const period = this.getAttribute('data-period');
-                fetch('{% url "admin_panel:admin_api_overall_visits" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(r => r.json())
-                    .then(payload => {
-                        if (!visitsChart) return;
-                        visitsChart.data.labels = payload.labels;
-                        visitsChart.data.datasets[0].data = payload.data;
-                        visitsChart.update();
-                    });
-            })
-        });
-
-        document.querySelectorAll('.btn-status-period').forEach(btn => {
-            btn.addEventListener('click', function(){
-                const period = this.getAttribute('data-period');
-                fetch('{% url "admin_panel:admin_api_overall_statuses" %}?period=' + period, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(r => r.json())
-                    .then(payload => {
-                        const tbody = document.getElementById('overallStatusTableBody');
-                        if (!tbody) return;
-                        const rows = (payload.items || []).map(item => {
-                            const badgeClass = item.status === 'SCHEDULED' ? 'bg-primary' :
-                                               item.status === 'IN_PROGRESS' ? 'bg-warning' :
-                                               item.status === 'COMPLETED' ? 'bg-success' :
-                                               item.status === 'CANCELLED' ? 'bg-danger' : 'bg-secondary';
-                            return `<tr>
-                                <td><span class="badge ${badgeClass}">${item.label}</span></td>
-                                <td class="text-end"><strong>${item.count}</strong></td>
-                            </tr>`;
-                        });
-                        tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="text-center text-muted py-3">Нет данных</td></tr>';
-                    });
-            })
-        });
-
-        const serviceCtx = document.getElementById('overallServicesChart');
-        if (serviceCtx) {
-            new Chart(serviceCtx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: {{ overall_service_labels|safe }},
-                    datasets: [{
-                        data: {{ overall_service_data|safe }},
-                        backgroundColor: ['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } } }
-            });
-        }
-    })();
+    window.adminDashboardData = {
+        overall_visits_labels: {{ overall_visits_labels|safe }},
+        overall_visits_data: {{ overall_visits_data|safe }},
+        overall_service_labels: {{ overall_service_labels|safe }},
+        overall_service_data: {{ overall_service_data|safe }},
+        overall_visits_url: '{% url "admin_panel:admin_api_overall_visits" %}',
+        overall_statuses_url: '{% url "admin_panel:admin_api_overall_statuses" %}'
+    };
 </script>
+<script src="{% static 'core/scripts/admin-dashboard.js' %}"></script>
 {% endblock %}
