@@ -1,0 +1,13 @@
+localhost {
+    reverse_proxy autoservice_web:8000
+
+    handle_path /static/* {
+        root * /app/staticfiles
+        file_server
+    }
+
+    handle_path /media/* {
+        root * /app/media
+        file_server
+    }
+}
