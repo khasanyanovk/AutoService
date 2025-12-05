@@ -25,6 +25,7 @@ env = Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, "insecure-dev-secret-key-change-me"),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
+    CSRF_TRUSTED_ORIGINS=(list, []),
     DJANGO_TIME_ZONE=(str, "Europe/Moscow"),
     DB_ENGINE=(str, "django.db.backends.sqlite3"),
     DB_NAME=(str, str(BASE_DIR / "db.sqlite3")),
@@ -60,6 +61,7 @@ DEBUG = env("DEBUG")
 
 # Comma-separated list, e.g. "example.com,api.example.com,localhost,127.0.0.1"
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+CSRF_TRUSTED_ORIGINS=env("CSRF_TRUSTED_ORIGINS")
 
 # Application definition
 
