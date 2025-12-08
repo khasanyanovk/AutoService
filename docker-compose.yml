@@ -41,7 +41,7 @@ services:
     container_name: autoservice_web
     env_file:
       - .env
-    command: gunicorn autoservice_project.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: gunicorn autoservice_project.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 50
     volumes:
       - autoservice_static_volume:/app/staticfiles
       - autoservice_media_volume:/app/media

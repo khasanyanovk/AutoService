@@ -132,6 +132,34 @@ class ServiceCenter(models.Model):
     def __str__(self):
         return self.address
 
+    def save(self, *args, **kwargs):
+        """Автоматическое сжатие изображения при сохранении"""
+        super().save(*args, **kwargs)
+
+        if self.photo and hasattr(self.photo, "path"):
+            try:
+                img = Image.open(self.photo.path)
+
+                max_size = (1200, 1200)
+                if img.height > max_size[1] or img.width > max_size[0]:
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                    if img.mode in ("RGBA", "P", "LA"):
+                        rgb_img = Image.new("RGB", img.size, (255, 255, 255))
+                        if img.mode == "P":
+                            img = img.convert("RGBA")
+                        rgb_img.paste(
+                            img,
+                            mask=(
+                                img.split()[-1] if img.mode in ("RGBA", "LA") else None
+                            ),
+                        )
+                        img = rgb_img
+
+                    img.save(self.photo.path, "JPEG", quality=85, optimize=True)
+            except Exception as e:
+                pass
+
     def get_photo_url(self):
         """Return a safe URL to the photo or a static default if missing.
         If media file exists (and is not the legacy default name) return it; otherwise use static default image.
