@@ -126,7 +126,6 @@ class ServiceCenter(models.Model):
         upload_to="service_centers/",
         blank=True,
         null=True,
-        default="service_centers/default_service_center.jpg",
     )
 
     def __str__(self):
