@@ -3,7 +3,6 @@
 Интеграционные тесты (Тест 3)
 Проверяют взаимодействие между модулями
 """
-import time
 from decimal import Decimal
 from django.test import TestCase, Client, TransactionTestCase
 from django.contrib.auth.models import User, Group
@@ -18,10 +17,8 @@ from core.models import (
     CarBrand,
     CarModel,
     Appointment,
-    UserProfile,
-    WorkingHours,
 )
-from loyalty_program.models import LoyaltyAccount, LoyaltySettings
+from loyalty_program.models import LoyaltySettings
 from payments.models import Payment
 
 
@@ -33,27 +30,23 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
     def setUp(self):
         self.client = Client()
 
-        # Создание клиента
         self.user = User.objects.create_user(
             username="testclient", email="client@test.com", password="testpass123"
         )
-        profile = self.user.userprofile
+        profile = self.user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
-        # LoyaltyAccount создается автоматически через сигнал
-        self.loyalty = self.user.loyalty_account
+        self.loyalty = self.user.loyalty_account  # type: ignore
         self.loyalty.bonus_balance = 100
         self.loyalty.status = "BRONZE"
         self.loyalty.save()
 
-        # Настройки лояльности с дефолтными значениями
         LoyaltySettings.objects.create(
             bronze_discount_percent=Decimal("5.0"),
             silver_discount_percent=Decimal("10.0"),
             gold_discount_percent=Decimal("15.0"),
         )
 
-        # Создание данных для заказа
         brand = CarBrand.objects.create(name="Toyota")
         model = CarModel.objects.create(brand=brand, name="Camry")
         self.car = Car.objects.create(
@@ -83,10 +76,9 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
 
     def test_order_creation_updates_payment_info(self):
         """Создание заказа корректно обновляет информацию об оплате"""
-        # Заказ должен содержать правильную цену
+
         self.assertEqual(self.appointment.service_type.price, Decimal("2000.00"))
 
-        # Проверяем, что цена доступна для оплаты
         response = self.client.get(
             reverse("appointment_detail", args=[self.appointment.id])
         )
@@ -96,7 +88,6 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
 
     def test_payment_updates_appointment_status(self):
         """Оплата обновляет статус заказа"""
-        # Создаем платеж
         payment = Payment.objects.create(
             appointment=self.appointment,
             payment_id="test_payment_2",
@@ -104,11 +95,9 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
             status="succeeded",
         )
 
-        # Обновляем заказ
         self.appointment.paid_amount = payment.amount
         self.appointment.save()
 
-        # Проверяем, что информация об оплате обновилась
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.paid_amount, Decimal("2000.00"))
 
@@ -116,7 +105,6 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
         """Бонусы начисляются после оплаты"""
         initial_points = self.loyalty.bonus_balance
 
-        # Создаем успешный платеж
         payment = Payment.objects.create(
             appointment=self.appointment,
             payment_id="test_payment_loyalty",
@@ -124,11 +112,9 @@ class OrderPaymentIntegrationTestCase(TransactionTestCase):
             status="succeeded",
         )
 
-        # Начисляем бонусы (2000 * 0.1 = 200 бонусов)
         self.loyalty.bonus_balance += int(payment.amount * Decimal("0.1"))
         self.loyalty.save()
 
-        # Проверяем начисление
         self.loyalty.refresh_from_db()
         expected_points = initial_points + 200
         self.assertEqual(self.loyalty.bonus_balance, expected_points)
@@ -145,12 +131,11 @@ class LoyaltyProgramIntegrationTestCase(TestCase):
         self.user = User.objects.create_user(
             username="testclient", email="client@test.com", password="testpass123"
         )
-        profile = self.user.userprofile
+        profile = self.user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 
-        # LoyaltyAccount создается автоматически через сигнал
-        self.loyalty = self.user.loyalty_account
+        self.loyalty = self.user.loyalty_account  # type: ignore
         self.loyalty.bonus_balance = 500
         self.loyalty.status = "SILVER"
         self.loyalty.personal_discount_percent = Decimal("10.0")
@@ -174,7 +159,7 @@ class LoyaltyProgramIntegrationTestCase(TestCase):
 
     def test_discount_applied_to_order(self):
         """Скидка применяется к заказу"""
-        # Создаем заказ
+
         brand = CarBrand.objects.create(name="Toyota")
         model = CarModel.objects.create(brand=brand, name="Camry")
         car = Car.objects.create(
@@ -191,7 +176,7 @@ class LoyaltyProgramIntegrationTestCase(TestCase):
             name="Замена масла", price=Decimal("2000.00"), duration=60
         )
 
-        appointment = Appointment.objects.create(
+        Appointment.objects.create(
             car=car,
             service_type=service_type,
             service_center=service_center,
@@ -200,7 +185,6 @@ class LoyaltyProgramIntegrationTestCase(TestCase):
             status="SCHEDULED",
         )
 
-        # Рассчитываем цену со скидкой (2000 - 10% = 1800)
         discount = self.loyalty.personal_discount_percent or Decimal("10.0")
         discounted_price = service_type.price * (1 - discount / 100)
 
@@ -226,7 +210,7 @@ class DataSynchronizationTestCase(TestCase):
         self.client_user = User.objects.create_user(
             username="client", email="client@test.com", password="clientpass123"
         )
-        profile = self.client_user.userprofile
+        profile = self.client_user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 
@@ -257,7 +241,7 @@ class DataSynchronizationTestCase(TestCase):
 
     def test_appointment_status_change_visible_to_client(self):
         """Изменение статуса менеджером видно клиенту"""
-        # Менеджер меняет статус
+
         self.client.login(username="manager", password="managerpass123")
 
         self.client.post(
@@ -265,14 +249,12 @@ class DataSynchronizationTestCase(TestCase):
             {"status": "IN_PROGRESS"},
         )
 
-        # Клиент проверяет статус
         self.client.login(username="client", password="clientpass123")
 
         response = self.client.get(reverse("profile"))
 
         self.assertEqual(response.status_code, 200)
 
-        # Проверяем, что статус обновился
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.status, "IN_PROGRESS")
 
@@ -280,7 +262,6 @@ class DataSynchronizationTestCase(TestCase):
         """Обновление сервисного центра отражается в заказах"""
         self.client.login(username="manager", password="managerpass123")
 
-        # Обновляем адрес сервисного центра
         self.client.post(
             reverse(
                 "admin_panel:admin_service_center_edit", args=[self.service_center.id]
@@ -292,7 +273,6 @@ class DataSynchronizationTestCase(TestCase):
             },
         )
 
-        # Проверяем, что заказ ссылается на обновленный центр
         self.appointment.refresh_from_db()
         self.service_center.refresh_from_db()
 
@@ -310,7 +290,7 @@ class SecurityValidationTestCase(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@test.com", password="testpass123"
         )
-        profile = self.user.userprofile
+        profile = self.user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 

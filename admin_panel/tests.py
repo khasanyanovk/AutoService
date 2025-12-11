@@ -35,7 +35,7 @@ class ManagerAccessControlTestCase(TestCase):
             username="client", email="client@test.com", password="clientpass123"
         )
 
-        profile = self.client_user.userprofile
+        profile = self.client_user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 
@@ -96,7 +96,7 @@ class ManagerOrderStatusTestCase(TestCase):
             username="client", email="client@test.com", password="clientpass123"
         )
 
-        profile = client_user.userprofile
+        profile = client_user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 
@@ -240,7 +240,7 @@ class ManagerClientSearchTestCase(TestCase):
             first_name="Иван",
             last_name="Иванов",
         )
-        profile1 = self.client1.userprofile
+        profile1 = self.client1.userprofile  # type: ignore
         profile1.phone = "+79991111111"
         profile1.save()
 
@@ -251,7 +251,7 @@ class ManagerClientSearchTestCase(TestCase):
             first_name="Петр",
             last_name="Петров",
         )
-        profile2 = self.client2.userprofile
+        profile2 = self.client2.userprofile  # type: ignore
         profile2.phone = "+79992222222"
         profile2.save()
 

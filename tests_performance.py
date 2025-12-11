@@ -49,7 +49,7 @@ class ConcurrentUsersTestCase(TransactionTestCase):
             user = User.objects.create_user(
                 username=f"user{i}", email=f"user{i}@test.com", password="testpass123"
             )
-            profile = user.userprofile
+            profile = user.userprofile  # type: ignore
             profile.phone = f"+7999123{i:04d}"
             profile.save()
 
@@ -187,7 +187,7 @@ class DatabaseQueryPerformanceTestCase(TestCase):
             user = User.objects.create_user(
                 username=f"user{i}", email=f"user{i}@test.com", password="testpass123"
             )
-            profile = user.userprofile
+            profile = user.userprofile  # type: ignore
             profile.phone = f"+7999123{i:04d}"
             profile.save()
 
@@ -253,7 +253,7 @@ class PageLoadPerformanceTestCase(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@test.com", password="testpass123"
         )
-        profile = self.user.userprofile
+        profile = self.user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 
@@ -349,7 +349,7 @@ class StressTestCase(TransactionTestCase):
         user = User.objects.create_user(
             username="testuser", email="test@test.com", password="testpass123"
         )
-        profile = user.userprofile
+        profile = user.userprofile  # type: ignore
         profile.phone = "+79991234567"
         profile.save()
 

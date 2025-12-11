@@ -35,8 +35,8 @@ class ClientAuthenticationTestCase(TestCase):
             first_name="Иван",
             last_name="Петров",
         )
-        self.user.userprofile.phone = "+79991234567"
-        self.user.userprofile.save()
+        self.user.userprofile.phone = "+79991234567"  # type: ignore
+        self.user.userprofile.save()  # type: ignore
 
     def test_successful_login_with_correct_credentials(self):
         """Успешная аутентификация с корректными данными"""
@@ -102,8 +102,8 @@ class AppointmentCreationTestCase(TransactionTestCase):
             username="testclient", email="client@test.com", password="testpass123"
         )
 
-        self.user.userprofile.phone = "+79991234567"
-        self.user.userprofile.save()
+        self.user.userprofile.phone = "+79991234567"  # type: ignore
+        self.user.userprofile.save()  # type: ignore
 
         self.brand = CarBrand.objects.create(name="Toyota")
         self.model = CarModel.objects.create(brand=self.brand, name="Camry")
@@ -286,7 +286,7 @@ class ProfileEditTestCase(TestCase):
             last_name="Иванов",
         )
 
-        self.profile = self.user.userprofile
+        self.profile = self.user.userprofile  # type: ignore
         self.profile.phone = "+79991234567"
         self.profile.save()
         self.client.login(username="testuser", password="testpass123")
