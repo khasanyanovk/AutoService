@@ -1,7 +1,7 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
-{% block title %}Услуги{% endblock %}
+{% block title %}Услуги — Администратор{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
@@ -16,9 +16,12 @@
         <h1 class="page-title mb-1"><i class="bi bi-wrench-adjustable me-2"></i>Услуги автосервиса</h1>
         <div class="page-subtitle mt-2">Управление услугами и ценами</div>
       </div>
-      <div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'admin_panel:admin_service_create' %}" class="btn btn-success">
+          <i class="bi bi-plus-circle me-1"></i> Добавить услугу
+        </a>
         <a href="{% url 'admin_panel:admin_dashboard' %}" class="btn">
-          <i class="bi bi-arrow-left me-1"></i> Панель администратора
+          <i class="bi bi-arrow-left me-1"></i> Назад к дашборду
         </a>
       </div>
     </div>
@@ -26,54 +29,51 @@
 </div>
 
 <div class="container-fluid py-4">
-  <div class="mb-3 text-end">
-    <a href="{% url 'admin_panel:admin_service_create' %}" class="btn btn-primary">
-      <i class="bi bi-plus-circle me-1"></i> Добавить услугу
-    </a>
-  </div>
 
-  <div class="card">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Название</th>
-              <th>Описание</th>
-              <th>Длительность</th>
-              <th>Цена</th>
-              <th>Филиал</th>
-              <th>Активна</th>
-              <th class="text-end">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in services %}
-            <tr>
-              <td class="fw-semibold">{{ s.name }}</td>
-              <td class="text-muted small">{{ s.description|default:'—' }}</td>
-              <td>{{ s.duration }} мин</td>
-              <td>{{ s.price }} ₽</td>
-              <td class="text-muted small">{{ s.service_center.address }}</td>
-              <td>
-                {% if s.is_active %}
-                <span class="badge bg-success">Да</span>
-                {% else %}
-                <span class="badge bg-secondary">Нет</span>
-                {% endif %}
-              </td>
-              <td class="text-end">
-                <a href="{% url 'admin_panel:admin_service_edit' s.id %}" class="btn btn-sm btn-outline-primary">Изменить</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7" class="text-center text-muted py-4">Пока нет услуг</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+  <div class="dashboard-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Список услуг</strong>
+      <span class="badge">Всего: {{ services|length }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Описание</th>
+            <th>Длительность</th>
+            <th>Цена</th>
+            <th>Филиал</th>
+            <th>Активна</th>
+            <th class="text-end">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in services %}
+          <tr>
+            <td class="fw-semibold">{{ s.name }}</td>
+            <td class="text-muted small">{{ s.description|default:'—' }}</td>
+            <td>{{ s.duration }} мин</td>
+            <td>{{ s.price }} ₽</td>
+            <td class="text-muted small">{{ s.service_center.address }}</td>
+            <td>
+              {% if s.is_active %}
+              <span class="badge bg-success">Да</span>
+              {% else %}
+              <span class="badge bg-secondary">Нет</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'admin_panel:admin_service_edit' s.id %}" class="btn btn-sm btn-outline-primary">Изменить</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">Пока нет услуг</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

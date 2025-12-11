@@ -1,30 +1,114 @@
+.dashboard-card:nth-child(2) { animation-delay: 0.1s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.2s; }
+
+.card-header .badge {
+  background: rgba(255,255,255,0.2) !important;
+  color: white !important;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-weight: 600;
+}
+
+/* Table Styles */
+.table {
+  margin-bottom: 0;
+}
+
+.table thead th {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #495057;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1rem;
+  border: none;
+}
+
+.table tbody tr {
+  transition: all 0.3s ease;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.table tbody tr:hover {
+  background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+  transform: translateX(5px);
+}
+
+.table tbody td {
+  padding: 1rem;
+  vertical-align: middle;
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+/* Buttons */
+.btn {
+  border-radius: 50px;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #198754, #157347);
+  border: none;
+  color: white;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(25, 135, 84, 0.4);
+}
+
 .btn-sm {
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-  }
-  .btn-outline-secondary {
-    border: 2px solid #6c757d;
-    color: #6c757d;
-  }
-  .btn-outline-secondary:hover {
-    background: linear-gradient(135deg, #6c757d, #5a6268);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-  }
-  .badge {
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+}
 
-  .bg-success {
-    background: linear-gradient(135deg, #198754, #157347) !important;
-  }
+.btn-outline-primary {
+  border: 2px solid #0d6efd;
+  color: #0d6efd;
+  background: transparent;
+}
 
-  .bg-secondary {
-    background: linear-gradient(135deg, #6c757d, #5a6268) !important;
-  }
+.btn-outline-primary:hover {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+}
+
+.btn-outline-secondary {
+  border: 2px solid #6c757d;
+  color: #6c757d;
+  background: transparent;
+}
+
+.btn-outline-secondary:hover {
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+/* Badges */
+.badge {
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-radius: 50px;
+}
+
+.bg-success {
+  background: linear-gradient(135deg, #198754, #157347) !important;
+  color: white !important;
+}
+
+.bg-secondary {
+  background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+  color: white !important;
+}
 
   /* Responsive */
   @media (max-width: 768px) {
