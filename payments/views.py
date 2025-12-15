@@ -71,6 +71,8 @@ def create_payment(request, appointment_id):
 @login_required
 def check_payment(request, appointment_id):
     """Проверка статуса платежа"""
+    from django.http import JsonResponse
+
     appointment = get_object_or_404(
         Appointment, id=appointment_id, car__owner=request.user
     )
@@ -81,6 +83,21 @@ def check_payment(request, appointment_id):
 
     if latest_payment:
         check_payment_status(latest_payment)
+
+        # Если это AJAX запрос, возвращаем JSON
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {
+                    "status": latest_payment.status,
+                    "status_display": latest_payment.get_status_display(),
+                    "paid_at": (
+                        latest_payment.paid_at.strftime("%d.%m.%Y в %H:%M")
+                        if latest_payment.paid_at
+                        else None
+                    ),
+                    "amount": str(latest_payment.amount),
+                }
+            )
 
         if latest_payment.status == "succeeded":
             messages.success(request, "Платеж успешно выполнен!")

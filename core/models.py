@@ -381,7 +381,7 @@ class Appointment(models.Model):
 
     def is_paid(self):
         """Проверить, оплачена ли услуга (онлайн или оффлайн)"""
-        has_payment = self.payments.filter(status="succeeded").exists()
+        has_payment = self.payments.filter(status="succeeded").exists()  # type: ignore
         is_completed = self.status == "COMPLETED"
         return has_payment or is_completed
 

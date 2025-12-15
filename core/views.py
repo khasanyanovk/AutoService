@@ -856,6 +856,7 @@ def admin_delete_review(request, review_id):
 def appointment_detail(request, appointment_id):
     """Детальная страница записи с возможностью оплаты"""
     from payments.models import Payment
+    from payments.services import check_payment_status
     from loyalty_program.models import LoyaltyAccount
     from decimal import Decimal
 
@@ -866,6 +867,10 @@ def appointment_detail(request, appointment_id):
     latest_payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
+
+    if latest_payment and latest_payment.status == "pending":
+        check_payment_status(latest_payment)
+        latest_payment.refresh_from_db()
 
     loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
     base_price = appointment.get_base_price()
