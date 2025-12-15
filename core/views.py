@@ -343,6 +343,33 @@ def profile_edit(request):
             p_form.save()
             messages.success(request, "Ваш профиль успешно обновлен!")
             return redirect("profile")
+        else:
+            # Выводим ошибки валидации
+            for field, errors in u_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = u_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
+
+            for field, errors in p_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = p_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
     else:
         u_form = UserUpdateForm(instance=request.user)
         p_form = ProfileUpdateForm(instance=request.user.userprofile)
@@ -483,12 +510,19 @@ def load_models(request):
 def service_booking(request):
     """Страница записи на услугу"""
     auto_update_appointments()
+
+    user_has_cars = Car.objects.filter(owner=request.user).exists()
+
     preselect_car_id = request.GET.get("car")
     if request.method == "POST":
         form = AppointmentForm(request.POST, user=request.user)
         if form.is_valid():
             try:
-                car = form.cleaned_data["car"]
+                car = form.cleaned_data.get("car")
+                if not car:
+                    messages.error(request, "Необходимо выбрать автомобиль.")
+                    return redirect("service_booking")
+
                 service_center = form.cleaned_data["service_center"]
                 service_type = form.cleaned_data["service_type"]
                 scheduled_date = form.cleaned_data["scheduled_date"]
@@ -542,6 +576,7 @@ def service_booking(request):
         "form": form,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
+        "user_has_cars": user_has_cars,
     }
     return render(request, "core/service_booking.html", context)
 

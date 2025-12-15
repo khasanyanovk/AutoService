@@ -92,11 +92,40 @@ class ServiceCenterChoiceForm(forms.Form):
 
 
 class UserUpdateForm(forms.ModelForm):
-    email = forms.EmailField()
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        help_text="Логин для входа в систему. Может содержать буквы, цифры и символы @/./+/-/_",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"class": "form-control"}))
+    first_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email"]
+        fields = ["username", "first_name", "last_name", "email"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.original_username = self.instance.username if self.instance else None
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if (
+            username != self.original_username
+            and User.objects.filter(username=username).exists()
+        ):
+            raise ValidationError("Пользователь с таким логином уже существует.")
+        return username
 
 
 class ProfileUpdateForm(forms.ModelForm):
@@ -402,7 +431,14 @@ class AppointmentForm(forms.Form):
         if user is not None:
             car_field = self.fields.get("car")
             if isinstance(car_field, forms.ModelChoiceField):
-                car_field.queryset = Car.objects.filter(owner=user)
+                user_cars = Car.objects.filter(owner=user)
+                car_field.queryset = user_cars
+                # Если у пользователя нет автомобилей, делаем поле необязательным
+                if not user_cars.exists():
+                    car_field.required = False
+                    car_field.empty_label = (
+                        "У вас нет автомобилей. Добавьте автомобиль."
+                    )
 
     def clean(self):
         cleaned_data = super().clean()

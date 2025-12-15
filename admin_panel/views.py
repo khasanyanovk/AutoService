@@ -418,6 +418,33 @@ def admin_user_edit(request, user_id):
             p_form.save()
             messages.success(request, "Профиль обновлён")
             return redirect("admin_panel:admin_user_detail", user_id=user.pk)
+        else:
+            for field, errors in u_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = u_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
+
+            for field, errors in p_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = p_form.fields.get(field)
+                        label = (
+                            field_label
+                            and hasattr(field_label, "label")
+                            and field_label.label
+                            or field
+                        )
+                        messages.error(request, f"{label}: {error}")
     else:
         u_form = UserUpdateForm(instance=user)
         p_form = ProfileUpdateForm(instance=profile)
