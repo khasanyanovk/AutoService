@@ -177,22 +177,40 @@ class CarForm(forms.Form):
     def clean_license_plate(self):
         """Проверка корректности формата гос. номера (X000XX)"""
         plate = self.cleaned_data.get("license_plate", "").strip().upper()
-        pattern = r"^[A-Z]{1}\d{3}[A-Z]{2}$"
+
+        allowed_ru = "АВЕКМНОРСТУХ"
+        allowed_lat = "ABEKMHOPCTYX"
+
+        pattern = r"^[А-Я]{1}\d{3}[А-Я]{2}$|^[A-Z]{1}\d{3}[A-Z]{2}$"
 
         if not re.match(pattern, plate):
             raise ValidationError(
-                "Номер должен быть в формате X000XX (латинские буквы, 3 цифры)."
+                "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
             )
+
+        for char in plate:
+            if char.isalpha():
+                if char not in allowed_ru and char not in allowed_lat:
+                    raise ValidationError(
+                        f"Буква '{char}' недопустима в российских номерах. "
+                        f"Допустимые русские буквы: {', '.join(allowed_ru)}. "
+                        f"Допустимые латинские: {', '.join(allowed_lat)}."
+                    )
 
         return plate
 
     def clean_vin(self):
-        """Проверка корректности VIN-кода"""
-        vin = self.cleaned_data.get("vin", "")
+        """Проверка корректности VIN-кода (17 символов, цифры и латинские буквы)"""
+        vin = self.cleaned_data.get("vin", "").strip()
         if vin:
-            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin.upper()):
+            vin = vin.upper()
+
+            if len(vin) != 17:
+                raise ValidationError("VIN-код должен содержать ровно 17 символов.")
+
+            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
                 raise ValidationError(
-                    "VIN должен содержать ровно 17 символов (латинские буквы и цифры)."
+                    "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
                 )
         return vin
 
@@ -230,15 +248,30 @@ class CarForm(forms.Form):
         photo = self.files.get("photo") if hasattr(self, "files") else None
         if not photo:
             return None
-        max_size = 3 * 1024 * 1024
-        if getattr(photo, "size", 0) > max_size:
-            raise ValidationError("Размер фото не должен превышать 3MB.")
-        valid_exts = [".jpg", ".jpeg", ".png"]
-        import os
 
-        ext = os.path.splitext(photo.name)[1].lower()
-        if ext not in valid_exts:
-            raise ValidationError("Допустимые форматы: JPG, JPEG, PNG.")
+        try:
+
+            max_size = 3 * 1024 * 1024  # 3MB
+            if getattr(photo, "size", 0) > max_size:
+                raise ValidationError("Размер фото не должен превышать 3 МБ.")
+
+            valid_exts = [".jpg", ".jpeg", ".png"]
+            ext = os.path.splitext(photo.name)[1].lower()
+            if ext not in valid_exts:
+                raise ValidationError("Допустимые форматы фото: JPG, JPEG, PNG.")
+
+            if len(photo.name) > 255:
+                raise ValidationError(
+                    "Имя файла слишком длинное. Переименуйте файл и попробуйте снова."
+                )
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(
+                f"Ошибка при загрузке фото: не удалось обработать файл. Попробуйте другое изображение."
+            )
+
         return photo
 
     def save(self, user):

@@ -1,6 +1,7 @@
 from django.contrib.auth import login, logout
 from django.db import IntegrityError
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.forms import ValidationError
 from django.utils import timezone
 from .models import (
     CarModel,
@@ -359,12 +360,28 @@ def add_car(request):
                 messages.success(request, "Автомобиль успешно добавлен!")
                 return redirect("profile")
 
-            except IntegrityError:
-                messages.error(
-                    request, "Автомобиль с таким гос. номером или VIN уже существует."
-                )
+            except IntegrityError as e:
+                error_msg = str(e).lower()
+                if "license_plate" in error_msg or "номер" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким гос. номером уже существует."
+                    )
+                elif "vin" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким VIN-кодом уже существует."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        "Автомобиль с таким гос. номером или VIN уже существует.",
+                    )
+            except ValidationError as e:
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f"Ошибка при добавлении автомобиля: {str(e)}")
+                messages.error(
+                    request,
+                    "Не удалось добавить автомобиль. Проверьте правильность введенных данных и попробуйте снова.",
+                )
     else:
         form = CarForm()
 
@@ -395,12 +412,28 @@ def edit_car(request, car_id):
                 messages.success(request, "Информация об автомобиле обновлена!")
                 return redirect("profile")
 
-            except IntegrityError:
-                messages.error(
-                    request, "Автомобиль с таким гос. номером или VIN уже существует."
-                )
+            except IntegrityError as e:
+                error_msg = str(e).lower()
+                if "license_plate" in error_msg or "номер" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким гос. номером уже существует."
+                    )
+                elif "vin" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким VIN-кодом уже существует."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        "Автомобиль с таким гос. номером или VIN уже существует.",
+                    )
+            except ValidationError as e:
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f"Ошибка при обновлении автомобиля: {str(e)}")
+                messages.error(
+                    request,
+                    "Не удалось обновить автомобиль. Проверьте правильность введенных данных и попробуйте снова.",
+                )
     else:
         initial_data = {
             "brand": car.model.brand if car.model else None,

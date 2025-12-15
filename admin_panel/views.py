@@ -472,7 +472,6 @@ def admin_user_stats(request, user_id):
     current_month = start_month
 
     for _ in range(12):
-        # Начало и конец текущего месяца
         month_start = current_month
         if current_month.month == 12:
             month_end = current_month.replace(day=31)
@@ -480,7 +479,6 @@ def admin_user_stats(request, user_id):
             next_month = current_month + relativedelta(months=1)
             month_end = next_month - timedelta(days=1)
 
-        # Подсчет записей за месяц
         month_count = appts.filter(
             scheduled_date__gte=month_start, scheduled_date__lte=month_end
         ).count()
