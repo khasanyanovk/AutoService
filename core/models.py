@@ -379,6 +379,12 @@ class Appointment(models.Model):
             return self.paid_amount
         return self.get_base_price()
 
+    def is_paid(self):
+        """Проверить, оплачена ли услуга (онлайн или оффлайн)"""
+        has_payment = self.payments.filter(status="succeeded").exists()
+        is_completed = self.status == "COMPLETED"
+        return has_payment or is_completed
+
     def __str__(self):
         return f"{self.car} - {self.service_type} - {self.scheduled_date} {self.scheduled_time}"
 

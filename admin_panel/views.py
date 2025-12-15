@@ -505,8 +505,10 @@ def admin_user_stats(request, user_id):
     top_centers_labels = [r["service_center__address"] for r in top_centers_qs]
     top_centers_data = [r["count"] for r in top_centers_qs]
 
-    completed_qs = appts.filter(status="COMPLETED")
-    total_cost = sum(a.get_final_price() for a in completed_qs)
+    from loyalty_program.models import LoyaltyAccount
+
+    loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=user)
+    total_cost = loyalty_account.total_spent
 
     weekday_counts = [0] * 7
     for row in appts.values("scheduled_date").annotate(count=Count("id")):
