@@ -19,10 +19,10 @@
 </div>
 
 <div class="container py-4">
-
-  <div class="form-card">
-      <form method="post" enctype="multipart/form-data" class="row g-3">
-        {% csrf_token %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-card">
+        <div class="row g-3">
         {% if form.non_field_errors %}
           <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
@@ -52,17 +52,13 @@
             {% endwith %}
           </div>
         </div>
-      </form>
+        </div>
     </div>
 
     <div class="table-card">
       <div class="table-header">
         <i class="bi bi-clock-history me-2"></i>График работы по дням недели
       </div>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="address" value="{{ service_center.address }}">
-        <input type="hidden" name="phone" value="{{ service_center.phone }}">
         
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0">
@@ -118,9 +114,8 @@
             <i class="bi bi-check2 me-1"></i> Сохранить всё
           </button>
         </div>
-      </form>
     </div>
-  </div>
+  </form>
 </div>
 {% endblock %}
 

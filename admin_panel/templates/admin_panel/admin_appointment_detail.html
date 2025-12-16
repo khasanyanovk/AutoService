@@ -97,7 +97,7 @@
                                     {% if payment %}
                                         {% if payment.status == 'succeeded' %}
                                             <span class="badge bg-success">
-                                                <i class="bi bi-check-circle me-1"></i>Оплачено
+                                                <i class="bi bi-check-circle me-1"></i>Оплачено онлайн
                                             </span>
                                             <br><small class="text-muted">
                                                 {{ payment.paid_at|date:"d.m.Y H:i" }}
@@ -116,6 +116,13 @@
                                         {% else %}
                                             <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
                                         {% endif %}
+                                    {% elif appointment.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Оплачено в центре
+                                        </span>
+                                        <br><small class="text-muted">
+                                            При получении услуги
+                                        </small>
                                     {% else %}
                                         <span class="badge bg-secondary">
                                             <i class="bi bi-dash-circle me-1"></i>Не оплачено

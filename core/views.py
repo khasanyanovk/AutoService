@@ -1,6 +1,7 @@
 from django.contrib.auth import login, logout
 from django.db import IntegrityError
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.forms import ValidationError
 from django.utils import timezone
 from .models import (
     CarModel,
@@ -342,6 +343,33 @@ def profile_edit(request):
             p_form.save()
             messages.success(request, "Ваш профиль успешно обновлен!")
             return redirect("profile")
+        else:
+            # Выводим ошибки валидации
+            for field, errors in u_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = u_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
+
+            for field, errors in p_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = p_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
     else:
         u_form = UserUpdateForm(instance=request.user)
         p_form = ProfileUpdateForm(instance=request.user.userprofile)
@@ -359,12 +387,28 @@ def add_car(request):
                 messages.success(request, "Автомобиль успешно добавлен!")
                 return redirect("profile")
 
-            except IntegrityError:
-                messages.error(
-                    request, "Автомобиль с таким гос. номером или VIN уже существует."
-                )
+            except IntegrityError as e:
+                error_msg = str(e).lower()
+                if "license_plate" in error_msg or "номер" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким гос. номером уже существует."
+                    )
+                elif "vin" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким VIN-кодом уже существует."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        "Автомобиль с таким гос. номером или VIN уже существует.",
+                    )
+            except ValidationError as e:
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f"Ошибка при добавлении автомобиля: {str(e)}")
+                messages.error(
+                    request,
+                    "Не удалось добавить автомобиль. Проверьте правильность введенных данных и попробуйте снова.",
+                )
     else:
         form = CarForm()
 
@@ -395,12 +439,28 @@ def edit_car(request, car_id):
                 messages.success(request, "Информация об автомобиле обновлена!")
                 return redirect("profile")
 
-            except IntegrityError:
-                messages.error(
-                    request, "Автомобиль с таким гос. номером или VIN уже существует."
-                )
+            except IntegrityError as e:
+                error_msg = str(e).lower()
+                if "license_plate" in error_msg or "номер" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким гос. номером уже существует."
+                    )
+                elif "vin" in error_msg:
+                    messages.error(
+                        request, "Автомобиль с таким VIN-кодом уже существует."
+                    )
+                else:
+                    messages.error(
+                        request,
+                        "Автомобиль с таким гос. номером или VIN уже существует.",
+                    )
+            except ValidationError as e:
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f"Ошибка при обновлении автомобиля: {str(e)}")
+                messages.error(
+                    request,
+                    "Не удалось обновить автомобиль. Проверьте правильность введенных данных и попробуйте снова.",
+                )
     else:
         initial_data = {
             "brand": car.model.brand if car.model else None,
@@ -450,12 +510,19 @@ def load_models(request):
 def service_booking(request):
     """Страница записи на услугу"""
     auto_update_appointments()
+
+    user_has_cars = Car.objects.filter(owner=request.user).exists()
+
     preselect_car_id = request.GET.get("car")
     if request.method == "POST":
         form = AppointmentForm(request.POST, user=request.user)
         if form.is_valid():
             try:
-                car = form.cleaned_data["car"]
+                car = form.cleaned_data.get("car")
+                if not car:
+                    messages.error(request, "Необходимо выбрать автомобиль.")
+                    return redirect("service_booking")
+
                 service_center = form.cleaned_data["service_center"]
                 service_type = form.cleaned_data["service_type"]
                 scheduled_date = form.cleaned_data["scheduled_date"]
@@ -509,6 +576,7 @@ def service_booking(request):
         "form": form,
         "min_date": date.today().isoformat(),
         "max_date": (date.today() + timedelta(days=30)).isoformat(),
+        "user_has_cars": user_has_cars,
     }
     return render(request, "core/service_booking.html", context)
 
@@ -788,6 +856,7 @@ def admin_delete_review(request, review_id):
 def appointment_detail(request, appointment_id):
     """Детальная страница записи с возможностью оплаты"""
     from payments.models import Payment
+    from payments.services import check_payment_status
     from loyalty_program.models import LoyaltyAccount
     from decimal import Decimal
 
@@ -798,6 +867,10 @@ def appointment_detail(request, appointment_id):
     latest_payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
+
+    if latest_payment and latest_payment.status == "pending":
+        check_payment_status(latest_payment)
+        latest_payment.refresh_from_db()
 
     loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
     base_price = appointment.get_base_price()

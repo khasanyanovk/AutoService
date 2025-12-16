@@ -252,3 +252,49 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+    {% if payment and payment.status == 'pending' %}
+    (function() {
+        let checkCount = 0;
+        const maxChecks = 10;
+        const checkInterval = 3000;
+        
+        function checkPaymentStatus() {
+            checkCount++;
+            
+            fetch("{% url 'payments:check_payment' appointment.id %}", {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Статус платежа:', data.status);
+                
+                if (data.status === 'succeeded' || data.status === 'canceled') {
+                    window.location.reload();
+                } else if (checkCount < maxChecks) {
+                    setTimeout(checkPaymentStatus, checkInterval);
+                } else {
+                    console.log('Достигнут лимит проверок статуса платежа');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка проверки статуса:', error);
+                if (checkCount < maxChecks) {
+                    setTimeout(checkPaymentStatus, checkInterval);
+                }
+            });
+        }
+        
+        setTimeout(checkPaymentStatus, 2000);
+
+        console.log('Автоматическая проверка статуса платежа запущена...');
+    })();
+    {% endif %}
+</script>
+{% endblock %}

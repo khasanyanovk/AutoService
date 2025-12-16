@@ -7,7 +7,6 @@
     'use strict';
 
     // Chart.js global configuration
-    Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     Chart.defaults.color = '#6c757d';
 
     /**

@@ -92,11 +92,40 @@ class ServiceCenterChoiceForm(forms.Form):
 
 
 class UserUpdateForm(forms.ModelForm):
-    email = forms.EmailField()
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        help_text="Логин для входа в систему. Может содержать буквы, цифры и символы @/./+/-/_",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"class": "form-control"}))
+    first_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email"]
+        fields = ["username", "first_name", "last_name", "email"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.original_username = self.instance.username if self.instance else None
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if (
+            username != self.original_username
+            and User.objects.filter(username=username).exists()
+        ):
+            raise ValidationError("Пользователь с таким логином уже существует.")
+        return username
 
 
 class ProfileUpdateForm(forms.ModelForm):
@@ -177,22 +206,40 @@ class CarForm(forms.Form):
     def clean_license_plate(self):
         """Проверка корректности формата гос. номера (X000XX)"""
         plate = self.cleaned_data.get("license_plate", "").strip().upper()
-        pattern = r"^[A-Z]{1}\d{3}[A-Z]{2}$"
+
+        allowed_ru = "АВЕКМНОРСТУХ"
+        allowed_lat = "ABEKMHOPCTYX"
+
+        pattern = r"^[А-Я]{1}\d{3}[А-Я]{2}$|^[A-Z]{1}\d{3}[A-Z]{2}$"
 
         if not re.match(pattern, plate):
             raise ValidationError(
-                "Номер должен быть в формате X000XX (латинские буквы, 3 цифры)."
+                "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
             )
+
+        for char in plate:
+            if char.isalpha():
+                if char not in allowed_ru and char not in allowed_lat:
+                    raise ValidationError(
+                        f"Буква '{char}' недопустима в российских номерах. "
+                        f"Допустимые русские буквы: {', '.join(allowed_ru)}. "
+                        f"Допустимые латинские: {', '.join(allowed_lat)}."
+                    )
 
         return plate
 
     def clean_vin(self):
-        """Проверка корректности VIN-кода"""
-        vin = self.cleaned_data.get("vin", "")
+        """Проверка корректности VIN-кода (17 символов, цифры и латинские буквы)"""
+        vin = self.cleaned_data.get("vin", "").strip()
         if vin:
-            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin.upper()):
+            vin = vin.upper()
+
+            if len(vin) != 17:
+                raise ValidationError("VIN-код должен содержать ровно 17 символов.")
+
+            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
                 raise ValidationError(
-                    "VIN должен содержать ровно 17 символов (латинские буквы и цифры)."
+                    "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
                 )
         return vin
 
@@ -230,15 +277,30 @@ class CarForm(forms.Form):
         photo = self.files.get("photo") if hasattr(self, "files") else None
         if not photo:
             return None
-        max_size = 3 * 1024 * 1024
-        if getattr(photo, "size", 0) > max_size:
-            raise ValidationError("Размер фото не должен превышать 3MB.")
-        valid_exts = [".jpg", ".jpeg", ".png"]
-        import os
 
-        ext = os.path.splitext(photo.name)[1].lower()
-        if ext not in valid_exts:
-            raise ValidationError("Допустимые форматы: JPG, JPEG, PNG.")
+        try:
+
+            max_size = 3 * 1024 * 1024  # 3MB
+            if getattr(photo, "size", 0) > max_size:
+                raise ValidationError("Размер фото не должен превышать 3 МБ.")
+
+            valid_exts = [".jpg", ".jpeg", ".png"]
+            ext = os.path.splitext(photo.name)[1].lower()
+            if ext not in valid_exts:
+                raise ValidationError("Допустимые форматы фото: JPG, JPEG, PNG.")
+
+            if len(photo.name) > 255:
+                raise ValidationError(
+                    "Имя файла слишком длинное. Переименуйте файл и попробуйте снова."
+                )
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(
+                f"Ошибка при загрузке фото: не удалось обработать файл. Попробуйте другое изображение."
+            )
+
         return photo
 
     def save(self, user):
@@ -369,7 +431,14 @@ class AppointmentForm(forms.Form):
         if user is not None:
             car_field = self.fields.get("car")
             if isinstance(car_field, forms.ModelChoiceField):
-                car_field.queryset = Car.objects.filter(owner=user)
+                user_cars = Car.objects.filter(owner=user)
+                car_field.queryset = user_cars
+                # Если у пользователя нет автомобилей, делаем поле необязательным
+                if not user_cars.exists():
+                    car_field.required = False
+                    car_field.empty_label = (
+                        "У вас нет автомобилей. Добавьте автомобиль."
+                    )
 
     def clean(self):
         cleaned_data = super().clean()

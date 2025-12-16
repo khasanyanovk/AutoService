@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
 <link rel="stylesheet" href="{% static 'admin_panel/css/admin-dashboard-panel.css' %}">
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-service-center-detail.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -209,7 +210,16 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ru.js'></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<script>
+    window.centerData = {
+        stats_labels: {{ stats_labels|safe }},
+        stats_data: {{ stats_data|safe }},
+        weekday_labels: {{ weekday_labels|safe }},
+        weekday_data: {{ weekday_data|safe }},
+        visits_labels: {{ visits_labels|safe }},
+        visits_data: {{ visits_data|safe }}
+    };
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
@@ -364,13 +374,20 @@
             } catch(e) {}
         })();
 
+        var statsLabels = window.centerData?.stats_labels || [];
+        var statsData = window.centerData?.stats_data || [];
+        var weekdayLabels = window.centerData?.weekday_labels || [];
+        var weekdayData = window.centerData?.weekday_data || [];
+        var visitsLabels = window.centerData?.visits_labels || [];
+        var visitsData = window.centerData?.visits_data || [];
+
         var ctxService = document.getElementById('serviceStatsChart').getContext('2d');
         var serviceStatsChart = new Chart(ctxService, {
             type: 'doughnut',
             data: {
-                labels: JSON.parse('{{ stats_labels|escapejs }}'),
+                labels: statsLabels,
                 datasets: [{
-                    data: JSON.parse('{{ stats_data|escapejs }}'),
+                    data: statsData,
                     backgroundColor: [
                         '#0d6efd', '#6610f2', '#6f42c1', '#d63384', 
                         '#dc3545', '#fd7e14', '#ffc107', '#198754'
@@ -398,10 +415,10 @@
         var weekdayStatsChart = new Chart(ctxWeekday, {
             type: 'bar',
             data: {
-                labels: JSON.parse('{{ weekday_labels|escapejs }}'),
+                labels: weekdayLabels,
                 datasets: [{
                     label: 'Количество записей',
-                    data: JSON.parse('{{ weekday_data|escapejs }}'),
+                    data: weekdayData,
                     backgroundColor: '#0d6efd',
                     borderColor: '#0b5ed7',
                     borderWidth: 1
@@ -421,28 +438,30 @@
             }
         });
 
-        var ctxVisits = document.getElementById('visitsChart').getContext('2d');
-        var visitsChart = new Chart(ctxVisits, {
-            type: 'line',
-            data: {
-                labels: JSON.parse('{{ visits_labels|escapejs }}'),
-                datasets: [{
-                    label: 'Записей',
-                    data: JSON.parse('{{ visits_data|escapejs }}'),
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13,110,253,0.15)',
-                    tension: 0.3,
-                    pointRadius: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        var ctxVisits = document.getElementById('visitsChart');
+        if (ctxVisits) {
+            var visitsChart = new Chart(ctxVisits.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: visitsLabels,
+                    datasets: [{
+                        label: 'Записей',
+                        data: visitsData,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,0.15)',
+                        tension: 0.3,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
                 }
-            }
-        });
+            });
+        }
 
         document.querySelectorAll('.btn-period-toggle').forEach(function(button) {
             button.addEventListener('click', function(event) {

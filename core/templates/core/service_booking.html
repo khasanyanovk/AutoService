@@ -61,9 +61,23 @@
                             <h5 class="section-title"><span class="badge bg-primary me-2">3</span>Выберите автомобиль</h5>
                             <div class="row">
                                 <div class="col-md-8">
-                                    <label for="{{ form.car.id_for_label }}" class="form-label">Ваш автомобиль</label>
-                                    {{ form.car }}
-                                    {{ form.car.errors }}
+                                    {% if not user_has_cars %}
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                            У вас ещё нет добавленных автомобилей. 
+                                            <a href="{% url 'add_car' %}" class="alert-link fw-bold">Добавьте автомобиль</a>, 
+                                            чтобы продолжить запись на услугу.
+                                        </div>
+                                    {% else %}
+                                        <label for="{{ form.car.id_for_label }}" class="form-label">Ваш автомобиль</label>
+                                        {{ form.car }}
+                                        {{ form.car.errors }}
+                                        <small class="text-muted d-block mt-2">
+                                            <a href="{% url 'add_car' %}" class="text-decoration-none">
+                                                <i class="bi bi-plus-circle me-1"></i>Добавить новый автомобиль
+                                            </a>
+                                        </small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
