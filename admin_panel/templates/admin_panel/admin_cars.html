@@ -26,54 +26,93 @@
 </div>
 
 <div class="container py-4">
-  <div class="mb-3 text-end">
-    <a href="{% url 'admin_panel:admin_brand_create' %}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-plus-circle me-1"></i> Марка
+  <div class="header-actions">
+    <a href="{% url 'admin_panel:admin_brand_create' %}" class="btn-create">
+      <i class="bi bi-plus-circle"></i> Добавить марку
     </a>
-    <a href="{% url 'admin_panel:admin_model_create' %}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-plus-circle me-1"></i> Модель
+    <a href="{% url 'admin_panel:admin_model_create' %}" class="btn-create" style="background: #6c757d; border-color: #6c757d;">
+      <i class="bi bi-plus-circle"></i> Добавить модель
     </a>
   </div>
 
-  <div class="card">
-    <div class="card-body p-0">
-      <div class="list-group list-group-flush">
-        {% for b in brands %}
-        <div class="list-group-item">
-          <div class="d-flex justify-content-between align-items-center">
-            <button class="btn btn-link p-0 text-start text-decoration-none" data-bs-toggle="collapse" data-bs-target="#brand-{{ b.id }}-models" aria-expanded="false">
-              <span class="fw-semibold">{{ b.name }}</span>
-              <span class="text-muted small ms-2">({{ b.carmodel_set.all|length }})</span>
-            </button>
-            <div class="btn-group btn-group-sm" role="group">
-              <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ b.id }}" class="btn btn-outline-secondary" title="Добавить модель"><i class="bi bi-plus"></i></a>
-              <a href="{% url 'admin_panel:admin_brand_edit' b.id %}" class="btn btn-outline-primary" title="Изменить марку"><i class="bi bi-pencil"></i></a>
-              <a href="{% url 'admin_panel:admin_brand_delete' b.id %}" class="btn btn-outline-danger" title="Удалить марку"><i class="bi bi-trash"></i></a>
+  {% if brands %}
+    {% for b in brands %}
+    <div class="brand-card" data-aos="fade-up">
+      <div class="brand-header" data-bs-toggle="collapse" data-bs-target="#brand-{{ b.id }}-models" aria-expanded="false">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center flex-grow-1">
+            <img src="{{ b.get_brand_photo_url }}" alt="{{ b.name }}" class="brand-logo" onerror="this.src='{% static 'core/img/car-placeholder.jpg' %}'">
+            <div class="brand-info">
+              <h4>{{ b.name }}</h4>
+              <div class="brand-stats">
+                <span class="brand-stat">
+                  <i class="bi bi-collection"></i>
+                  <span>{{ b.carmodel_set.all|length }} {% if b.carmodel_set.all|length == 1 %}модель{% elif b.carmodel_set.all|length < 5 %}модели{% else %}моделей{% endif %}</span>
+                </span>
+              </div>
             </div>
           </div>
-          <div class="collapse mt-2" id="brand-{{ b.id }}-models">
-            {% if b.carmodel_set.all %}
-            <ul class="list-group list-group-flush">
-              {% for m in b.carmodel_set.all|dictsort:"name" %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span class="ms-2">{{ m.name }}</span>
-                <div class="btn-group btn-group-sm" role="group">
-                  <a href="{% url 'admin_panel:admin_model_edit' m.id %}" class="btn btn-outline-primary" title="Изменить модель"><i class="bi bi-pencil"></i></a>
-                  <a href="{% url 'admin_panel:admin_model_delete' m.id %}" class="btn btn-outline-danger" title="Удалить модель"><i class="bi bi-trash"></i></a>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
-            {% else %}
-            <div class="text-muted small ms-2">Нет моделей</div>
-            {% endif %}
+          <div class="brand-actions">
+            <a href="{% url 'admin_panel:admin_brand_detail' b.id %}" class="action-btn" title="Подробнее" onclick="event.stopPropagation()">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ b.id }}" class="action-btn" title="Добавить модель" onclick="event.stopPropagation()">
+              <i class="bi bi-plus"></i>
+            </a>
+            <a href="{% url 'admin_panel:admin_brand_edit' b.id %}" class="action-btn" title="Изменить марку" onclick="event.stopPropagation()">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'admin_panel:admin_brand_delete' b.id %}" class="action-btn" title="Удалить марку" onclick="event.stopPropagation()">
+              <i class="bi bi-trash"></i>
+            </a>
           </div>
         </div>
-        {% empty %}
-        <div class="list-group-item text-center text-muted py-4">Нет марок</div>
-        {% endfor %}
+      </div>
+      
+      <div class="collapse" id="brand-{{ b.id }}-models">
+        {% if b.carmodel_set.all %}
+        <div class="models-grid">
+          {% for m in b.carmodel_set.all|dictsort:"name" %}
+          <div class="model-card">
+            <img src="{{ m.get_model_photo_url }}" alt="{{ m.name }}" class="model-image" onerror="this.src='{% static 'core/img/car-placeholder.jpg' %}'">
+            <div class="model-info">
+              <div class="model-name">{{ m.name }}</div>
+              <div class="model-actions">
+                <a href="{% url 'admin_panel:admin_model_edit' m.id %}" class="btn btn-sm btn-outline-primary btn-action">
+                  <i class="bi bi-pencil me-1"></i>Изменить
+                </a>
+                <a href="{% url 'admin_panel:admin_model_delete' m.id %}" class="btn btn-sm btn-outline-danger btn-action">
+                  <i class="bi bi-trash me-1"></i>Удалить
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <p>Нет моделей для этой марки</p>
+          <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ b.id }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Добавить модель
+          </a>
+        </div>
+        {% endif %}
       </div>
     </div>
+    {% endfor %}
+  {% else %}
+  <div class="brand-card">
+    <div class="empty-state">
+      <i class="bi bi-car-front"></i>
+      <h3>Нет марок автомобилей</h3>
+      <p>Начните с добавления марки автомобиля</p>
+      <a href="{% url 'admin_panel:admin_brand_create' %}" class="btn btn-primary mt-2">
+        <i class="bi bi-plus-circle me-1"></i>Добавить первую марку
+      </a>
+    </div>
   </div>
+  {% endif %}
 </div>
+
 {% endblock %}

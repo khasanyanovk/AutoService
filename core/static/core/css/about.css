@@ -158,7 +158,7 @@ h2.section-title::after {
 /* Team Members */
 .team {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 25px;
     margin-bottom: 50px;
 }
@@ -166,6 +166,7 @@ h2.section-title::after {
 .team-member {
     background: white;
     border-radius: 15px;
+    width: 100%;
     padding: 30px 20px;
     text-align: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);

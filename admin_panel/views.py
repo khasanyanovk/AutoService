@@ -1469,7 +1469,6 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
-    # Получаем последний платёж для записи
     payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
@@ -1566,10 +1565,22 @@ def admin_services(request):
         .all()
         .order_by("name", "service_center__address")
     )
+
+    active_services = services.filter(is_active=True).count()
+    total_services = services.count()
+    service_centers = ServiceCenter.objects.all()
+
+    context = {
+        "services": services,
+        "active_services": active_services,
+        "total_services": total_services,
+        "service_centers": service_centers,
+    }
+
     return render(
         request,
         "admin_panel/admin_services.html",
-        {"services": services},
+        context,
     )
 
 
@@ -1665,6 +1676,19 @@ def admin_brand_create(request):
         return redirect("admin_panel:admin_cars")
     return render(
         request, "admin_panel/admin_brand_edit.html", {"form": form, "create": True}
+    )
+
+
+@login_required
+@admin_required
+def admin_brand_detail(request, brand_id):
+    """Детальный просмотр марки с моделями и фото"""
+    brand = get_object_or_404(CarBrand, id=brand_id)
+    models = brand.carmodel_set.all().order_by("name")  # type: ignore
+    return render(
+        request,
+        "admin_panel/admin_brand_detail.html",
+        {"brand": brand, "models": models},
     )
 
 
