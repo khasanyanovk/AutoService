@@ -16,6 +16,41 @@ class CarBrand(models.Model):
     def __str__(self):
         return self.name
 
+    def get_brand_photo_url(self):
+        """Get the first available model photo for this brand as brand representative"""
+        brand_name = self.name
+        brand_variants = {
+            brand_name,
+            brand_name.lower(),
+            brand_name.upper(),
+            slugify(brand_name),
+            brand_name.title(),
+        }
+
+        for variant in brand_variants:
+            for ext in (".jpg", ".jpeg", ".png"):
+                brand_path = os.path.join("core", "car_models", variant)
+                abs_path = finders.find(brand_path)
+                if abs_path and os.path.isdir(abs_path):  # type: ignore
+                    try:
+                        for file in os.listdir(abs_path):  # type: ignore
+                            if file.lower().endswith((".jpg", ".jpeg", ".png")):
+                                rel_path = os.path.join(
+                                    "core", "car_models", variant, file
+                                )
+                                return static(rel_path.replace("\\", "/"))
+                    except Exception:
+                        pass
+
+        for p in (
+            "core/img/car-placeholder.jpg",
+            "core/img/car-placeholder.png",
+            "core/img/car-placeholder.svg",
+        ):
+            if finders.find(p):
+                return static(p)
+        return static("core/img/car-placeholder.jpg")
+
 
 class CarModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -27,6 +62,59 @@ class CarModel(models.Model):
 
     def __str__(self):
         return f"{self.brand} {self.name}"
+
+    def get_model_photo_url(self):
+        """Get photo URL for this specific model using same algorithm as Car"""
+        brand_name = str(self.brand.name)
+        model_name = str(self.name)
+
+        brand_variants = {
+            brand_name,
+            brand_name.lower(),
+            brand_name.upper(),
+            slugify(brand_name),
+            brand_name.title(),
+        }
+
+        model_compact = "".join(ch for ch in model_name if ch.isalnum())
+        model_variants = {
+            model_name,
+            model_name.lower(),
+            model_name.upper(),
+            model_name.title(),
+            slugify(model_name),
+        }
+        if model_compact:
+            model_variants.update(
+                {model_compact, model_compact.lower(), model_compact.upper()}
+            )
+
+        bases = set()
+        for b in brand_variants:
+            for m in model_variants:
+                bases.add(f"{b}/{m}")
+                bases.add(f"{b}_{m}")
+
+        for m in model_variants:
+            bases.add(m)
+
+        candidates = []
+        for base in bases:
+            for ext in (".jpg", ".jpeg", ".png"):
+                candidates.append(os.path.join("core", "car_models", base + ext))
+
+        for rel_path in candidates:
+            if finders.find(rel_path):
+                return static(rel_path.replace("\\", "/"))
+
+        for p in (
+            "core/img/car-placeholder.jpg",
+            "core/img/car-placeholder.png",
+            "core/img/car-placeholder.svg",
+        ):
+            if finders.find(p):
+                return static(p)
+        return static("core/img/car-placeholder.jpg")
 
 
 class Car(models.Model):
@@ -378,6 +466,12 @@ class Appointment(models.Model):
         if self.paid_amount is not None:
             return self.paid_amount
         return self.get_base_price()
+
+    def is_paid(self):
+        """Проверить, оплачена ли услуга (онлайн или оффлайн)"""
+        has_payment = self.payments.filter(status="succeeded").exists()  # type: ignore
+        is_completed = self.status == "COMPLETED"
+        return has_payment or is_completed
 
     def __str__(self):
         return f"{self.car} - {self.service_type} - {self.scheduled_date} {self.scheduled_time}"

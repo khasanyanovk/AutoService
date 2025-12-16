@@ -36,7 +36,7 @@ jobs:
         
     - name: Run tests
       run: |
-        python manage.py test
+        python manage.py test --keepdb
 
   server-check:
     runs-on: windows-latest

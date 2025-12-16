@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ brand.name }} — Детали марки{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-common.css' %}">
+<link rel="stylesheet" href="{% static 'admin_panel/css/admin-brand-detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="brand-detail-container py-4 px-3">
+  <div class="brand-hero" data-aos="fade-down">
+    <div class="d-flex justify-content-between align-items-start">
+      <div class="d-flex align-items-center gap-4">
+        <img src="{{ brand.get_brand_photo_url }}" alt="{{ brand.name }}" class="brand-logo-large" onerror="this.src='{% static 'core/img/car-placeholder.jpg' %}'">
+        <div>
+          <h1 class="brand-title">{{ brand.name }}</h1>
+          <p class="brand-subtitle">Управление моделями и информацией</p>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ brand.id }}" class="btn-action-primary">
+          <i class="bi bi-plus-circle"></i> Добавить модель
+        </a>
+        <a href="{% url 'admin_panel:admin_brand_edit' brand.id %}" class="btn-action-primary" style="background: #6c757d; border-color: #6c757d;">
+          <i class="bi bi-pencil"></i> Редактировать
+        </a>
+        <a href="{% url 'admin_panel:admin_cars' %}" class="btn-back">
+          <i class="bi bi-arrow-left"></i> Назад
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-grid" data-aos="fade-up">
+    <div class="stat-box">
+      <div class="stat-icon"><i class="bi bi-collection"></i></div>
+      <div class="stat-number">{{ models|length }}</div>
+      <div class="stat-label">Моделей</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon"><i class="bi bi-car-front"></i></div>
+      <div class="stat-number">
+        {% with total_cars=brand.carmodel_set.all|length %}{{ total_cars }}{% endwith %}
+      </div>
+      <div class="stat-label">Автомобилей</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon"><i class="bi bi-star"></i></div>
+      <div class="stat-number">4.5</div>
+      <div class="stat-label">Средний рейтинг</div>
+    </div>
+  </div>
+
+  <div class="models-section" data-aos="fade-up" data-aos-delay="100">
+    <div class="section-header">
+      <h2 class="section-title">
+        <i class="bi bi-grid-3x3-gap me-2"></i>Модели {{ brand.name }}
+      </h2>
+      <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ brand.id }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Новая модель
+      </a>
+    </div>
+
+    {% if models %}
+    <div class="models-gallery">
+      {% for model in models %}
+      <div class="model-item" data-aos="zoom-in">
+        <div class="model-image-wrapper">
+          <img src="{{ model.get_model_photo_url }}" alt="{{ model.name }}" class="model-image" onerror="this.src='{% static 'core/img/car-placeholder.jpg' %}'">
+          <span class="model-badge">
+            <i class="bi bi-star-fill me-1"></i>Модель
+          </span>
+        </div>
+        <div class="model-content">
+          <div class="model-name-display">{{ model.name }}</div>
+          <div class="model-meta">
+            <span class="model-meta-item">
+              <i class="bi bi-tag"></i>
+              Модель {{ brand.name }}
+            </span>
+          </div>
+          <div class="model-actions-grid">
+            <a href="{% url 'admin_panel:admin_model_edit' model.id %}" class="btn-model-action btn-edit">
+              <i class="bi bi-pencil"></i> Изменить
+            </a>
+            <a href="{% url 'admin_panel:admin_model_delete' model.id %}" class="btn-model-action btn-delete">
+              <i class="bi bi-trash"></i> Удалить
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-models">
+      <i class="bi bi-inbox"></i>
+      <h3>Нет моделей</h3>
+      <p>Добавьте первую модель для марки {{ brand.name }}</p>
+      <a href="{% url 'admin_panel:admin_model_create' %}?brand={{ brand.id }}" class="btn-action-primary">
+        <i class="bi bi-plus-circle"></i> Добавить первую модель
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -8,39 +8,46 @@
 {% block content %}
 <div class="page-header">
   <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h1 class="page-title"><i class="bi bi-graph-up-arrow me-2"></i>Статистика пользователя</h1>
-        <div class="page-subtitle">{{ user_obj.get_full_name|default:user_obj.username }} (@{{ user_obj.username }})</div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+      <div class="mb-2 mb-md-0">
+        <h1 class="page-title mb-1"><i class="bi bi-graph-up-arrow me-2"></i>Статистика пользователя</h1>
+        <div class="page-subtitle">{{ user_obj.get_full_name|default:user_obj.username }} <span class="text-white-50">(@{{ user_obj.username }})</span></div>
       </div>
       <div>
-        <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-light">
-          <i class="bi bi-arrow-left me-1"></i> Назад к профилю
+        <a href="{% url 'admin_panel:admin_user_detail' user_obj.id %}" class="btn btn-light btn-sm">
+          <i class="bi bi-arrow-left me-1"></i> Назад
         </a>
       </div>
     </div>
   </div>
 </div>
 
-<div class="container-fluid py-4">
-  <div class="row g-4 mb-4">
+<div class="container-fluid py-3">
+  <div class="row g-3 mb-3">
     <div class="col-12">
-      <div class="stats-card">
-        <div class="stats-icon">
+      <div class="compact-stat-card">
+        <div class="stat-icon-wrapper">
           <i class="bi bi-wallet2"></i>
         </div>
-        <div class="stats-value">{{ total_cost }} ₽</div>
-        <div class="stats-label">ОБЩАЯ СУММА ЗАВЕРШЁННЫХ УСЛУГ</div>
+        <div class="stat-content">
+          <div class="stat-value">{{ total_cost|floatformat:0 }} ₽</div>
+          <div class="stat-label">Общая сумма завершённых услуг</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4 mb-4">
+  <div class="row g-3 mb-3">
     <div class="col-12">
-      <div class="dashboard-card">
-        <div class="card-header"><i class="bi bi-calendar3"></i><strong>Посещения за 12 месяцев</strong></div>
-        <div class="card-body">
-          <div class="chart-container">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-calendar3 me-2"></i>
+            <span>Посещения за 12 месяцев</span>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-wrapper">
             <canvas id="visitsChart"></canvas>
           </div>
         </div>
@@ -48,22 +55,32 @@
     </div>
   </div>
 
-  <div class="row g-4 mb-4">
+  <div class="row g-3 mb-3">
     <div class="col-lg-6">
-      <div class="dashboard-card">
-        <div class="card-header"><i class="bi bi-wrench-adjustable"></i><strong>Топ услуг</strong></div>
-        <div class="card-body">
-          <div class="chart-container">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-wrench-adjustable me-2"></i>
+            <span>Популярные услуги</span>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-wrapper chart-wrapper-doughnut">
             <canvas id="servicesChart"></canvas>
           </div>
         </div>
       </div>
     </div>
     <div class="col-lg-6">
-      <div class="dashboard-card">
-        <div class="card-header"><i class="bi bi-geo-alt"></i><strong>Топ филиалов</strong></div>
-        <div class="card-body">
-          <div class="chart-container">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-geo-alt me-2"></i>
+            <span>Популярные филиалы</span>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-wrapper chart-wrapper-doughnut">
             <canvas id="centersChart"></canvas>
           </div>
         </div>
@@ -71,22 +88,32 @@
     </div>
   </div>
 
-  <div class="row g-4">
+  <div class="row g-3 mb-3">
     <div class="col-lg-6">
-      <div class="dashboard-card">
-        <div class="card-header"><i class="bi bi-calendar-week"></i><strong>Активность по дням недели</strong></div>
-        <div class="card-body">
-          <div class="chart-container small">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-calendar-week me-2"></i>
+            <span>По дням недели</span>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-wrapper chart-wrapper-compact">
             <canvas id="weekdayChart"></canvas>
           </div>
         </div>
       </div>
     </div>
     <div class="col-lg-6">
-      <div class="dashboard-card">
-        <div class="card-header"><i class="bi bi-clock-history"></i><strong>Активность по часам</strong></div>
-        <div class="card-body">
-          <div class="chart-container small">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>По времени суток</span>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-wrapper chart-wrapper-compact">
             <canvas id="hoursChart"></canvas>
           </div>
         </div>

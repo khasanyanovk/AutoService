@@ -49,6 +49,10 @@ body {
     align-items: center; 
     gap: 20px;
 }
+
+.avatar-wrapper:hover {
+    transform: scale(1.05);
+}
 .profile-identity h2 { 
     font-size: 1.8rem; 
     margin: 0; 

@@ -114,6 +114,11 @@ urlpatterns = [
         "admin-cars/brand/create/", views.admin_brand_create, name="admin_brand_create"
     ),
     path(
+        "admin-cars/brand/<uuid:brand_id>/",
+        views.admin_brand_detail,
+        name="admin_brand_detail",
+    ),
+    path(
         "admin-cars/brand/<uuid:brand_id>/edit/",
         views.admin_brand_edit,
         name="admin_brand_edit",

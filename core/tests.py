@@ -307,6 +307,7 @@ class ProfileEditTestCase(TestCase):
         response = self.client.post(
             reverse("profile_edit"),
             {
+                "username": self.user.username,
                 "first_name": "Петр",
                 "last_name": "Петров",
                 "email": "newemail@test.com",
@@ -343,6 +344,7 @@ class ProfileEditTestCase(TestCase):
         response = self.client.post(
             reverse("profile_edit"),
             {
+                "username": self.user.username,
                 "first_name": "Иван",
                 "last_name": "Иванов",
                 "email": "invalid-email",

@@ -418,6 +418,33 @@ def admin_user_edit(request, user_id):
             p_form.save()
             messages.success(request, "Профиль обновлён")
             return redirect("admin_panel:admin_user_detail", user_id=user.pk)
+        else:
+            for field, errors in u_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = u_form.fields.get(field)
+                        label = (
+                            field_label.label
+                            if field_label and hasattr(field_label, "label")
+                            else field
+                        )
+                        messages.error(request, f"{label}: {error}")
+
+            for field, errors in p_form.errors.items():
+                for error in errors:
+                    if field == "__all__":
+                        messages.error(request, f"{error}")
+                    else:
+                        field_label = p_form.fields.get(field)
+                        label = (
+                            field_label
+                            and hasattr(field_label, "label")
+                            and field_label.label
+                            or field
+                        )
+                        messages.error(request, f"{label}: {error}")
     else:
         u_form = UserUpdateForm(instance=user)
         p_form = ProfileUpdateForm(instance=profile)
@@ -472,7 +499,6 @@ def admin_user_stats(request, user_id):
     current_month = start_month
 
     for _ in range(12):
-        # Начало и конец текущего месяца
         month_start = current_month
         if current_month.month == 12:
             month_end = current_month.replace(day=31)
@@ -480,7 +506,6 @@ def admin_user_stats(request, user_id):
             next_month = current_month + relativedelta(months=1)
             month_end = next_month - timedelta(days=1)
 
-        # Подсчет записей за месяц
         month_count = appts.filter(
             scheduled_date__gte=month_start, scheduled_date__lte=month_end
         ).count()
@@ -505,8 +530,10 @@ def admin_user_stats(request, user_id):
     top_centers_labels = [r["service_center__address"] for r in top_centers_qs]
     top_centers_data = [r["count"] for r in top_centers_qs]
 
-    completed_qs = appts.filter(status="COMPLETED")
-    total_cost = sum(a.get_final_price() for a in completed_qs)
+    from loyalty_program.models import LoyaltyAccount
+
+    loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=user)
+    total_cost = loyalty_account.total_spent
 
     weekday_counts = [0] * 7
     for row in appts.values("scheduled_date").annotate(count=Count("id")):
@@ -1442,7 +1469,6 @@ def admin_appointment_detail(request, appointment_id):
             appointment.save()
             messages.success(request, "Статус записи обновлен!")
 
-    # Получаем последний платёж для записи
     payment = (
         Payment.objects.filter(appointment=appointment).order_by("-created_at").first()
     )
@@ -1539,10 +1565,22 @@ def admin_services(request):
         .all()
         .order_by("name", "service_center__address")
     )
+
+    active_services = services.filter(is_active=True).count()
+    total_services = services.count()
+    service_centers = ServiceCenter.objects.all()
+
+    context = {
+        "services": services,
+        "active_services": active_services,
+        "total_services": total_services,
+        "service_centers": service_centers,
+    }
+
     return render(
         request,
         "admin_panel/admin_services.html",
-        {"services": services},
+        context,
     )
 
 
@@ -1638,6 +1676,19 @@ def admin_brand_create(request):
         return redirect("admin_panel:admin_cars")
     return render(
         request, "admin_panel/admin_brand_edit.html", {"form": form, "create": True}
+    )
+
+
+@login_required
+@admin_required
+def admin_brand_detail(request, brand_id):
+    """Детальный просмотр марки с моделями и фото"""
+    brand = get_object_or_404(CarBrand, id=brand_id)
+    models = brand.carmodel_set.all().order_by("name")  # type: ignore
+    return render(
+        request,
+        "admin_panel/admin_brand_detail.html",
+        {"brand": brand, "models": models},
     )
 
 
