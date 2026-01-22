@@ -8,6 +8,8 @@ from .views import (
     MyTokenObtainPairView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
+from .views import RegisterAPIView
+
 
 router = DefaultRouter()
 router.register(r'cars', CarViewSet, basename='cars')
@@ -16,6 +18,7 @@ router.register(r'service-types', ServiceTypeViewSet, basename='service-types')
 router.register(r'service-centers', ServiceCenterViewSet, basename='service-centers')
 
 urlpatterns = [
+  path('register/', RegisterAPIView.as_view(), name='api_register'),
     path('token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', include(router.urls)),

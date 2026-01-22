@@ -1,14 +1,30 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.views import APIView
+
 from .serializers import (
     CarSerializer,
     AppointmentSerializer,
     ServiceTypeSerializer,
     ServiceCenterSerializer,
-    MyTokenObtainPairSerializer
+    MyTokenObtainPairSerializer,
+    UserRegisterSerializer
 )
 from ..models import Car, Appointment, ServiceType, ServiceCenter
+from django.contrib.auth import login
+
+class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserRegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            login(request, user)
+            return Response({"success": True, "id": user.id, "username": user.username}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 # JWT token view
 class MyTokenObtainPairView(TokenObtainPairView):
