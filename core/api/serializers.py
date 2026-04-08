@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from ..models import Car, Appointment, ServiceType, ServiceCenter
+from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand
 from core.forms import UserRegisterForm
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -15,15 +15,77 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class CarSerializer(serializers.ModelSerializer):
+    # Используем UUIDField для model_id вместо PrimaryKeyRelatedField
+    model_id = serializers.UUIDField(write_only=True)
+    model_name = serializers.SerializerMethodField(read_only=True)
+    brand_name = serializers.SerializerMethodField(read_only=True)
+    photo_url = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = Car
-        fields = ['id', 'model', 'year', 'license_plate', 'vin', 'photo']
+        fields = [
+            'id', 
+            'model_id',  # для создания/обновления (UUID)
+            'model',      # для чтения (ID модели)
+            'model_name', # для чтения (название модели)
+            'brand_name', # для чтения (название марки)
+            'year', 
+            'license_plate', 
+            'vin', 
+            'photo',
+            'photo_url'
+        ]
+        read_only_fields = ['id', 'model', 'photo_url', 'model_name', 'brand_name']
+    
+    def get_model_name(self, obj):
+        return obj.model.name if obj.model else None
+    
+    def get_brand_name(self, obj):
+        return obj.model.brand.name if obj.model else None
+    
+    def get_photo_url(self, obj):
+        return obj.get_photo_url()
+    
+    def validate_model_id(self, value):
+        """Проверяем, существует ли модель с таким UUID"""
+        from ..models import CarModel
+        try:
+            model = CarModel.objects.get(id=value)
+            return model
+        except CarModel.DoesNotExist:
+            raise serializers.ValidationError(f"Модель с ID {value} не существует")
+    
+    def create(self, validated_data):
+        # Извлекаем model_id и заменяем на объект модели
+        model = validated_data.pop('model_id')
+        validated_data['model'] = model
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        # Для обновления тоже обрабатываем model_id
+        if 'model_id' in validated_data:
+            model = validated_data.pop('model_id')
+            validated_data['model'] = model
+        return super().update(instance, validated_data)
 
+
+class CarBrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CarBrand
+        fields = ['id', 'name']
+
+
+class CarModelSerializer(serializers.ModelSerializer):
+    brand_name = serializers.CharField(source='brand.name', read_only=True)
+    
+    class Meta:
+        model = CarModel
+        fields = ['id', 'name', 'brand', 'brand_name']
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceType
-        fields = ['id', 'name', 'description', 'duration', 'price']
+        fields = ['id', 'name', 'description', 'duration', 'price', 'service_center', 'is_active']
 
 
 class ServiceCenterSerializer(serializers.ModelSerializer):
@@ -54,6 +116,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'status',
             'notes',
         ]
+
 
 class UserRegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
