@@ -1,3 +1,6 @@
+import re
+from datetime import datetime
+from django.core.validators import MinValueValidator, MaxValueValidator
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -15,7 +18,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class CarSerializer(serializers.ModelSerializer):
-    # Используем UUIDField для model_id вместо PrimaryKeyRelatedField
     model_id = serializers.UUIDField(write_only=True)
     model_name = serializers.SerializerMethodField(read_only=True)
     brand_name = serializers.SerializerMethodField(read_only=True)
@@ -24,18 +26,121 @@ class CarSerializer(serializers.ModelSerializer):
     class Meta:
         model = Car
         fields = [
-            'id', 
-            'model_id',  # для создания/обновления (UUID)
-            'model',      # для чтения (ID модели)
-            'model_name', # для чтения (название модели)
-            'brand_name', # для чтения (название марки)
-            'year', 
-            'license_plate', 
-            'vin', 
-            'photo',
-            'photo_url'
+            'id', 'model_id', 'model', 'model_name', 'brand_name',
+            'year', 'license_plate', 'vin', 'photo', 'photo_url'
         ]
         read_only_fields = ['id', 'model', 'photo_url', 'model_name', 'brand_name']
+    
+    # ========== ВАЛИДАЦИЯ ПОЛЕЙ ==========
+    
+    def validate_year(self, value):
+        """Проверка года выпуска"""
+        current_year = datetime.now().year
+        if value < 1900:
+            raise serializers.ValidationError("Год выпуска не может быть раньше 1900 года.")
+        if value > current_year:
+            raise serializers.ValidationError(f"Год выпуска не может быть больше {current_year}.")
+        return value
+    
+    def validate_license_plate(self, value):
+        """Проверка формата гос. номера (российский формат)"""
+        if not value:
+            raise serializers.ValidationError("Гос. номер обязателен.")
+        
+        value = value.strip().upper()
+        
+        # Допустимые буквы в российских номерах
+        allowed_ru = "АВЕКМНОРСТУХ"
+        allowed_lat = "ABEKMHOPCTYX"
+        
+        # Проверка формата: буква, 3 цифры, 2 буквы (с учетом русских и латинских букв)
+        pattern = r'^[АВЕКМНОРСТУХABEKMHOPCTYX]{1}\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}$'
+        
+        if not re.match(pattern, value):
+            raise serializers.ValidationError(
+                "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
+            )
+        
+        # Проверка каждой буквы
+        for char in value:
+            if char.isalpha():
+                if char not in allowed_ru and char not in allowed_lat:
+                    raise serializers.ValidationError(
+                        f"Буква '{char}' недопустима в российских номерах. "
+                        f"Допустимые русские буквы: {', '.join(allowed_ru)}. "
+                        f"Допустимые латинские: {', '.join(allowed_lat)}."
+                    )
+        
+        # Проверка уникальности (исключая текущий экземпляр при обновлении)
+        existing = Car.objects.filter(license_plate=value)
+        if self.instance:
+            existing = existing.exclude(id=self.instance.id)
+        if existing.exists():
+            raise serializers.ValidationError("Автомобиль с таким гос. номером уже существует.")
+        
+        return value
+    
+    def validate_vin(self, value):
+        """Проверка VIN-кода"""
+        if not value:
+            return value  # VIN не обязателен
+        
+        value = value.strip().upper()
+        
+        if len(value) != 17:
+            raise serializers.ValidationError("VIN-код должен содержать ровно 17 символов.")
+        
+        # VIN не должен содержать буквы I, O, Q
+        if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', value):
+            raise serializers.ValidationError(
+                "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
+            )
+        
+        # Проверка уникальности
+        existing = Car.objects.filter(vin=value)
+        if self.instance:
+            existing = existing.exclude(id=self.instance.id)
+        if existing.exists():
+            raise serializers.ValidationError("Автомобиль с таким VIN-кодом уже существует.")
+        
+        return value
+    
+    def validate_photo(self, value):
+        """Проверка загружаемого фото"""
+        if not value:
+            return value
+        
+        # Проверка размера (3 МБ)
+        max_size = 3 * 1024 * 1024
+        if value.size > max_size:
+            raise serializers.ValidationError("Размер фото не должен превышать 3 МБ.")
+        
+        # Проверка расширения
+        import os
+        valid_extensions = ['.jpg', '.jpeg', '.png']
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in valid_extensions:
+            raise serializers.ValidationError(
+                "Допустимые форматы фото: JPG, JPEG, PNG."
+            )
+        
+        return value
+    
+    def validate_model_id(self, value):
+        """Проверяем, существует ли модель с таким UUID"""
+        try:
+            model = CarModel.objects.select_related('brand').get(id=value)
+            return model
+        except CarModel.DoesNotExist:
+            raise serializers.ValidationError(f"Модель с ID {value} не существует")
+    
+    def validate(self, data):
+        """Перекрестная валидация"""
+        # Проверка соответствия модели и марки (если переданы оба)
+        # В нашем случае model_id уже преобразован в model в validate_model_id
+        return data
+    
+    # ========== МЕТОДЫ ДЛЯ ЧТЕНИЯ ==========
     
     def get_model_name(self, obj):
         return obj.model.name if obj.model else None
@@ -46,23 +151,14 @@ class CarSerializer(serializers.ModelSerializer):
     def get_photo_url(self, obj):
         return obj.get_photo_url()
     
-    def validate_model_id(self, value):
-        """Проверяем, существует ли модель с таким UUID"""
-        from ..models import CarModel
-        try:
-            model = CarModel.objects.get(id=value)
-            return model
-        except CarModel.DoesNotExist:
-            raise serializers.ValidationError(f"Модель с ID {value} не существует")
+    # ========== СОЗДАНИЕ И ОБНОВЛЕНИЕ ==========
     
     def create(self, validated_data):
-        # Извлекаем model_id и заменяем на объект модели
         model = validated_data.pop('model_id')
         validated_data['model'] = model
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
-        # Для обновления тоже обрабатываем model_id
         if 'model_id' in validated_data:
             model = validated_data.pop('model_id')
             validated_data['model'] = model

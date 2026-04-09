@@ -47,49 +47,41 @@ class CarViewSet(viewsets.ModelViewSet):
         return Car.objects.filter(owner=self.request.user).select_related('model__brand')
     
     def perform_create(self, serializer):
-        """Автоматически устанавливаем владельца автомобиля"""
-        try:
-            serializer.save(owner=self.request.user)
-        except IntegrityError as e:
-            error_msg = str(e).lower()
-            if 'license_plate' in error_msg:
-                raise ValidationError({'license_plate': 'Автомобиль с таким гос. номером уже существует.'})
-            elif 'vin' in error_msg:
-                raise ValidationError({'vin': 'Автомобиль с таким VIN-кодом уже существует.'})
-            raise ValidationError({'non_field_errors': 'Автомобиль с таким гос. номером или VIN уже существует.'})
+        serializer.save(owner=self.request.user)
     
     def create(self, request, *args, **kwargs):
-        """Обработка создания автомобиля с понятными сообщениями об ошибках"""
+        """Стандартный create с улучшенной обработкой ошибок"""
         serializer = self.get_serializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                {
-                    'success': True,
-                    'message': 'Автомобиль успешно добавлен',
-                    'data': serializer.data
-                },
-                status=status.HTTP_201_CREATED,
-                headers=headers
-            )
-        except ValidationError as e:
-            return Response(
-                {
-                    'success': False,
-                    'errors': e.message_dict
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {
-                    'success': False,
-                    'errors': {'non_field_errors': [str(e)]}
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        except IntegrityError as e:
+            error_msg = str(e).lower()
+            errors = {}
+            if 'license_plate' in error_msg:
+                errors['license_plate'] = ['Автомобиль с таким гос. номером уже существует.']
+            elif 'vin' in error_msg:
+                errors['vin'] = ['Автомобиль с таким VIN-кодом уже существует.']
+            else:
+                errors['non_field_errors'] = ['Ошибка целостности данных.']
+            
+            return Response({
+                'success': False,
+                'errors': errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response({
+            'success': True,
+            'message': 'Автомобиль успешно добавлен',
+            'data': serializer.data
+        }, status=status.HTTP_201_CREATED, headers=headers)
     
     def update(self, request, *args, **kwargs):
         """Обновление автомобиля с проверкой владельца"""
