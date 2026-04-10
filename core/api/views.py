@@ -13,7 +13,7 @@ from .serializers import (
     CarModelSerializer,
     AppointmentSerializer,
     ServiceTypeSerializer,
-    ServiceCenterSerializer,
+    ServiceCenterDetailSerializer,
     MyTokenObtainPairSerializer,
     UserRegisterSerializer
 )
@@ -169,5 +169,120 @@ class ServiceTypeViewSet(viewsets.ReadOnlyModelViewSet):
 # Сервисные центры
 class ServiceCenterViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ServiceCenter.objects.all()
-    serializer_class = ServiceCenterSerializer
     permission_classes = [AllowAny]
+    
+    def get_serializer_class(self):
+        """Используем разные сериализаторы для списка и деталей"""
+        if self.action == 'retrieve':
+            return ServiceCenterDetailSerializer
+        return ServiceCenterDetailSerializer
+    
+    def get_queryset(self):
+        """Оптимизация запросов"""
+        if self.action == 'list':
+            return ServiceCenter.objects.all().order_by('address')
+        elif self.action == 'retrieve':
+            return ServiceCenter.objects.prefetch_related(
+                'services',
+                'working_hours',
+                'reviews',
+                'reviews__user__userprofile'
+            )
+        return super().get_queryset()
+    
+    @action(detail=True, methods=['get'])
+    def services(self, request, pk=None):
+        """Получить все услуги филиала"""
+        service_center = self.get_object()
+        services = service_center.services.filter(is_active=True)
+        serializer = ServiceTypeSerializer(services, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def working_hours(self, request, pk=None):
+        """Получить график работы филиала"""
+        service_center = self.get_object()
+        working_hours = service_center.working_hours.all().order_by('day_of_week')
+        serializer = WorkingHoursSerializer(working_hours, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def reviews(self, request, pk=None):
+        """Получить отзывы о филиале с пагинацией"""
+        service_center = self.get_object()
+        reviews = service_center.reviews.select_related('user').order_by('-created_at')
+        
+        # Пагинация
+        page = self.paginate_queryset(reviews)
+        if page is not None:
+            serializer = ReviewSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def add_review(self, request, pk=None):
+        """Добавить отзыв о филиале"""
+        service_center = self.get_object()
+        user = request.user
+        
+        # Проверяем, может ли пользователь оставить отзыв
+        has_completed_appointment = Appointment.objects.filter(
+            car__owner=user,
+            service_center=service_center,
+            status='COMPLETED'
+        ).exists()
+        
+        if not has_completed_appointment:
+            return Response({
+                'success': False,
+                'error': 'Вы можете оставить отзыв только после выполненной услуги'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Проверяем, не оставлял ли уже отзыв
+        existing_review = Review.objects.filter(
+            service_center=service_center,
+            user=user
+        ).first()
+        
+        if existing_review:
+            return Response({
+                'success': False,
+                'error': 'Вы уже оставили отзыв об этом филиале'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Валидация и сохранение
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(
+                service_center=service_center,
+                user=user
+            )
+            return Response({
+                'success': True,
+                'message': 'Спасибо за отзыв!',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
+    def nearest(self, request):
+        """Найти ближайшие филиалы (требуются координаты)"""
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        radius = request.query_params.get('radius', 10)  # км
+        
+        if not lat or not lng:
+            return Response({
+                'error': 'Необходимы параметры lat и lng'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Заглушка - возвращаем все филиалы
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

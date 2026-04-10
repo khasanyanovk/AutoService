@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand
+from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review
 from core.forms import UserRegisterForm
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -178,27 +178,99 @@ class CarModelSerializer(serializers.ModelSerializer):
         model = CarModel
         fields = ['id', 'name', 'brand', 'brand_name']
 
+class WorkingHoursSerializer(serializers.ModelSerializer):
+    day_of_week_display = serializers.CharField(source='get_day_of_week_display', read_only=True)
+    
+    class Meta:
+        model = WorkingHours
+        fields = [
+            'id', 'day_of_week', 'day_of_week_display', 
+            'start_time', 'end_time', 'lunch_start', 
+            'lunch_end', 'is_working'
+        ]
+
 class ServiceTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceType
-        fields = ['id', 'name', 'description', 'duration', 'price', 'service_center', 'is_active']
+        fields = ['id', 'name', 'description', 'duration', 'price', 'is_active']
 
+class ReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    user_avatar = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'user_name', 'user_avatar', 'rating', 
+            'comment', 'admin_reply', 'admin_reply_at', 'created_at'
+        ]
+    
+    def get_user_avatar(self, obj):
+        if hasattr(obj.user, 'userprofile') and obj.user.userprofile.avatar:
+            return obj.user.userprofile.avatar.url
+        return None
 
-class ServiceCenterSerializer(serializers.ModelSerializer):
+class ServiceCenterDetailSerializer(serializers.ModelSerializer):
+    """Расширенный сериализатор с полной информацией о филиале"""
     photo_url = serializers.SerializerMethodField()
-
+    
+    services = ServiceTypeSerializer(many=True, read_only=True) 
+    working_hours = WorkingHoursSerializer(many=True, read_only=True)
+    
+    reviews_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    latest_reviews = serializers.SerializerMethodField()
+    is_open_now = serializers.SerializerMethodField()
+    
     class Meta:
         model = ServiceCenter
-        fields = ['id', 'address', 'phone', 'opening_hours', 'photo_url']
-
+        fields = [
+            'id', 'address', 'phone', 'opening_hours', 'photo_url',
+            'services', 'working_hours', 'reviews_count', 
+            'average_rating', 'latest_reviews', 'is_open_now'
+        ]
+    
     def get_photo_url(self, obj):
-        return obj.get_photo_url() if obj.get_photo_url() else None
+        return obj.get_photo_url()
+    
+    def get_reviews_count(self, obj):
+        return obj.reviews.count()
+    
+    def get_average_rating(self, obj):
+        from django.db.models import Avg
+        avg = obj.reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0
+    
+    def get_latest_reviews(self, obj):
+        latest = obj.reviews.select_related('user').order_by('-created_at')[:5]
+        return ReviewSerializer(latest, many=True).data
+    
+    def get_is_open_now(self, obj):
+        """Проверяет, открыт ли филиал сейчас"""
+        from django.utils import timezone
+        
+        now = timezone.localtime(timezone.now())
+        day_of_week = now.isoweekday()
+        current_time = now.time()
+        
+        try:
+            wh = obj.working_hours.get(day_of_week=day_of_week)
+            if not wh.is_working:
+                return False
+            
+            if wh.lunch_start and wh.lunch_end:
+                if wh.lunch_start <= current_time <= wh.lunch_end:
+                    return False
+            
+            return wh.start_time <= current_time <= wh.end_time
+        except Exception:
+            return False
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
     car = CarSerializer()
     service_type = ServiceTypeSerializer()
-    service_center = ServiceCenterSerializer()
+    service_center = ServiceCenterDetailSerializer()
 
     class Meta:
         model = Appointment
