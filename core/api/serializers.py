@@ -1,7 +1,8 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.core.validators import MinValueValidator, MaxValueValidator
 from rest_framework import serializers
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review
@@ -16,6 +17,36 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         return token
 
+class UserRegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=30)
+    last_name = serializers.CharField(max_length=30)
+    email = serializers.EmailField()
+    password1 = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['password1'] != data['password2']:
+            raise serializers.ValidationError({"password": "Пароли не совпадают."})
+        try:
+            validate_password(data['password1'])
+        except Exception as e:
+            raise serializers.ValidationError({"password": list(e.messages)})
+        if User.objects.filter(username=data['username']).exists():
+            raise serializers.ValidationError({"username": "Пользователь с таким логином уже существует."})
+        if User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+        return data
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            email=validated_data['email'],
+            password=validated_data['password1'],
+        )
+        return user
 
 class CarSerializer(serializers.ModelSerializer):
     model_id = serializers.UUIDField(write_only=True)
@@ -267,52 +298,248 @@ class ServiceCenterDetailSerializer(serializers.ModelSerializer):
             return False
 
 
-class AppointmentSerializer(serializers.ModelSerializer):
-    car = CarSerializer()
-    service_type = ServiceTypeSerializer()
-    service_center = ServiceCenterDetailSerializer()
-
+class AppointmentCreateSerializer(serializers.ModelSerializer):
+    """Сериализатор для создания записи"""
+    car_id = serializers.UUIDField(write_only=True)
+    service_type_id = serializers.UUIDField(write_only=True)
+    service_center_id = serializers.UUIDField(write_only=True)
+    
     class Meta:
         model = Appointment
         fields = [
-            'id',
-            'car',
-            'service_type',
-            'service_center',
-            'scheduled_date',
-            'scheduled_time',
-            'status',
-            'notes',
+            'id', 'car_id', 'service_type_id', 'service_center_id',
+            'scheduled_date', 'scheduled_time', 'notes',
+            'status', 'created_at'
         ]
-
-
-class UserRegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)
-    first_name = serializers.CharField(max_length=30)
-    last_name = serializers.CharField(max_length=30)
-    email = serializers.EmailField()
-    password1 = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
-
-    def validate(self, data):
-        if data['password1'] != data['password2']:
-            raise serializers.ValidationError({"password": "Пароли не совпадают."})
+        read_only_fields = ['id', 'status', 'created_at']
+    
+    def validate_car_id(self, value):
+        """Проверяем, что автомобиль принадлежит пользователю"""
         try:
-            validate_password(data['password1'])
-        except Exception as e:
-            raise serializers.ValidationError({"password": list(e.messages)})
-        if User.objects.filter(username=data['username']).exists():
-            raise serializers.ValidationError({"username": "Пользователь с таким логином уже существует."})
-        if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
-        return data
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
-            email=validated_data['email'],
-            password=validated_data['password1'],
+            car = Car.objects.get(id=value)
+        except Car.DoesNotExist:
+            raise serializers.ValidationError("Автомобиль не найден")
+        
+        request = self.context.get('request')
+        if car.owner != request.user:
+            raise serializers.ValidationError("Вы не можете записаться на чужой автомобиль")
+        
+        return car
+    
+    def validate_service_type_id(self, value):
+        """Проверяем существование услуги"""
+        try:
+            service_type = ServiceType.objects.select_related('service_center').get(
+                id=value, 
+                is_active=True
+            )
+            return service_type
+        except ServiceType.DoesNotExist:
+            raise serializers.ValidationError("Услуга не найдена или неактивна")
+    
+    def validate_service_center_id(self, value):
+        """Проверяем существование филиала"""
+        try:
+            service_center = ServiceCenter.objects.get(id=value)
+            return service_center
+        except ServiceCenter.DoesNotExist:
+            raise serializers.ValidationError("Автосервис не найден")
+    
+    def validate_scheduled_date(self, value):
+        """Проверка даты"""
+        today = timezone.localtime(timezone.now()).date()
+        
+        if value < today:
+            raise serializers.ValidationError("Нельзя записаться на прошедшую дату")
+        
+        max_date = today + timedelta(days=30)
+        if value > max_date:
+            raise serializers.ValidationError("Запись возможна не более чем на 30 дней вперед")
+        
+        return value
+    
+    def validate(self, data):
+        """Комплексная валидация"""
+        car = data.get('car_id')
+        service_type = data.get('service_type_id')
+        service_center = data.get('service_center_id')
+        scheduled_date = data.get('scheduled_date')
+        scheduled_time = data.get('scheduled_time')
+        
+        if not all([car, service_type, service_center, scheduled_date, scheduled_time]):
+            raise serializers.ValidationError("Все поля обязательны для заполнения")
+        
+        # Проверяем соответствие услуги и филиала
+        if service_type.service_center_id != service_center.id:
+            raise serializers.ValidationError({
+                'service_type_id': 'Выбранная услуга не предоставляется в этом автосервисе'
+            })
+        
+        # Проверяем, что запись на сегодня не в прошлом времени
+        today = timezone.localtime(timezone.now()).date()
+        if scheduled_date == today:
+            now = timezone.localtime(timezone.now()).time()
+            if scheduled_time <= now:
+                raise serializers.ValidationError({
+                    'scheduled_time': 'Нельзя записаться на уже прошедшее время'
+                })
+        
+        # Проверяем рабочие часы
+        from ..models import WorkingHours
+        day_of_week = scheduled_date.isoweekday()
+        
+        try:
+            working_hours = WorkingHours.objects.get(
+                service_center=service_center,
+                day_of_week=day_of_week
+            )
+            
+            if not working_hours.is_working:
+                raise serializers.ValidationError({
+                    'scheduled_date': 'Выбранный день не является рабочим'
+                })
+            
+            # Проверяем, что время в пределах рабочего дня
+            if not (working_hours.start_time <= scheduled_time <= working_hours.end_time):
+                raise serializers.ValidationError({
+                    'scheduled_time': 'Выбранное время вне рабочего времени'
+                })
+            
+            # Проверяем, что услуга завершится до конца рабочего дня
+            scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
+            end_datetime = scheduled_datetime + timedelta(minutes=service_type.duration)
+            
+            if end_datetime.time() > working_hours.end_time:
+                raise serializers.ValidationError({
+                    'scheduled_time': 'Услуга не успеет завершиться до конца рабочего дня'
+                })
+            
+            # Проверяем обеденный перерыв
+            if working_hours.lunch_start and working_hours.lunch_end:
+                lunch_start_dt = datetime.combine(scheduled_date, working_hours.lunch_start)
+                lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
+                
+                if not (end_datetime <= lunch_start_dt or scheduled_datetime >= lunch_end_dt):
+                    raise serializers.ValidationError({
+                        'scheduled_time': 'Выбранное время попадает на обеденный перерыв'
+                    })
+            
+        except WorkingHours.DoesNotExist:
+            raise serializers.ValidationError({
+                'scheduled_date': 'На выбранный день нет расписания работы'
+            })
+        
+        # Проверяем занятость времени
+        conflicting = Appointment.objects.filter(
+            service_center=service_center,
+            scheduled_date=scheduled_date,
+            status__in=['SCHEDULED', 'IN_PROGRESS']
+        ).filter(
+            scheduled_time__lt=(datetime.combine(scheduled_date, scheduled_time) + 
+                               timedelta(minutes=service_type.duration)).time(),
+            end_time__gt=scheduled_time
         )
-        return user
+        
+        if conflicting.exists():
+            raise serializers.ValidationError({
+                'scheduled_time': 'Выбранное время уже занято'
+            })
+        
+        # Проверяем заблокированные слоты
+        from ..models import BlockedTimeSlot
+        if BlockedTimeSlot.objects.filter(
+            service_center=service_center,
+            date=scheduled_date,
+            time=scheduled_time
+        ).exists():
+            raise serializers.ValidationError({
+                'scheduled_time': 'Это время заблокировано администратором'
+            })
+        
+        return data
+    
+    def create(self, validated_data):
+        car = validated_data.pop('car_id')
+        service_type = validated_data.pop('service_type_id')
+        service_center = validated_data.pop('service_center_id')
+        
+        # Вычисляем время окончания
+        scheduled_date = validated_data['scheduled_date']
+        scheduled_time = validated_data['scheduled_time']
+        scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
+        end_datetime = scheduled_datetime + timedelta(minutes=service_type.duration)
+        
+        appointment = Appointment.objects.create(
+            car=car,
+            service_type=service_type,
+            service_center=service_center,
+            end_time=end_datetime.time(),
+            status='SCHEDULED',
+            **validated_data
+        )
+        
+        return appointment
+
+class ServiceCenterSerializer(serializers.ModelSerializer):
+    """Базовый сериализатор для списка филиалов"""
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceCenter
+        fields = ['id', 'address', 'phone', 'opening_hours', 'photo_url']
+
+    def get_photo_url(self, obj):
+        return obj.get_photo_url()
+
+class AppointmentDetailSerializer(serializers.ModelSerializer):
+    """Детальный сериализатор для просмотра записи"""
+    car = CarSerializer(read_only=True)
+    service_type = ServiceTypeSerializer(read_only=True)
+    service_center = ServiceCenterSerializer(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    can_cancel = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Appointment
+        fields = [
+            'id', 'car', 'service_type', 'service_center',
+            'scheduled_date', 'scheduled_time', 'end_time',
+            'status', 'status_display', 'notes',
+            'created_at', 'updated_at',
+            'can_cancel', 'total_price'
+        ]
+    
+    def get_can_cancel(self, obj):
+        """Можно ли отменить запись"""
+        if obj.status != 'SCHEDULED':
+            return False
+        
+        now = timezone.localtime(timezone.now())
+        appointment_datetime = datetime.combine(obj.scheduled_date, obj.scheduled_time)
+        appointment_datetime = timezone.make_aware(appointment_datetime)
+        
+        # Нельзя отменить за 2 часа до начала
+        return (appointment_datetime - now).total_seconds() > 7200
+    
+    def get_total_price(self, obj):
+        """Итоговая цена с учетом скидок"""
+        return float(obj.get_final_price())
+
+class TimeSlotSerializer(serializers.Serializer):
+    """Сериализатор для временных слотов"""
+    time = serializers.TimeField()
+    available = serializers.BooleanField()
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class AvailableServicesSerializer(serializers.Serializer):
+    """Сериализатор для получения услуг филиала"""
+    service_center_id = serializers.UUIDField(required=True)
+
+
+class AvailableTimeSlotsSerializer(serializers.Serializer):
+    """Сериализатор для запроса доступных слотов"""
+    service_center_id = serializers.UUIDField(required=True)
+    service_type_id = serializers.UUIDField(required=True)
+    date = serializers.DateField(required=True)
