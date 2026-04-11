@@ -225,6 +225,7 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         model = ServiceType
         fields = ['id', 'name', 'description', 'duration', 'price', 'is_active']
 
+# serializers.py
 class ReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     user_avatar = serializers.SerializerMethodField(read_only=True)
@@ -235,12 +236,27 @@ class ReviewSerializer(serializers.ModelSerializer):
             'id', 'user_name', 'user_avatar', 'rating', 
             'comment', 'admin_reply', 'admin_reply_at', 'created_at'
         ]
+        read_only_fields = ['id', 'admin_reply', 'admin_reply_at', 'created_at']
     
     def get_user_avatar(self, obj):
-        if hasattr(obj.user, 'userprofile') and obj.user.userprofile.avatar:
-            return obj.user.userprofile.avatar.url
+        """Возвращает URL аватара пользователя"""
+        try:
+            if hasattr(obj.user, 'userprofile') and obj.user.userprofile.avatar:
+                return obj.user.userprofile.avatar.url
+        except Exception:
+            pass
         return None
-
+    
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Оценка должна быть от 1 до 5")
+        return value
+    
+    def validate_comment(self, value):
+        if len(value.strip()) < 20:
+            raise serializers.ValidationError("Комментарий должен содержать минимум 20 символов")
+        return value
+    
 class ServiceCenterDetailSerializer(serializers.ModelSerializer):
     """Расширенный сериализатор с полной информацией о филиале"""
     photo_url = serializers.SerializerMethodField()
