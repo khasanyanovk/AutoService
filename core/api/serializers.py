@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review
+from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review, UserProfile
 from core.forms import UserRegisterForm
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -514,7 +514,15 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     service_center = ServiceCenterSerializer(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     can_cancel = serializers.SerializerMethodField()
-    total_price = serializers.SerializerMethodField()
+    total_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        source='get_final_price',
+        read_only=True
+    )
+    payment_url = serializers.SerializerMethodField()
+    is_paid = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
     
     class Meta:
         model = Appointment
@@ -523,9 +531,33 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
             'scheduled_date', 'scheduled_time', 'end_time',
             'status', 'status_display', 'notes',
             'created_at', 'updated_at',
-            'can_cancel', 'total_price'
+            'can_cancel', 'total_price', 'payment_url', 'is_paid', 'payment_status'
         ]
     
+    def get_is_paid(self, obj):
+        """Проверяет, есть ли успешный платеж"""
+        from payments.models import Payment
+        return Payment.objects.filter(
+            appointment=obj, 
+            status='succeeded'
+        ).exists()
+    
+    def get_payment_status(self, obj):
+        """Возвращает статус последнего платежа"""
+        from payments.models import Payment
+        payment = Payment.objects.filter(
+            appointment=obj
+        ).order_by('-created_at').first()
+        return payment.status if payment else None
+
+    def get_payment_url(self, obj):
+        """URL для оплаты (ведет на веб-страницу записи)"""
+        if obj.status == 'SCHEDULED':
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(f'/appointments/{obj.id}/')
+        return None
+
     def get_can_cancel(self, obj):
         """Можно ли отменить запись"""
         if obj.status != 'SCHEDULED':
@@ -559,3 +591,125 @@ class AvailableTimeSlotsSerializer(serializers.Serializer):
     service_center_id = serializers.UUIDField(required=True)
     service_type_id = serializers.UUIDField(required=True)
     date = serializers.DateField(required=True)
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Профиль пользователя"""
+    avatar_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserProfile
+        fields = ['phone', 'address', 'avatar', 'avatar_url']
+        read_only_fields = ['avatar_url']
+    
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        
+        request = self.context.get('request')
+        default_path = '/static/core/img/default-avatar.png'
+        
+        if request:
+            return request.build_absolute_uri(default_path)
+        return default_path
+
+class UserSerializer(serializers.ModelSerializer):
+    """Пользователь с профилем"""
+    profile = UserProfileSerializer(source='userprofile', read_only=True)
+    full_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 
+                  'full_name', 'profile']
+    
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username
+
+
+class UserUpdateSerializer(serializers.Serializer):
+    """Обновление данных пользователя"""
+    first_name = serializers.CharField(max_length=150, required=False)
+    last_name = serializers.CharField(max_length=150, required=False)
+    email = serializers.EmailField(required=False)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate_email(self, value):
+        user = self.context['request'].user
+        if User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("Пользователь с таким email уже существует")
+        return value
+    
+    def update(self, instance, validated_data):
+        # Обновляем User
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        if 'email' in validated_data:
+            instance.email = validated_data['email']
+        instance.save()
+        
+        # Обновляем UserProfile
+        profile = instance.userprofile
+        if 'phone' in validated_data:
+            profile.phone = validated_data['phone']
+        if 'address' in validated_data:
+            profile.address = validated_data['address']
+        profile.save()
+        
+        return instance
+
+
+class AvatarUploadSerializer(serializers.Serializer):
+    """Загрузка аватара"""
+    avatar = serializers.ImageField()
+    
+    def validate_avatar(self, value):
+        # Проверка размера (2 МБ)
+        if value.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("Размер файла не должен превышать 2 МБ")
+        
+        # Проверка формата
+        import os
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png']:
+            raise serializers.ValidationError("Допустимые форматы: JPG, PNG")
+        
+        return value
+    
+    def save(self, user):
+        profile = user.userprofile
+        profile.avatar = self.validated_data['avatar']
+        profile.save()
+        return profile
+
+
+class ProfileStatsSerializer(serializers.Serializer):
+    """Статистика профиля"""
+    total_appointments = serializers.IntegerField()
+    completed_appointments = serializers.IntegerField()
+    cancelled_appointments = serializers.IntegerField()
+    total_spent = serializers.FloatField()
+    average_check = serializers.FloatField()
+    first_visit = serializers.DateField(allow_null=True)
+    last_visit = serializers.DateField(allow_null=True)
+    
+    # Графики
+    visits_by_month = serializers.DictField()
+    top_services = serializers.ListField()
+    top_centers = serializers.ListField()
+    by_weekday = serializers.ListField()
+    by_hour = serializers.ListField()
+
+
+class LoyaltyAccountSerializer(serializers.Serializer):
+    """Программа лояльности"""
+    status = serializers.CharField()
+    status_display = serializers.CharField()
+    bonus_balance = serializers.FloatField()
+    total_spent = serializers.FloatField()
+    next_status = serializers.CharField(allow_null=True)
+    next_status_progress = serializers.FloatField()  # %
+    personal_discount = serializers.FloatField()

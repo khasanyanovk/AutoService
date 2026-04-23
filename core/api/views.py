@@ -2,12 +2,19 @@ from rest_framework import viewsets, status
 from datetime import datetime, timedelta, date
 from django.utils import timezone
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.db.models import Count, Sum, Q, Avg
+from collections import defaultdict
+from payments.services import create_payment as create_yookassa_payment
+from payments.models import Payment
+
+
 
 from .serializers import (
     CarSerializer,
@@ -21,7 +28,12 @@ from .serializers import (
     WorkingHoursSerializer,
     ReviewSerializer,
     MyTokenObtainPairSerializer,
-    UserRegisterSerializer
+    UserRegisterSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
+    AvatarUploadSerializer,
+    ProfileStatsSerializer,
+    LoyaltyAccountSerializer
 )
 from ..models import (
     Car, Appointment, ServiceType, ServiceCenter,
@@ -277,6 +289,37 @@ class ServiceCenterViewSet(viewsets.ReadOnlyModelViewSet):
 class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
+    def sync_payment_status(self, request, pk=None):
+        """Принудительно синхронизировать статус платежа с ЮKassa"""
+        from payments.services import check_payment_status
+        
+        appointment = self.get_object()
+        
+        # Найти все pending платежи и проверить их
+        payments = Payment.objects.filter(
+            appointment=appointment,
+            status__in=['pending', 'waiting_for_capture']
+        )
+        
+        for payment in payments:
+            check_payment_status(payment)
+        
+        # Проверить последний платеж
+        latest_payment = Payment.objects.filter(
+            appointment=appointment
+        ).order_by('-created_at').first()
+        
+        if latest_payment:
+            check_payment_status(latest_payment)
+        
+        return Response({
+            'is_paid': Payment.objects.filter(
+                appointment=appointment, 
+                status='succeeded'
+            ).exists(),
+            'payment_status': latest_payment.status if latest_payment else None
+        })
+
     def get_queryset(self):
         return Appointment.objects.filter(
             car__owner=self.request.user
@@ -500,3 +543,310 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def create_payment(self, request, pk=None):
+        """Создать платеж и вернуть URL для оплаты"""
+        from decimal import Decimal
+        from loyalty_program.models import LoyaltyAccount
+        
+        appointment = self.get_object()
+        
+        # Проверки
+        if appointment.status == "CANCELLED":
+            return Response({
+                'error': 'Невозможно оплатить отмененную запись'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        existing_payment = Payment.objects.filter(
+            appointment=appointment, 
+            status="succeeded"
+        ).first()
+        
+        if existing_payment:
+            return Response({
+                'error': 'Эта запись уже оплачена'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Расчет суммы с учетом бонусов
+            loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+            bonus_to_use = Decimal(request.data.get('bonus_amount', '0') or '0')
+            
+            base_price = appointment.get_base_price()
+            discount_amount = loyalty_account.calculate_discount(base_price)
+            final_price = loyalty_account.calculate_final_price(base_price, bonus_to_use)
+            
+            max_bonus = loyalty_account.calculate_max_bonus_usage(base_price - discount_amount)
+            actual_bonus_used = min(bonus_to_use, max_bonus, loyalty_account.bonus_balance)
+            
+            # Для мобилки return_url - deeplink или специальный URL
+            return_url = request.build_absolute_uri(f'/api/appointments/{appointment.id}/payment/callback/')
+            
+            payment = create_yookassa_payment(
+                appointment=appointment,
+                return_url=return_url,
+                original_amount=base_price,
+                discount_applied=discount_amount,
+                bonus_used=actual_bonus_used,
+                final_amount=final_price,
+            )
+            
+            return Response({
+                'payment_id': str(payment.id),
+                'payment_url': payment.confirmation_url,
+                'amount': float(payment.amount),
+                'status': payment.status
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': f'Ошибка создания платежа: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'])
+    def payment_status(self, request, pk=None):
+        """Проверить статус платежа"""
+        from payments.services import check_payment_status
+        
+        appointment = self.get_object()
+        latest_payment = Payment.objects.filter(
+            appointment=appointment
+        ).order_by('-created_at').first()
+        
+        if not latest_payment:
+            return Response({
+                'status': None,
+                'message': 'Платеж не найден'
+            })
+        
+        check_payment_status(latest_payment)
+        
+        return Response({
+            'payment_id': str(latest_payment.id),
+            'status': latest_payment.status,
+            'status_display': latest_payment.get_status_display(),
+            'paid_at': latest_payment.paid_at,
+            'amount': float(latest_payment.amount),
+            'appointment_status': appointment.status
+        })
+    
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def payment_callback(self, request, pk=None):
+        """Callback для возврата из ЮKassa после оплаты"""
+        # ЮKassa добавляет параметры в URL, но основное - мы просто возвращаем статус
+        appointment = self.get_object()
+    
+        latest_payment = Payment.objects.filter(
+            appointment=appointment
+        ).order_by('-created_at').first()
+    
+        if latest_payment:
+            from payments.services import check_payment_status
+            check_payment_status(latest_payment)
+        
+            return Response({
+                'success': latest_payment.status == 'succeeded',
+                'status': latest_payment.status,
+                'appointment_id': str(appointment.id)
+            })
+    
+        return Response({
+            'success': False,
+            'status': 'not_found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+class ProfileViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'update':
+            return UserUpdateSerializer
+        elif self.action == 'upload_avatar':
+            return AvatarUploadSerializer
+        elif self.action == 'stats':
+            return ProfileStatsSerializer
+        elif self.action == 'loyalty':
+            return LoyaltyAccountSerializer
+        return UserSerializer
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Получить данные текущего пользователя"""
+        serializer = UserSerializer(request.user, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['put', 'patch'])
+    def update_profile(self, request):
+        """Обновить профиль"""
+        serializer = UserUpdateSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            user = serializer.update(request.user, serializer.validated_data)
+            return Response({
+                'success': True,
+                'message': 'Профиль обновлен',
+                'data': UserSerializer(user, context={'request': request}).data
+            })
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    def upload_avatar(self, request):
+        """Загрузить аватар"""
+        serializer = AvatarUploadSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            profile = serializer.save(request.user)
+            return Response({
+                'success': True,
+                'message': 'Аватар обновлен',
+                'avatar_url': profile.avatar.url if profile.avatar else None
+            })
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['delete'])
+    def delete_avatar(self, request):
+        """Удалить аватар"""
+        profile = request.user.userprofile
+        if profile.avatar:
+            profile.avatar.delete(save=False)
+            profile.avatar = None
+            profile.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Аватар удален'
+        })
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Получить статистику пользователя"""
+        user = request.user
+        appointments = Appointment.objects.filter(car__owner=user)
+        
+        # Основные показатели
+        total = appointments.count()
+        completed = appointments.filter(status='COMPLETED').count()
+        cancelled = appointments.filter(status='CANCELLED').count()
+        total_spent = sum(a.get_final_price() for a in appointments.filter(status='COMPLETED'))
+        average_check = total_spent / completed if completed > 0 else 0
+        
+        first = appointments.order_by('scheduled_date').first()
+        last = appointments.filter(status='COMPLETED').order_by('-scheduled_date').first()
+        
+        # График по месяцам (последние 12 месяцев)
+        today = timezone.now().date()
+        visits_by_month = {}
+        for i in range(11, -1, -1):
+            month_date = today - timedelta(days=30 * i)
+            month_key = f"{month_date.year}-{month_date.month:02d}"
+            visits_by_month[month_key] = 0
+        
+        for app in appointments:
+            month_key = f"{app.scheduled_date.year}-{app.scheduled_date.month:02d}"
+            if month_key in visits_by_month:
+                visits_by_month[month_key] += 1
+        
+        # Топ услуг
+        top_services = list(
+            appointments.values('service_type__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:5]
+            .values_list('service_type__name', 'count')
+        )
+        
+        # Топ филиалов
+        top_centers = list(
+            appointments.values('service_center__address')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:5]
+            .values_list('service_center__address', 'count')
+        )
+        
+        # По дням недели
+        weekday_counts = [0] * 7
+        for app in appointments:
+            wd = app.scheduled_date.weekday()
+            weekday_counts[wd] += 1
+        
+        # По часам
+        hour_counts = [0] * 24
+        for app in appointments:
+            hour_counts[app.scheduled_time.hour] += 1
+        
+        return Response({
+            'total_appointments': total,
+            'completed_appointments': completed,
+            'cancelled_appointments': cancelled,
+            'total_spent': float(total_spent),
+            'average_check': float(average_check),
+            'first_visit': first.scheduled_date if first else None,
+            'last_visit': last.scheduled_date if last else None,
+            'visits_by_month': visits_by_month,
+            'top_services': [{'name': name, 'count': count} for name, count in top_services],
+            'top_centers': [{'name': name, 'count': count} for name, count in top_centers],
+            'by_weekday': weekday_counts,
+            'by_hour': hour_counts
+        })
+    
+    @action(detail=False, methods=['get'])
+    def loyalty(self, request):
+        """Получить информацию о программе лояльности"""
+        from loyalty_program.models import LoyaltyAccount, LoyaltySettings
+
+        account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+        settings = LoyaltySettings.get_settings()
+
+        status_order = ['NONE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM']
+
+        current_idx = status_order.index(account.status) if account.status in status_order else 0
+        next_status = status_order[current_idx + 1] if current_idx < len(status_order) - 1 else None
+
+        # Прогресс до следующего статуса
+        progress = 100
+        if next_status:
+            thresholds = {
+                'BRONZE': settings.bronze_threshold if hasattr(settings, 'bronze_threshold') else 0,
+                'SILVER': settings.silver_threshold if hasattr(settings, 'silver_threshold') else 10000,
+                'GOLD': settings.gold_threshold if hasattr(settings, 'gold_threshold') else 50000,
+                'PLATINUM': settings.platinum_threshold if hasattr(settings, 'platinum_threshold') else 100000
+            }
+            threshold = thresholds.get(next_status, 0)
+            if threshold > 0:
+                progress = min((account.total_spent / threshold) * 100, 100)
+
+        # Определяем текущую скидку по статусу
+        status_discounts = {
+            'NONE': 0,
+            'BRONZE': settings.bronze_discount_percent if hasattr(settings, 'bronze_discount_percent') else 0,
+            'SILVER': settings.silver_discount_percent if hasattr(settings, 'silver_discount_percent') else 3,
+            'GOLD': settings.gold_discount_percent if hasattr(settings, 'gold_discount_percent') else 5,
+            'PLATINUM': settings.platinum_discount_percent if hasattr(settings, 'platinum_discount_percent') else 7
+        }
+
+        status_discount = status_discounts.get(account.status, 0)
+
+        return Response({
+            'status': account.status,
+            'status_display': account.get_status_display() if account.status != 'NONE' else 'Новый',
+            'bonus_balance': float(account.bonus_balance),
+            'total_spent': float(account.total_spent),
+            'next_status': next_status,
+            'next_status_progress': round(progress, 1),
+            'personal_discount': float(account.personal_discount_percent),
+            'status_discount': float(status_discount),
+            'total_discount': float(account.personal_discount_percent + status_discount)
+        })

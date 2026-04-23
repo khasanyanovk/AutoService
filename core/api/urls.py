@@ -7,7 +7,8 @@ from .views import (
     ServiceCenterViewSet,
     CarBrandViewSet,
     CarModelViewSet,
-    MyTokenObtainPairView
+    MyTokenObtainPairView,
+    ProfileViewSet
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import RegisterAPIView
@@ -20,6 +21,7 @@ router.register(r'service-types', ServiceTypeViewSet, basename='service-types')
 router.register(r'service-centers', ServiceCenterViewSet, basename='service-centers')
 router.register(r'car-brands', CarBrandViewSet, basename='car-brands')
 router.register(r'car-models', CarModelViewSet, basename='car-models')
+router.register(r'profile', ProfileViewSet, basename='profile')
 
 urlpatterns = [
     path('register/', RegisterAPIView.as_view(), name='api_register'),
