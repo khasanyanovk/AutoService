@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review, UserProfile
+from ..models import Car, Appointment, ServiceType, ServiceCenter, CarModel, CarBrand, WorkingHours, Review, UserProfile, Employee, BlockedTimeSlot
 from core.forms import UserRegisterForm
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -15,6 +15,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['username'] = user.username
         token['email'] = user.email
+        token['is_staff'] = user.is_staff
         return token
 
 class UserRegisterSerializer(serializers.Serializer):
@@ -62,8 +63,6 @@ class CarSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'model', 'photo_url', 'model_name', 'brand_name']
     
-    # ========== ВАЛИДАЦИЯ ПОЛЕЙ ==========
-    
     def validate_year(self, value):
         """Проверка года выпуска"""
         current_year = datetime.now().year
@@ -80,11 +79,9 @@ class CarSerializer(serializers.ModelSerializer):
         
         value = value.strip().upper()
         
-        # Допустимые буквы в российских номерах
         allowed_ru = "АВЕКМНОРСТУХ"
         allowed_lat = "ABEKMHOPCTYX"
         
-        # Проверка формата: буква, 3 цифры, 2 буквы (с учетом русских и латинских букв)
         pattern = r'^[АВЕКМНОРСТУХABEKMHOPCTYX]{1}\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}$'
         
         if not re.match(pattern, value):
@@ -92,7 +89,6 @@ class CarSerializer(serializers.ModelSerializer):
                 "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
             )
         
-        # Проверка каждой буквы
         for char in value:
             if char.isalpha():
                 if char not in allowed_ru and char not in allowed_lat:
@@ -102,7 +98,6 @@ class CarSerializer(serializers.ModelSerializer):
                         f"Допустимые латинские: {', '.join(allowed_lat)}."
                     )
         
-        # Проверка уникальности (исключая текущий экземпляр при обновлении)
         existing = Car.objects.filter(license_plate=value)
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
@@ -114,20 +109,18 @@ class CarSerializer(serializers.ModelSerializer):
     def validate_vin(self, value):
         """Проверка VIN-кода"""
         if not value:
-            return value  # VIN не обязателен
+            return value
         
         value = value.strip().upper()
         
         if len(value) != 17:
             raise serializers.ValidationError("VIN-код должен содержать ровно 17 символов.")
         
-        # VIN не должен содержать буквы I, O, Q
         if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', value):
             raise serializers.ValidationError(
                 "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
             )
         
-        # Проверка уникальности
         existing = Car.objects.filter(vin=value)
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
@@ -141,12 +134,10 @@ class CarSerializer(serializers.ModelSerializer):
         if not value:
             return value
         
-        # Проверка размера (3 МБ)
         max_size = 3 * 1024 * 1024
         if value.size > max_size:
             raise serializers.ValidationError("Размер фото не должен превышать 3 МБ.")
         
-        # Проверка расширения
         import os
         valid_extensions = ['.jpg', '.jpeg', '.png']
         ext = os.path.splitext(value.name)[1].lower()
@@ -167,11 +158,7 @@ class CarSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Перекрестная валидация"""
-        # Проверка соответствия модели и марки (если переданы оба)
-        # В нашем случае model_id уже преобразован в model в validate_model_id
         return data
-    
-    # ========== МЕТОДЫ ДЛЯ ЧТЕНИЯ ==========
     
     def get_model_name(self, obj):
         return obj.model.name if obj.model else None
@@ -181,8 +168,6 @@ class CarSerializer(serializers.ModelSerializer):
     
     def get_photo_url(self, obj):
         return obj.get_photo_url()
-    
-    # ========== СОЗДАНИЕ И ОБНОВЛЕНИЕ ==========
     
     def create(self, validated_data):
         model = validated_data.pop('model_id')
@@ -225,7 +210,6 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         model = ServiceType
         fields = ['id', 'name', 'description', 'duration', 'price', 'is_active']
 
-# serializers.py
 class ReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     user_avatar = serializers.SerializerMethodField(read_only=True)
@@ -385,13 +369,11 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         if not all([car, service_type, service_center, scheduled_date, scheduled_time]):
             raise serializers.ValidationError("Все поля обязательны для заполнения")
         
-        # Проверяем соответствие услуги и филиала
         if service_type.service_center_id != service_center.id:
             raise serializers.ValidationError({
                 'service_type_id': 'Выбранная услуга не предоставляется в этом автосервисе'
             })
         
-        # Проверяем, что запись на сегодня не в прошлом времени
         today = timezone.localtime(timezone.now()).date()
         if scheduled_date == today:
             now = timezone.localtime(timezone.now()).time()
@@ -400,7 +382,6 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                     'scheduled_time': 'Нельзя записаться на уже прошедшее время'
                 })
         
-        # Проверяем рабочие часы
         from ..models import WorkingHours
         day_of_week = scheduled_date.isoweekday()
         
@@ -415,13 +396,11 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                     'scheduled_date': 'Выбранный день не является рабочим'
                 })
             
-            # Проверяем, что время в пределах рабочего дня
             if not (working_hours.start_time <= scheduled_time <= working_hours.end_time):
                 raise serializers.ValidationError({
                     'scheduled_time': 'Выбранное время вне рабочего времени'
                 })
             
-            # Проверяем, что услуга завершится до конца рабочего дня
             scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
             end_datetime = scheduled_datetime + timedelta(minutes=service_type.duration)
             
@@ -430,7 +409,6 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                     'scheduled_time': 'Услуга не успеет завершиться до конца рабочего дня'
                 })
             
-            # Проверяем обеденный перерыв
             if working_hours.lunch_start and working_hours.lunch_end:
                 lunch_start_dt = datetime.combine(scheduled_date, working_hours.lunch_start)
                 lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
@@ -445,7 +423,6 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                 'scheduled_date': 'На выбранный день нет расписания работы'
             })
         
-        # Проверяем занятость времени
         conflicting = Appointment.objects.filter(
             service_center=service_center,
             scheduled_date=scheduled_date,
@@ -461,7 +438,6 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                 'scheduled_time': 'Выбранное время уже занято'
             })
         
-        # Проверяем заблокированные слоты
         from ..models import BlockedTimeSlot
         if BlockedTimeSlot.objects.filter(
             service_center=service_center,
@@ -479,7 +455,6 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         service_type = validated_data.pop('service_type_id')
         service_center = validated_data.pop('service_center_id')
         
-        # Вычисляем время окончания
         scheduled_date = validated_data['scheduled_date']
         scheduled_time = validated_data['scheduled_time']
         scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
@@ -567,7 +542,6 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
         appointment_datetime = datetime.combine(obj.scheduled_date, obj.scheduled_time)
         appointment_datetime = timezone.make_aware(appointment_datetime)
         
-        # Нельзя отменить за 2 часа до начала
         return (appointment_datetime - now).total_seconds() > 7200
     
     def get_total_price(self, obj):
@@ -623,7 +597,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
-                  'full_name', 'profile']
+                  'full_name', 'profile', 'is_staff']
     
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
@@ -644,14 +618,12 @@ class UserUpdateSerializer(serializers.Serializer):
         return value
     
     def update(self, instance, validated_data):
-        # Обновляем User
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         if 'email' in validated_data:
             instance.email = validated_data['email']
         instance.save()
         
-        # Обновляем UserProfile
         profile = instance.userprofile
         if 'phone' in validated_data:
             profile.phone = validated_data['phone']
@@ -667,11 +639,9 @@ class AvatarUploadSerializer(serializers.Serializer):
     avatar = serializers.ImageField()
     
     def validate_avatar(self, value):
-        # Проверка размера (2 МБ)
         if value.size > 2 * 1024 * 1024:
             raise serializers.ValidationError("Размер файла не должен превышать 2 МБ")
         
-        # Проверка формата
         import os
         ext = os.path.splitext(value.name)[1].lower()
         if ext not in ['.jpg', '.jpeg', '.png']:
@@ -696,7 +666,6 @@ class ProfileStatsSerializer(serializers.Serializer):
     first_visit = serializers.DateField(allow_null=True)
     last_visit = serializers.DateField(allow_null=True)
     
-    # Графики
     visits_by_month = serializers.DictField()
     top_services = serializers.ListField()
     top_centers = serializers.ListField()
@@ -711,5 +680,300 @@ class LoyaltyAccountSerializer(serializers.Serializer):
     bonus_balance = serializers.FloatField()
     total_spent = serializers.FloatField()
     next_status = serializers.CharField(allow_null=True)
-    next_status_progress = serializers.FloatField()  # %
+    next_status_progress = serializers.FloatField()
     personal_discount = serializers.FloatField()
+
+class AdminAppointmentSerializer(serializers.ModelSerializer):
+    """Сериализатор записи для админа (с данными клиента)"""
+    car_info = serializers.SerializerMethodField()
+    client_name = serializers.SerializerMethodField()
+    client_email = serializers.SerializerMethodField()
+    client_phone = serializers.SerializerMethodField()
+    service_name = serializers.CharField(source='service_type.name', read_only=True)
+    service_duration = serializers.IntegerField(source='service_type.duration', read_only=True)
+    center_address = serializers.CharField(source='service_center.address', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_paid = serializers.SerializerMethodField()
+    payment_info = serializers.SerializerMethodField()
+    vin = serializers.CharField(source='car.vin', read_only=True)
+    total_price = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Appointment
+        fields = [
+            'id', 'car_info', 'client_name', 'client_email', 'client_phone',
+            'service_name', 'service_duration', 'center_address',
+            'scheduled_date', 'scheduled_time', 'end_time',
+            'status', 'status_display', 'notes',
+            'is_paid', 'payment_info', 'vin',
+            'created_at', 'updated_at','total_price', 'payment_status'
+        ]
+    
+    def get_total_price(self, obj):
+        return float(obj.get_base_price())
+
+    def get_client_email(self, obj):
+        return obj.car.owner.email
+    
+    def get_payment_info(self, obj):
+        from payments.models import Payment
+        payment = Payment.objects.filter(
+            appointment=obj, status='succeeded'
+        ).first()
+        if payment:
+            return {
+                'status': 'succeeded',
+                'paid_at': payment.paid_at,
+                'amount': float(payment.amount)
+            }
+        return None
+
+    def get_payment_status(self, obj):
+        from payments.models import Payment
+        payment = Payment.objects.filter(appointment=obj).order_by('-created_at').first()
+        return payment.status if payment else None
+
+    def get_car_info(self, obj):
+        return f"{obj.car.model.brand.name} {obj.car.model.name} ({obj.car.license_plate})"
+    
+    def get_client_name(self, obj):
+        return obj.car.owner.get_full_name() or obj.car.owner.username
+    
+    def get_client_phone(self, obj):
+        return obj.car.owner.userprofile.phone if hasattr(obj.car.owner, 'userprofile') else None
+    
+    def get_is_paid(self, obj):
+        from payments.models import Payment
+        return Payment.objects.filter(appointment=obj, status='succeeded').exists()
+
+
+class AdminStatsSerializer(serializers.Serializer):
+    """Статистика для дашборда"""
+    today_appointments = serializers.IntegerField()
+    today_completed = serializers.IntegerField()
+    today_revenue = serializers.FloatField()
+    pending_count = serializers.IntegerField()
+    in_progress_count = serializers.IntegerField()
+    total_clients = serializers.IntegerField()
+    average_rating = serializers.FloatField()
+
+class AdminDashboardSerializer(serializers.Serializer):
+    """Полный дашборд"""
+    today = serializers.DictField()
+    pending = serializers.DictField()
+    revenue = serializers.DictField()
+    upcoming = serializers.ListField()
+    chart = serializers.DictField()
+    centers = serializers.ListField()
+    reviews_pending = serializers.IntegerField()
+
+class AdminReviewSerializer(serializers.ModelSerializer):
+    """Отзыв для админа"""
+    user_name = serializers.SerializerMethodField()
+    user_phone = serializers.SerializerMethodField()
+    center_address = serializers.CharField(source='service_center.address', read_only=True)
+    
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'user_name', 'user_phone', 'center_address',
+            'rating', 'comment', 'admin_reply', 'admin_reply_at', 'created_at'
+        ]
+    
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+
+    def get_user_phone(self, obj):
+        return obj.user.userprofile.phone if hasattr(obj.user, 'userprofile') else None
+
+
+class BlockSlotSerializer(serializers.Serializer):
+    """Блокировка слота"""
+    center_id = serializers.UUIDField()
+    date = serializers.DateField()
+    time = serializers.TimeField()
+    reason = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class ChangeStatusSerializer(serializers.Serializer):
+    """Смена статуса записи"""
+    status = serializers.ChoiceField(
+        choices=['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+    )
+
+class AdminServiceTypeSerializer(serializers.ModelSerializer):
+    """Услуга для админа"""
+    center_address = serializers.CharField(source='service_center.address', read_only=True)
+
+    class Meta:
+        model = ServiceType
+        fields = [
+            'id', 'name', 'description', 'duration', 'price',
+            'service_center', 'center_address', 'is_active'
+        ]
+
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Цена должна быть больше нуля")
+        return value
+
+    def validate_duration(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Длительность должна быть больше нуля")
+        return value
+
+
+class AdminServiceCenterSerializer(serializers.ModelSerializer):
+    """Филиал для админа"""
+    services_count = serializers.SerializerMethodField()
+    working_hours = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceCenter
+        fields = [
+            'id', 'address', 'phone', 'opening_hours', 'photo',
+            'services_count', 'working_hours', 'photo_url'
+        ]
+
+    def get_photo_url(self, obj):
+        if obj.photo and hasattr(obj.photo, 'url'):
+            if obj.photo.storage.exists(obj.photo.name):
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.photo.url)
+                return obj.photo.url
+        
+        from django.contrib.staticfiles.storage import staticfiles_storage
+        default = staticfiles_storage.url('core/img/default_service_center.jpg')
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(default)
+        return default
+
+    def get_services_count(self, obj):
+        return obj.services.count()
+
+    def get_working_hours(self, obj):
+        from .serializers import WorkingHoursSerializer
+        wh = obj.working_hours.all().order_by('day_of_week')
+        return WorkingHoursSerializer(wh, many=True).data
+
+
+class AdminWorkingHoursSerializer(serializers.ModelSerializer):
+    """Рабочие часы для админа"""
+    day_display = serializers.CharField(source='get_day_of_week_display', read_only=True)
+
+    class Meta:
+        model = WorkingHours
+        fields = [
+            'id', 'service_center', 'day_of_week', 'day_display',
+            'start_time', 'end_time', 'lunch_start', 'lunch_end', 'is_working'
+        ]
+
+    def validate(self, data):
+        if data.get('start_time') and data.get('end_time'):
+            if data['start_time'] >= data['end_time']:
+                raise serializers.ValidationError({
+                    'end_time': 'Время окончания должно быть позже начала'
+                })
+        return data
+
+
+class AdminEmployeeSerializer(serializers.ModelSerializer):
+    """Сотрудник для админа"""
+    full_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    position_display = serializers.CharField(source='get_position_display', read_only=True)
+
+    class Meta:
+        model = Employee
+        fields = [
+            'id', 'user', 'username', 'full_name', 'email',
+            'position', 'position_display', 'phone', 'hire_date', 'salary'
+        ]
+
+
+class AdminCreateEmployeeSerializer(serializers.Serializer):
+    """Создание сотрудника"""
+    username = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    position = serializers.ChoiceField(choices=['MECH', 'MAN', 'DIR'])
+    phone = serializers.CharField(max_length=20)
+    salary = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Пользователь с таким логином уже существует")
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Пользователь с таким email уже существует")
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data.pop('password'),
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+        )
+
+        employee = Employee.objects.create(
+            user=user,
+            position=validated_data['position'],
+            phone=validated_data['phone'],
+            salary=validated_data['salary'],
+            hire_date=timezone.now().date()
+        )
+
+        return employee
+    
+
+class AdminClientListSerializer(serializers.ModelSerializer):
+    from django.utils import timezone
+    date_joined = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    cars_count = serializers.SerializerMethodField()
+    appointments_count = serializers.SerializerMethodField()
+    active_appointments_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'full_name', 'email', 'phone',
+            'cars_count', 'appointments_count', 'active_appointments_count',
+            'date_joined', 'is_staff'
+        ]
+
+    def get_date_joined(self, obj):
+        local_time = timezone.localtime(obj.date_joined)
+        return local_time.strftime('%d.%m.%Y %H:%M')
+
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username
+
+    def get_phone(self, obj):
+        if hasattr(obj, 'userprofile'):
+            return obj.userprofile.phone
+        return None
+
+    def get_cars_count(self, obj):
+        return Car.objects.filter(owner=obj).count()
+
+    def get_appointments_count(self, obj):
+        return Appointment.objects.filter(car__owner=obj).count()
+
+    def get_active_appointments_count(self, obj):
+        return Appointment.objects.filter(
+            car__owner=obj,
+            status__in=['SCHEDULED', 'IN_PROGRESS']
+        ).count()

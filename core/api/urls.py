@@ -8,7 +8,16 @@ from .views import (
     CarBrandViewSet,
     CarModelViewSet,
     MyTokenObtainPairView,
-    ProfileViewSet
+    ProfileViewSet,
+    AdminAppointmentViewSet,
+    AdminStatsViewSet,
+    AdminReviewViewSet,
+    AdminSlotViewSet,
+    AdminClientViewSet,
+    AdminServiceTypeViewSet,      
+    AdminServiceCenterViewSet,    
+    AdminEmployeeViewSet,         
+    AdminDashboardViewSet,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import RegisterAPIView
@@ -22,6 +31,15 @@ router.register(r'service-centers', ServiceCenterViewSet, basename='service-cent
 router.register(r'car-brands', CarBrandViewSet, basename='car-brands')
 router.register(r'car-models', CarModelViewSet, basename='car-models')
 router.register(r'profile', ProfileViewSet, basename='profile')
+router.register(r'admin-panel/appointments', AdminAppointmentViewSet, basename='admin-appointments')
+router.register(r'admin-panel/stats', AdminStatsViewSet, basename='admin-stats')
+router.register(r'admin-panel/reviews', AdminReviewViewSet, basename='admin-reviews')
+router.register(r'admin-panel/slots', AdminSlotViewSet, basename='admin-slots')
+router.register(r'admin-panel/clients', AdminClientViewSet, basename='admin-clients')
+router.register(r'admin-panel/services', AdminServiceTypeViewSet, basename='admin-services')
+router.register(r'admin-panel/centers', AdminServiceCenterViewSet, basename='admin-centers')
+router.register(r'admin-panel/employees', AdminEmployeeViewSet, basename='admin-employees')
+router.register(r'admin-panel/dashboard', AdminDashboardViewSet, basename='admin-dashboard')
 
 urlpatterns = [
     path('register/', RegisterAPIView.as_view(), name='api_register'),
