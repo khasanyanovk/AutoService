@@ -9,6 +9,7 @@ urlpatterns = [
     path("", include("core.urls")),
     path("payments/", include("payments.urls")),
     path("", include(("admin_panel.urls", "admin_panel"), namespace="admin_panel")),
+    path('api/', include('core.api.urls')),
 ]
 
 
