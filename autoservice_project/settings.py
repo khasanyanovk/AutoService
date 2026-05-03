@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, "insecure-dev-secret-key-change-me"),
-    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "10.0.2.2"]),
     CSRF_TRUSTED_ORIGINS=(list, []),
     DJANGO_TIME_ZONE=(str, "Europe/Moscow"),
     DB_ENGINE=(str, "django.db.backends.sqlite3"),
@@ -60,7 +60,7 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 
 # Comma-separated list, e.g. "example.com,api.example.com,localhost,127.0.0.1"
-ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "10.0.2.2"])
 CSRF_TRUSTED_ORIGINS=env("CSRF_TRUSTED_ORIGINS")
 
 # Application definition
@@ -73,6 +73,8 @@ INSTALLED_APPS = [
     "loyalty_program",
     "crispy_forms",
     "crispy_bootstrap5",
+    "rest_framework",
+    "rest_framework_simplejwt",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -80,6 +82,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
