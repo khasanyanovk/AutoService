@@ -745,7 +745,10 @@ class AdminAppointmentSerializer(serializers.ModelSerializer):
     
     def get_is_paid(self, obj):
         from payments.models import Payment
-        return Payment.objects.filter(appointment=obj, status='succeeded').exists()
+        return (
+            Payment.objects.filter(appointment=obj, status='succeeded').exists() or
+            obj.paid_amount is not None
+        )
 
 
 class AdminStatsSerializer(serializers.Serializer):
@@ -838,19 +841,7 @@ class AdminServiceCenterSerializer(serializers.ModelSerializer):
         ]
 
     def get_photo_url(self, obj):
-        if obj.photo and hasattr(obj.photo, 'url'):
-            if obj.photo.storage.exists(obj.photo.name):
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.photo.url)
-                return obj.photo.url
-        
-        from django.contrib.staticfiles.storage import staticfiles_storage
-        default = staticfiles_storage.url('core/img/default_service_center.jpg')
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(default)
-        return default
+        return obj.get_photo_url()
 
     def get_services_count(self, obj):
         return obj.services.count()
