@@ -219,9 +219,11 @@ REST API реализован на DRF и формирует единый кон
 
 ```python
 router = DefaultRouter()
+# ...
 router.register(r'cars', CarViewSet, basename='cars')
 router.register(r'appointments', AppointmentViewSet, basename='appointments')
 router.register(r'admin-panel/dashboard', AdminDashboardViewSet, basename='admin-dashboard')
+# ...
 ```
 
 Безопасность API задается централизованно в настройках:
