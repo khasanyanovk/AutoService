@@ -324,6 +324,8 @@ Appointment.objects.filter(status="SCHEDULED").filter(
 ).update(status="CANCELLED", updated_at=now)
 ```
 
+В полном коде `today`, `now_time` и `now` вычисляются в начале служебной функции через `timezone.localtime(timezone.now())`, что обеспечивает корректную привязку к текущему моменту.
+
 Наличие таких операций в backend подтверждает, что автор решал задачу операционной устойчивости: система сама поддерживает корректность жизненного цикла записи, а не перекладывает контроль на ручные действия сотрудников.
 
 Также в административной части реализован подход «данные как основа решения»: интерфейс управления опирается на актуальные агрегаты, фильтры и статусные выборки, а не на статические отчеты. Это помогает руководителю смены и администратору принимать решения в реальном времени — перераспределять загрузку, оперативно находить проблемные записи и контролировать динамику обслуживания по филиалам.
@@ -380,7 +382,7 @@ yoo_payment = YooPayment.create(payment_data)
 
 ```python
 def _send_async(subject, recipients, text, html):
-    from_email = settings.DEFAULT_FROM_EMAIL  # значение берётся из настроек Django
+    from_email = settings.DEFAULT_FROM_EMAIL
     def _runner():
         send_mail(subject, text, from_email, list(recipients), html_message=html)
     threading.Thread(target=_runner, daemon=True).start()
