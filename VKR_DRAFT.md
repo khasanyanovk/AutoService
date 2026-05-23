@@ -269,7 +269,42 @@ REST API в рамках проекта обеспечивает програм�
 
 #### 2.2.1 Сериализаторы
 
-Валидация реализована в `AppointmentCreateSerializer`, включая права владения автомобилем, допустимые даты и контроль рабочего времени:
+Сериализаторы в DRF выполняют двойную функцию: контроль входных данных на уровне API-контракта и трансформация данных при выдаче ответа. Для каждого поля реализован собственный метод `validate_<field>`, что позволяет локализовать правила проверки и получать детализированные ошибки на уровне поля.
+
+Пример — валидация гос. номера и VIN в `CarSerializer`. Гос. номер проверяется по регулярному выражению с учётом допустимых русских и латинских букв, а также уникальности в базе (с исключением самого редактируемого объекта при PATCH):
+
+```python
+def validate_license_plate(self, value):
+    value = value.strip().upper()
+    pattern = r'^[АВЕКМНОРСТУХABEKMHOPCTYX]{1}\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}$'
+    if not re.match(pattern, value):
+        raise serializers.ValidationError(
+            "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
+        )
+    existing = Car.objects.filter(license_plate=value)
+    if self.instance:
+        existing = existing.exclude(id=self.instance.id)
+    if existing.exists():
+        raise serializers.ValidationError("Автомобиль с таким гос. номером уже существует.")
+    return value
+
+def validate_vin(self, value):
+    value = value.strip().upper()
+    if len(value) != 17:
+        raise serializers.ValidationError("VIN-код должен содержать ровно 17 символов.")
+    if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', value):
+        raise serializers.ValidationError(
+            "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
+        )
+    existing = Car.objects.filter(vin=value)
+    if self.instance:
+        existing = existing.exclude(id=self.instance.id)
+    if existing.exists():
+        raise serializers.ValidationError("Автомобиль с таким VIN-кодом уже существует.")
+    return value
+```
+
+Для записи на обслуживание реализован `AppointmentCreateSerializer` с многоуровневой валидацией: сначала проверяется каждое поле в отдельности, затем метод `validate()` выполняет кросс-полевые проверки — соответствие услуги выбранному филиалу, попадание времени в рабочие часы, учёт обеденного перерыва, конфликты с существующими записями и заблокированными слотами:
 
 ```python
 def validate_scheduled_date(self, value):
@@ -280,68 +315,450 @@ def validate_scheduled_date(self, value):
     if value > max_date:
         raise serializers.ValidationError("Запись возможна не более чем на 30 дней вперед")
     return value
+
+def validate(self, data):
+    service_type = data.get('service_type_id')
+    service_center = data.get('service_center_id')
+    scheduled_date = data.get('scheduled_date')
+    scheduled_time = data.get('scheduled_time')
+
+    # Услуга должна принадлежать выбранному филиалу
+    if service_type.service_center_id != service_center.id:
+        raise serializers.ValidationError({
+            'service_type_id': 'Выбранная услуга не предоставляется в этом автосервисе'
+        })
+
+    # Проверка рабочего времени и обеденного перерыва
+    day_of_week = scheduled_date.isoweekday()
+    working_hours = WorkingHours.objects.get(
+        service_center=service_center, day_of_week=day_of_week
+    )
+    if not working_hours.is_working:
+        raise serializers.ValidationError({'scheduled_date': 'Выбранный день не является рабочим'})
+
+    scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
+    end_datetime = scheduled_datetime + timedelta(minutes=service_type.duration)
+
+    if working_hours.lunch_start and working_hours.lunch_end:
+        lunch_start_dt = datetime.combine(scheduled_date, working_hours.lunch_start)
+        lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
+        if not (end_datetime <= lunch_start_dt or scheduled_datetime >= lunch_end_dt):
+            raise serializers.ValidationError({
+                'scheduled_time': 'Выбранное время попадает на обеденный перерыв'
+            })
+
+    # Проверка конфликта с уже существующими записями
+    conflicting = Appointment.objects.filter(
+        service_center=service_center,
+        scheduled_date=scheduled_date,
+        status__in=['SCHEDULED', 'IN_PROGRESS']
+    ).filter(
+        scheduled_time__lt=end_datetime.time(),
+        end_time__gt=scheduled_time
+    )
+    if conflicting.exists():
+        raise serializers.ValidationError({'scheduled_time': 'Выбранное время уже занято'})
+
+    # Проверка административных блокировок слота
+    if BlockedTimeSlot.objects.filter(
+        service_center=service_center, date=scheduled_date, time=scheduled_time
+    ).exists():
+        raise serializers.ValidationError({'scheduled_time': 'Это время заблокировано администратором'})
+
+    return data
+```
+
+Дополнительно JWT-токен обогащается пользовательскими данными через расширенный сериализатор, чтобы клиент при получении токена уже имел необходимые атрибуты без дополнительного запроса к `/profile/`:
+
+```python
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['email'] = user.email
+        token['is_staff'] = user.is_staff
+        return token
 ```
 
 #### 2.2.2 ViewSets и Actions
 
-ViewSet-подход позволил объединить CRUD и прикладные действия в одном контракте. Пример — синхронизация платежного статуса:
+ViewSet-подход объединяет CRUD-операции и прикладные действия в едином контракте. Для нестандартных операций используется декоратор `@action`, что позволяет не создавать отдельные APIView и сохранить единый стиль маршрутизации.
+
+Пример — синхронизация платёжного статуса. Действие проверяет все незавершённые платежи по записи и принудительно актуализирует статус из YooKassa:
 
 ```python
 @action(detail=True, methods=['post'])
 def sync_payment_status(self, request, pk=None):
+    """Принудительно синхронизировать статус платежа с ЮKassa"""
     appointment = self.get_object()
-    payments = Payment.objects.filter(appointment=appointment, status__in=['pending', 'waiting_for_capture'])
+    payments = Payment.objects.filter(
+        appointment=appointment,
+        status__in=['pending', 'waiting_for_capture']
+    )
     for payment in payments:
         check_payment_status(payment)
+
+    latest_payment = Payment.objects.filter(
+        appointment=appointment
+    ).order_by('-created_at').first()
+    if latest_payment:
+        check_payment_status(latest_payment)
+
+    return Response({
+        'is_paid': Payment.objects.filter(
+            appointment=appointment, status='succeeded'
+        ).exists(),
+        'payment_status': latest_payment.status if latest_payment else None
+    })
+```
+
+Другой пример — отмена записи с проверкой бизнес-правила: отмена допускается только в статусе `SCHEDULED` и не позднее чем за 2 часа до назначенного времени:
+
+```python
+@action(detail=True, methods=['post'])
+def cancel(self, request, pk=None):
+    appointment = self.get_object()
+    if appointment.status != 'SCHEDULED':
+        return Response(
+            {'error': 'Можно отменить только запланированную запись'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    now = timezone.localtime(timezone.now())
+    appointment_datetime = timezone.make_aware(
+        datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
+    )
+    if (appointment_datetime - now).total_seconds() <= 7200:
+        return Response(
+            {'error': 'Нельзя отменить запись менее чем за 2 часа до начала'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    appointment.status = 'CANCELLED'
+    appointment.save()
+    return Response({'success': True, 'message': 'Запись успешно отменена'})
+```
+
+Для публичных данных (справочники брендов, моделей, услуг) применяется `ReadOnlyModelViewSet` с фильтрацией по query-параметрам, что избавляет от необходимости описывать отдельные list/retrieve-представления:
+
+```python
+class CarModelViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CarModelSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = CarModel.objects.all().select_related('brand').order_by('name')
+        brand_id = self.request.query_params.get('brand_id')
+        if brand_id:
+            queryset = queryset.filter(brand_id=brand_id)
+        return queryset
+```
+
+Для получения доступных временных слотов реализован отдельный action с полной логикой расчёта: генерируется список слотов на основе рабочего графика с шагом 30 минут, затем исключаются занятые записи, заблокированные администратором интервалы и уже прошедшее время:
+
+```python
+@action(detail=False, methods=['get'])
+def available_time_slots(self, request):
+    # ... получение параметров и объектов ...
+    slots = self._generate_time_slots(
+        working_hours.start_time, working_hours.end_time,
+        service_type.duration,
+        working_hours.lunch_start, working_hours.lunch_end
+    )
+    booked_appointments = Appointment.objects.filter(
+        service_center=service_center,
+        scheduled_date=selected_date,
+        status__in=['SCHEDULED', 'IN_PROGRESS']
+    )
+    blocked_times = set(
+        BlockedTimeSlot.objects.filter(
+            service_center=service_center, date=selected_date
+        ).values_list('time', flat=True)
+    )
+    now = timezone.localtime(timezone.now())
+    available_slots = []
+    for slot_time in slots:
+        if selected_date == now.date() and slot_time <= now.time():
+            continue
+        if slot_time in blocked_times:
+            continue
+        slot_end_time = (
+            datetime.combine(selected_date, slot_time) +
+            timedelta(minutes=service_type.duration)
+        ).time()
+        is_available = all(
+            slot_end_time <= appt.scheduled_time or slot_time >= appt.end_time
+            for appt in booked_appointments
+        )
+        if is_available:
+            available_slots.append(slot_time.strftime('%H:%M'))
+    return Response({'date': date_str, 'slots': available_slots})
 ```
 
 #### 2.2.3 Права доступа
 
-Разделение доступа реализовано комбинацией `IsAuthenticated` и `IsAdminUser`. Клиентские и административные методы изолированы на уровне endpoint-групп и permission-классов.
+Разграничение доступа реализовано на двух уровнях. На уровне ViewSet задан базовый класс разрешений, а для отдельных `@action`-методов он переопределяется через параметр `permission_classes`. Это позволяет, например, открыть публичное чтение данных о филиалах, но закрыть возможность оставить отзыв для неаутентифицированных пользователей:
+
+```python
+class ServiceCenterViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]   # публичное чтение
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def add_review(self, request, pk=None):
+        ...
+```
+
+Административные ViewSets (`AdminAppointmentViewSet`, `AdminServiceTypeViewSet` и др.) используют `IsAdminUser`, что полностью изолирует управленческие операции от клиентского контура. Таким образом, одна и та же сущность (например, запись или услуга) имеет раздельные endpoint-группы с независимыми наборами прав и сериализаторов.
 
 #### 2.2.4 Маршрутизация
 
-Единый роутер с группировкой `admin-panel/*` упростил поддержку API и сделал структуру URL предсказуемой для интеграции.
+Единый `DefaultRouter` регистрирует все ViewSets и автоматически генерирует стандартные маршруты (`list`, `retrieve`, `create`, `update`, `destroy`) вместе с маршрутами для кастомных `@action`. Административные ресурсы сгруппированы под префиксом `admin-panel/`, что явно отделяет их от клиентского API и упрощает настройку прав на уровне URL:
+
+```python
+router = DefaultRouter()
+router.register(r'cars', CarViewSet, basename='cars')
+router.register(r'appointments', AppointmentViewSet, basename='appointments')
+router.register(r'service-centers', ServiceCenterViewSet, basename='service-centers')
+router.register(r'profile', ProfileViewSet, basename='profile')
+
+router.register(r'admin-panel/appointments', AdminAppointmentViewSet, basename='admin-appointments')
+router.register(r'admin-panel/services',     AdminServiceTypeViewSet,  basename='admin-services')
+router.register(r'admin-panel/centers',      AdminServiceCenterViewSet, basename='admin-centers')
+router.register(r'admin-panel/dashboard',    AdminDashboardViewSet,    basename='admin-dashboard')
+
+urlpatterns = [
+    path('register/', RegisterAPIView.as_view(), name='api_register'),
+    path('token/',    MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('', include(router.urls)),
+]
+```
+
+Такая структура делает URL предсказуемыми для интеграции (клиентские пути `/api/appointments/`, `/api/cars/`) и чётко сигнализирует об уровне доступа через сам префикс маршрута.
 
 ### 2.3 Реализация интеграций и прикладных сервисов
 
-#### 2.3.1 Платежная интеграция (YooKassa)
+#### 2.3.1 Платёжная интеграция (YooKassa)
 
-Сервисный слой инкапсулирует создание платежа и контроль статуса. Это снижает связанность контроллеров и упрощает тестирование:
-
-```python
-payment_data = {
-    "amount": {"value": str(final_amount), "currency": "RUB"},
-    "confirmation": {"type": "redirect", "return_url": return_url},
-    "capture": True,
-    "metadata": {"appointment_id": str(appointment.id)},
-}
-yoo_payment = YooPayment.create(payment_data)
-```
-
-Webhook-обработка обеспечивает событийную синхронизацию:
+Вся логика работы с платёжным провайдером инкапсулирована в сервисном слое (`payments/services.py`), что позволяет использовать её как из веб-контроллеров, так и из API-ViewSets без дублирования кода. Функция `create_payment` сначала проверяет наличие незавершённого платежа по записи (чтобы не создавать дубликат при повторном обращении), затем формирует структуру данных для провайдера и сохраняет результат в локальной модели:
 
 ```python
-if event.get("event") == "payment.succeeded":
-    payment_id = event["object"]["id"]
-    payment = Payment.objects.get(payment_id=payment_id)
-    check_payment_status(payment)
+def create_payment(
+    appointment, return_url,
+    original_amount=None, discount_applied=None,
+    bonus_used=None, final_amount=None,
+) -> Payment:
+    existing_payment = Payment.objects.filter(
+        appointment=appointment, status="pending"
+    ).first()
+    if existing_payment:
+        return existing_payment   # идемпотентное поведение
+
+    description = (
+        f"Оплата услуги '{appointment.service_type.name}' "
+        f"по адресу: {appointment.service_center.address}"
+    )
+    payment_data = {
+        "amount": {"value": str(final_amount), "currency": "RUB"},
+        "confirmation": {"type": "redirect", "return_url": return_url},
+        "capture": True,
+        "description": description,
+        "metadata": {"appointment_id": str(appointment.id)},
+    }
+    yoo_payment = YooPayment.create(payment_data)
+
+    return Payment.objects.create(
+        appointment=appointment,
+        payment_id=yoo_payment.id,
+        original_amount=original_amount,
+        discount_applied=discount_applied,
+        bonus_used=bonus_used,
+        amount=final_amount,
+        status=yoo_payment.status,
+        description=description,
+        confirmation_url=yoo_payment.confirmation.confirmation_url,
+    )
 ```
+
+Для актуализации статуса реализована функция `check_payment_status`, которая запрашивает текущее состояние из YooKassa и обновляет локальную запись, фиксируя метку времени при переходе в `succeeded`:
+
+```python
+def check_payment_status(payment: Payment) -> Payment:
+    yoo_payment = YooPayment.find_one(payment.payment_id)
+    old_status = payment.status
+    payment.status = yoo_payment.status
+    if yoo_payment.status == "succeeded" and old_status != "succeeded":
+        payment.paid_at = timezone.now()
+    payment.save()
+    return payment
+```
+
+Webhook-обработчик принимает события от YooKassa и вызывает ту же функцию синхронизации статуса, обеспечивая событийную модель обновления без постоянного опроса:
+
+```python
+@csrf_exempt
+def yookassa_webhook(request):
+    if request.method == "POST":
+        try:
+            event = json.loads(request.body)
+            if event.get("event") == "payment.succeeded":
+                payment_id = event["object"]["id"]
+                try:
+                    payment = Payment.objects.get(payment_id=payment_id)
+                    check_payment_status(payment)
+                except Payment.DoesNotExist:
+                    pass
+            return HttpResponse(status=200)
+        except Exception as e:
+            print(f"Webhook error: {e}")
+            return HttpResponse(status=400)
+    return HttpResponse(status=405)
+```
+
+Таким образом, статус платежа актуализируется двумя независимыми путями: по явному запросу пользователя (через API-action `sync_payment_status` или кнопку в интерфейсе) и автоматически — через webhook. Это исключает ситуацию, когда оплата прошла, но статус в системе остался устаревшим.
 
 #### 2.3.2 Уведомления и коммуникации
 
-Почтовые уведомления вынесены в отдельный модуль и отправляются асинхронно в фоновом потоке, чтобы не блокировать пользовательские запросы:
+Почтовые уведомления вынесены в отдельный модуль `notifications/email_service.py`. Ключевой приём — отправка в фоновом потоке через `threading.Thread`, что позволяет не блокировать HTTP-ответ пользователю. Функция `_send_async` содержит обработку ошибок с логированием, что упрощает диагностику в продуктовой среде:
 
 ```python
 def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | None):
+    """Send email asynchronously in a background thread"""
+    recipients = [e for e in recipients if e]
+    if not recipients:
+        return
+
     def _runner():
-        send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, list(recipients), html_message=html)
+        try:
+            send_mail(
+                subject, text,
+                getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                list(recipients),
+                fail_silently=not getattr(settings, "DEBUG", False),
+                html_message=html,
+            )
+            logger.info("Email queued/sent: subject='%s', to=%s", subject, recipients)
+        except Exception as exc:
+            logger.error(
+                "Email send failed: %s\nSubject: %s\nRecipients: %s",
+                exc, subject, recipients, exc_info=True,
+            )
+
     threading.Thread(target=_runner, daemon=True).start()
 ```
 
+Шаблоны сообщений рендерятся через Django template engine из файлов `emails/*.txt` и `emails/*.html`. Для каждого типа события (создание записи, смена статуса, отмена, ответ на отзыв, приветствие) реализована отдельная функция с собственным контекстом. Вспомогательная функция `_appointment_context` унифицирует сборку контекста записи, устраняя дублирование:
+
+```python
+def _appointment_context(appt) -> dict:
+    return {
+        "user": appt.car.owner,
+        "appointment": appt,
+        "car": appt.car,
+        "service": appt.service_type,
+        "service_center": appt.service_center,
+        "scheduled_date": appt.scheduled_date,
+        "scheduled_time": appt.scheduled_time,
+        "status": appt.status,
+    }
+
+def send_appointment_created_email(appt) -> None:
+    ctx = _appointment_context(appt)
+    text, html = _render_template("appointment_created", ctx)
+    _send_async("Подтверждение записи", [appt.car.owner.email], text, html)
+    admins = admin_recipients()
+    if admins:
+        _send_async(f"Новая запись — {appt.service_center}", admins, text, html)
+
+def send_appointment_status_changed_email(appt) -> None:
+    ctx = _appointment_context(appt)
+    text, html = _render_template("appointment_status_changed", ctx)
+    subject = f"Статус вашей записи: {dict(appt.STATUS_CHOICES).get(appt.status, appt.status)}"
+    _send_async(subject, [appt.car.owner.email], text, html)
+```
+
+Такая структура позволяет добавлять новые типы уведомлений (например, напоминания за сутки до записи) без изменения основных контроллеров — достаточно добавить шаблон и новую функцию отправки.
+
 #### 2.3.3 Программа лояльности
 
-Механика статусов, бонусного баланса и расчета скидок интегрирована в сценарий оплаты и влияет на итоговую стоимость услуги.
+Программа лояльности реализована как самостоятельный модуль `loyalty_program` с моделями `LoyaltyAccount`, `LoyaltySettings` и `BonusTransaction`. Статус клиента (Бронза / Серебро / Золото / Платина) определяется накопленной суммой покупок и обновляется автоматически при каждом изменении `total_spent` через переопределённый метод `save()`:
+
+```python
+def save(self, *args, **kwargs):
+    if self.pk:
+        try:
+            old = LoyaltyAccount.objects.get(pk=self.pk)
+            if old.total_spent != self.total_spent:
+                self._update_status()
+        except LoyaltyAccount.DoesNotExist:
+            self._update_status()
+    else:
+        self._update_status()
+    super().save(*args, **kwargs)
+
+def _update_status(self):
+    s = LoyaltySettings.get_settings()
+    if self.total_spent >= s.platinum_threshold:
+        self.status = CustomerStatus.PLATINUM
+    elif self.total_spent >= s.gold_threshold:
+        self.status = CustomerStatus.GOLD
+    elif self.total_spent >= s.silver_threshold:
+        self.status = CustomerStatus.SILVER
+    elif self.total_spent >= s.bronze_threshold:
+        self.status = CustomerStatus.BRONZE
+    else:
+        self.status = CustomerStatus.NONE
+```
+
+Расчёт итоговой стоимости с учётом статусной скидки, персональной скидки и частичной оплаты бонусами объединён в одном методе модели:
+
+```python
+def calculate_final_price(
+    self, base_price: Decimal, bonus_to_use: Decimal = Decimal("0.00")
+) -> Decimal:
+    discount_amount = self.calculate_discount(base_price)      # статус + персональная скидка
+    price_after_discount = base_price - discount_amount
+    max_bonus = self.calculate_max_bonus_usage(price_after_discount)
+    actual_bonus = min(bonus_to_use, max_bonus)
+    return max(price_after_discount - actual_bonus, Decimal("0.00"))
+```
+
+Интеграция с платёжным контуром выполнена через Django-сигналы. При успешной оплате (`Payment.status == "succeeded"`) срабатывает `post_save`-обработчик, который списывает использованные бонусы, начисляет новые за онлайн-оплату и обновляет накопленную сумму покупок. Для оплаты в центре (без онлайн-платежа) аналогичная логика срабатывает по сигналу на изменение статуса записи в `COMPLETED`:
+
+```python
+@receiver(post_save, sender=Payment)
+def process_online_payment_bonus(sender, instance, created, **kwargs):
+    if instance.status == "succeeded":
+        appointment = instance.appointment
+        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=appointment.car.owner)
+
+        # идемпотентность: не начислять бонусы повторно
+        bonus_description = f"Онлайн оплата услуги #{appointment.id}"
+        if loyalty_account.transactions.filter(description=bonus_description).exists():
+            return
+
+        if instance.bonus_used > 0:
+            loyalty_account.spend_bonuses(instance.bonus_used, f"Оплата услуги #{appointment.id}")
+
+        settings = LoyaltySettings.get_settings()
+        bonus_amount = instance.amount * (settings.online_payment_bonus_percent / Decimal("100"))
+        loyalty_account.add_bonuses(bonus_amount, bonus_description, save=False)
+        loyalty_account.add_purchase(instance.amount)
+
+@receiver(post_save, sender=Appointment)
+def process_offline_payment_bonus(sender, instance, created, **kwargs):
+    if instance.status == "COMPLETED":
+        if instance.payments.filter(status="succeeded").exists():
+            return   # онлайн-оплата уже обработана
+        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=instance.car.owner)
+        settings = LoyaltySettings.get_settings()
+        bonus_amount = instance.get_final_price() * (
+            settings.offline_payment_bonus_percent / Decimal("100")
+        )
+        loyalty_account.add_bonuses(bonus_amount, f"Оплата в центре за услугу #{instance.id}", save=False)
+        loyalty_account.add_purchase(instance.get_final_price())
+```
+
+Использование сигналов позволяет полностью изолировать бонусную механику от основного контроллера оплаты — контроллер создаёт платёж и перенаправляет пользователя, а модуль лояльности реагирует на изменение состояния самостоятельно, не требуя явного вызова.
 
 ### 2.4 Развертывание системы
 
