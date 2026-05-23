@@ -265,467 +265,51 @@ REST API в рамках проекта обеспечивает програм�
 
 ### 2.2 Реализация серверной части (Django backend)
 
-В данном разделе рассматривается именно тот backend-контур, который реализован автором в Django: серверные view-функции, формы, валидация, административная логика и контроль бизнес-правил. API-часть в проекте присутствует как инфраструктурный слой, но основной инженерный вклад в рамках этой работы сосредоточен в веб- и admin-backend.
+В данном разделе описан реализованный backend-контур на Django без перегрузки длинными листингами: акцент сделан на архитектурных решениях, серверных ограничениях и устойчивости бизнес-процессов. Полные фрагменты кода целесообразно вынести в приложения к ВКР, чтобы основной текст оставался аналитическим и читабельным.
 
 #### 2.2.1 Серверные формы и многоуровневая валидация
 
-Ключевой прием в реализации — перенос критичных проверок на серверный слой форм (`core/forms.py`), чтобы не зависеть от фронтенда и исключить неконсистентные данные.
+Критические проверки реализованы на уровне серверных форм (`core/forms.py`) и не зависят от клиентской части. Для сущности автомобиля проверяются формат и уникальность идентификаторов (госномер, VIN), а также согласованность марки и модели. Для записи на обслуживание валидируются календарные и временные ограничения: запрет прошедших дат, соответствие рабочим часам филиала, отсутствие пересечений с существующими записями и корректность длительности услуги.
 
-Пример — `CarForm`: отдельные методы `clean_license_plate`, `clean_vin`, `clean_photo` и кросс-полевая проверка соответствия марки/модели в `clean()`:
-
-```python
-def clean_license_plate(self):
-    plate = self.cleaned_data.get("license_plate", "").strip().upper()
-    pattern = r"^[А-Я]{1}\d{3}[А-Я]{2}$|^[A-Z]{1}\d{3}[A-Z]{2}$"
-    if not re.match(pattern, plate):
-        raise ValidationError(
-            "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
-        )
-    return plate
-
-def clean_vin(self):
-    vin = self.cleaned_data.get("vin", "").strip().upper()
-    if vin and len(vin) != 17:
-        raise ValidationError("VIN-код должен содержать ровно 17 символов.")
-    if vin and not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
-        raise ValidationError(
-            "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
-        )
-    return vin
-
-def clean(self):
-    cleaned_data = super().clean()
-    brand = cleaned_data.get("brand")
-    model = cleaned_data.get("model")
-    if brand and model and model.brand != brand:
-        self.add_error("model", "Выбранная модель не соответствует выбранной марке.")
-    return cleaned_data
-```
-
-Аналогичный подход применен в `AppointmentForm`: проверяются прошедшие даты/время, рабочий график филиала, обеденный перерыв и конфликты интервалов с уже существующими записями.
-
-```python
-def clean(self):
-    cleaned_data = super().clean()
-    service_type = cleaned_data.get("service_type")
-    scheduled_date = cleaned_data.get("scheduled_date")
-    scheduled_time = cleaned_data.get("scheduled_time")
-
-    if scheduled_date < date.today():
-        raise ValidationError("Нельзя записаться на прошедшую дату.")
-
-    day_of_week = scheduled_date.isoweekday()
-    service_center = cleaned_data.get("service_center")
-    working_hours = WorkingHours.objects.get(
-        service_center=service_center, day_of_week=day_of_week
-    )
-
-    scheduled_datetime = datetime.combine(
-        scheduled_date, datetime.strptime(scheduled_time, "%H:%M").time()
-    )
-    end_datetime = datetime.combine(scheduled_date, working_hours.end_time)
-
-    if scheduled_datetime + timedelta(minutes=service_type.duration) > end_datetime:
-        raise ValidationError(
-            "Выбранная услуга не успевает завершиться до конца рабочего дня."
-        )
-
-    conflicting_appointments = Appointment.objects.filter(
-        scheduled_date=scheduled_date,
-        status__in=["SCHEDULED", "IN_PROGRESS"],
-        service_center=service_center,
-        scheduled_time__lt=(scheduled_datetime + timedelta(minutes=service_type.duration)).time(),
-        end_time__gt=scheduled_datetime.time(),
-    )
-    if conflicting_appointments.exists():
-        raise ValidationError("Выбранное время уже занято. Пожалуйста, выберите другое время.")
-
-    return cleaned_data
-```
+Такой подход обеспечивает две ключевые цели: во-первых, защищает систему от неконсистентных данных при любом канале ввода; во-вторых, сохраняет единые правила предметной области в одном слое, что упрощает сопровождение и развитие.
 
 #### 2.2.2 Пользовательские Django views и обработка бизнес-сценариев
 
-В пользовательском контуре логика построена на function-based views с `@login_required`, что делает поток выполнения прозрачным и удобным для кастомизации.
+Пользовательский контур построен на function-based views с обязательной авторизацией, что делает поток обработки предсказуемым и хорошо контролируемым. Реализованы сценарии управления автомобилями, создания и отмены записей, просмотра личных данных и истории обращений.
 
-Для операций с автомобилями реализована защищенная обработка ошибок: форма валидируется, а потенциальные ограничения БД (`IntegrityError`) переводятся в понятные сообщения для пользователя.
-
-```python
-@login_required
-def add_car(request):
-    if request.method == "POST":
-        form = CarForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
-                form.save(request.user)
-                messages.success(request, "Автомобиль успешно добавлен!")
-                return redirect("profile")
-            except IntegrityError as e:
-                error_msg = str(e).lower()
-                if "license_plate" in error_msg:
-                    messages.error(request, "Автомобиль с таким гос. номером уже существует.")
-                elif "vin" in error_msg:
-                    messages.error(request, "Автомобиль с таким VIN-кодом уже существует.")
-```
-
-Для управления записью реализован отдельный backend-алгоритм вычисления свободных слотов с учетом длительности услуги и обеда (`generate_time_slots`), а также отдельный сценарий отмены записи:
-
-```python
-def generate_time_slots(start_time, end_time, slot_duration=30, lunch_start=None, lunch_end=None, service_duration=None):
-    slots = []
-    current_time = datetime.combine(date.today(), start_time)
-    end_datetime = datetime.combine(date.today(), end_time)
-    step = timedelta(minutes=slot_duration)
-    effective_duration = service_duration if service_duration else slot_duration
-
-    while current_time < end_datetime:
-        slot_end_time = current_time + timedelta(minutes=effective_duration)
-        if slot_end_time > end_datetime:
-            break
-        if lunch_start and lunch_end:
-            lunch_start_dt = datetime.combine(date.today(), lunch_start)
-            lunch_end_dt = datetime.combine(date.today(), lunch_end)
-            if not (slot_end_time <= lunch_start_dt or current_time >= lunch_end_dt):
-                current_time += step
-                continue
-        slots.append(current_time.strftime("%H:%M"))
-        current_time += step
-    return slots
-
-@login_required
-def cancel_appointment(request, appointment_id):
-    appointment = get_object_or_404(
-        Appointment, id=appointment_id, car__owner=request.user
-    )
-    if request.method == "POST":
-        if appointment.status == "SCHEDULED":
-            appointment.status = "CANCELLED"
-            appointment.save()
-            messages.success(request, "Запись успешно отменена")
-```
+Отдельное внимание уделено прикладной устойчивости: ошибки ограничений БД и валидации преобразуются в понятные сообщения интерфейса, а вычисление доступных интервалов обслуживания вынесено в отдельную серверную логику. За счёт этого пользователь получает не технические исключения, а корректное управляемое поведение системы.
 
 #### 2.2.3 Административный backend: контроль процессов и операционная аналитика
 
-Административный контур реализован отдельно в `admin_panel/views.py` и защищен связкой `@login_required + @admin_required`. Это позволяет жестко отделить операционные действия сотрудников от клиентского потока.
+Административный контур изолирован от клиентского и защищён ролевыми ограничениями доступа. В `admin_panel/views.py` реализованы инструменты ежедневной операционной работы: мониторинг записей, фильтрация по филиалам и статусам, поиск по клиентам, управление расписанием и контроль текущей загрузки.
 
-Пример — `admin_dashboard`: на сервере агрегируются KPI (записи за день, статусы, последние визиты, динамика по дням), после чего данные сразу подаются в шаблон.
-
-```python
-@login_required
-@admin_required
-def admin_dashboard(request):
-    _auto_cancel_overdue_appointments()
-    today = timezone.localtime(timezone.now()).date()
-
-    total_appointments = Appointment.objects.count()
-    today_appointments = Appointment.objects.filter(scheduled_date=today).count()
-    pending_appointments = Appointment.objects.filter(status="SCHEDULED").count()
-
-    visits_qs = (
-        Appointment.objects.filter(scheduled_date__gte=today - timedelta(days=6), scheduled_date__lte=today)
-        .values("scheduled_date")
-        .annotate(count=Count("id"))
-        .order_by("scheduled_date")
-    )
-```
-
-Пример управленческого сценария — фильтрация и массовый мониторинг записей в `admin_appointments`:
-
-```python
-@login_required
-@admin_required
-def admin_appointments(request):
-    qs = Appointment.objects.select_related(
-        "service_center", "car", "car__owner", "service_type"
-    ).all()
-
-    branch = request.GET.get("branch")
-    statuses = request.GET.getlist("status")
-    user_query = request.GET.get("user")
-
-    if branch:
-        qs = qs.filter(service_center_id=branch)
-    if statuses:
-        qs = qs.filter(status__in=statuses)
-    if user_query:
-        qs = qs.filter(
-            Q(car__owner__username__icontains=user_query)
-            | Q(car__owner__email__icontains=user_query)
-        )
-```
+Дополнительно на уровне серверных представлений формируются сводные показатели (KPI) для управленческого экрана: состояние очереди, динамика записей, распределение по статусам. Это превращает административный интерфейс из набора форм в полноценный инструмент оперативного управления.
 
 #### 2.2.4 Устойчивость backend-логики и прикладные приёмы
 
-Важная сильная сторона реализации — автоматизация регламентных операций и идемпотентное поведение в критичных сценариях.
+В серверной реализации применены практики, ориентированные на стабильность эксплуатации: автоматическая обработка устаревших состояний (например, автоотмена просроченных записей), явный контроль допустимых действий в административных сценариях и идемпотентность там, где возможны повторные запросы.
 
-Во-первых, реализован авто-отменяющий механизм для просроченных записей (`_auto_cancel_overdue_appointments`), который вызывается в ключевых административных потоках и не требует ручного вмешательства:
-
-```python
-def _auto_cancel_overdue_appointments():
-    now = timezone.localtime(timezone.now())
-    today = now.date()
-    now_time = now.time()
-    (
-        Appointment.objects.filter(status="SCHEDULED")
-        .filter(
-            Q(scheduled_date__lt=today)
-            | Q(scheduled_date=today, end_time__lte=now_time)
-        )
-        .update(status="CANCELLED", updated_at=now)
-    )
-```
-
-Во-вторых, для ручного управления расписанием реализована серверная блокировка/разблокировка слотов в `admin_toggle_slot_block`:
-
-```python
-@login_required
-@admin_required
-def admin_toggle_slot_block(request, service_center_id):
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-
-    date_str = request.POST.get("date")
-    time_str = request.POST.get("time")
-    action = request.POST.get("action")  # block/unblock
-
-    slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    slot_time = datetime.strptime(time_str, "%H:%M").time()
-
-    if action == "block":
-        blocked_slot, created = BlockedTimeSlot.objects.get_or_create(
-            service_center=service_center,
-            date=slot_date,
-            time=slot_time,
-            defaults={"blocked_by": request.user, "reason": request.POST.get("reason", "")},
-        )
-        return JsonResponse({"success": True, "action": "blocked", "id": str(blocked_slot.id)})
-```
-
-Именно совокупность этих решений — серверная валидация, защита ролей, вычисление доступности, автоматизация регламентных правил и удобные админ-потоки — формирует практическую ценность реализованного Django backend и демонстрирует применённые инженерные приёмы.
+В результате backend не только обслуживает пользовательские запросы, но и поддерживает регламентную целостность процессов без постоянного ручного вмешательства сотрудников.
 
 ### 2.3 Реализация интеграций и прикладных сервисов
 
 #### 2.3.1 Платёжная интеграция (YooKassa)
 
-Вся логика работы с платёжным провайдером инкапсулирована в сервисном слое (`payments/services.py`), что позволяет использовать её как из веб-контроллеров, так и из API-ViewSets без дублирования кода. Функция `create_payment` сначала проверяет наличие незавершённого платежа по записи (чтобы не создавать дубликат при повторном обращении), затем формирует структуру данных для провайдера и сохраняет результат в локальной модели:
+Платёжная логика выделена в сервисный слой `payments/services.py`, что обеспечивает переиспользование и отсутствие дублирования в представлениях. При создании платежа применяется идемпотентный подход: повторный запрос по той же записи не формирует новый незавершённый платёж, а возвращает уже созданный.
 
-```python
-def create_payment(
-    appointment, return_url,
-    original_amount=None, discount_applied=None,
-    bonus_used=None, final_amount=None,
-) -> Payment:
-    existing_payment = Payment.objects.filter(
-        appointment=appointment, status="pending"
-    ).first()
-    if existing_payment:
-        return existing_payment   # идемпотентное поведение
-
-    description = (
-        f"Оплата услуги '{appointment.service_type.name}' "
-        f"по адресу: {appointment.service_center.address}"
-    )
-    payment_data = {
-        "amount": {"value": str(final_amount), "currency": "RUB"},
-        "confirmation": {"type": "redirect", "return_url": return_url},
-        "capture": True,
-        "description": description,
-        "metadata": {"appointment_id": str(appointment.id)},
-    }
-    yoo_payment = YooPayment.create(payment_data)
-
-    return Payment.objects.create(
-        appointment=appointment,
-        payment_id=yoo_payment.id,
-        original_amount=original_amount,
-        discount_applied=discount_applied,
-        bonus_used=bonus_used,
-        amount=final_amount,
-        status=yoo_payment.status,
-        description=description,
-        confirmation_url=yoo_payment.confirmation.confirmation_url,
-    )
-```
-
-Для актуализации статуса реализована функция `check_payment_status`, которая запрашивает текущее состояние из YooKassa и обновляет локальную запись, фиксируя метку времени при переходе в `succeeded`:
-
-```python
-def check_payment_status(payment: Payment) -> Payment:
-    yoo_payment = YooPayment.find_one(payment.payment_id)
-    old_status = payment.status
-    payment.status = yoo_payment.status
-    if yoo_payment.status == "succeeded" and old_status != "succeeded":
-        payment.paid_at = timezone.now()
-    payment.save()
-    return payment
-```
-
-Webhook-обработчик принимает события от YooKassa и вызывает ту же функцию синхронизации статуса, обеспечивая событийную модель обновления без постоянного опроса:
-
-```python
-@csrf_exempt
-def yookassa_webhook(request):
-    if request.method == "POST":
-        try:
-            event = json.loads(request.body)
-            if event.get("event") == "payment.succeeded":
-                payment_id = event["object"]["id"]
-                try:
-                    payment = Payment.objects.get(payment_id=payment_id)
-                    check_payment_status(payment)
-                except Payment.DoesNotExist:
-                    pass
-            return HttpResponse(status=200)
-        except Exception as e:
-            print(f"Webhook error: {e}")
-            return HttpResponse(status=400)
-    return HttpResponse(status=405)
-```
-
-Таким образом, статус платежа актуализируется двумя независимыми путями: по явному запросу пользователя (через API-action `sync_payment_status` или кнопку в интерфейсе) и автоматически — через webhook. Это исключает ситуацию, когда оплата прошла, но статус в системе остался устаревшим.
+Синхронизация статусов реализована двумя независимыми каналами: активной проверкой статуса по запросу пользователя и обработкой webhook-событий от провайдера. Такая схема снижает риск рассинхронизации между внешней платёжной системой и локальной моделью данных.
 
 #### 2.3.2 Уведомления и коммуникации
 
-Почтовые уведомления вынесены в отдельный модуль `notifications/email_service.py`. Ключевой приём — отправка в фоновом потоке через `threading.Thread`, что позволяет не блокировать HTTP-ответ пользователю. Функция `_send_async` содержит обработку ошибок с логированием, что упрощает диагностику в продуктовой среде:
+Механизм уведомлений вынесен в отдельный модуль `notifications/email_service.py`. Отправка писем выполняется асинхронно (в фоновом потоке), поэтому операции интерфейса не блокируются из-за сетевых задержек почтового сервиса.
 
-```python
-def _send_async(subject: str, recipients: Iterable[str], text: str, html: str | None):
-    """Send email asynchronously in a background thread"""
-    recipients = [e for e in recipients if e]
-    if not recipients:
-        return
-
-    def _runner():
-        try:
-            send_mail(
-                subject, text,
-                getattr(settings, "DEFAULT_FROM_EMAIL", None),
-                list(recipients),
-                fail_silently=not getattr(settings, "DEBUG", False),
-                html_message=html,
-            )
-            logger.info("Email queued/sent: subject='%s', to=%s", subject, recipients)
-        except Exception as exc:
-            logger.error(
-                "Email send failed: %s\nSubject: %s\nRecipients: %s",
-                exc, subject, recipients, exc_info=True,
-            )
-
-    threading.Thread(target=_runner, daemon=True).start()
-```
-
-Шаблоны сообщений рендерятся через Django template engine из файлов `emails/*.txt` и `emails/*.html`. Для каждого типа события (создание записи, смена статуса, отмена, ответ на отзыв, приветствие) реализована отдельная функция с собственным контекстом. Вспомогательная функция `_appointment_context` унифицирует сборку контекста записи, устраняя дублирование:
-
-```python
-def _appointment_context(appt) -> dict:
-    return {
-        "user": appt.car.owner,
-        "appointment": appt,
-        "car": appt.car,
-        "service": appt.service_type,
-        "service_center": appt.service_center,
-        "scheduled_date": appt.scheduled_date,
-        "scheduled_time": appt.scheduled_time,
-        "status": appt.status,
-    }
-
-def send_appointment_created_email(appt) -> None:
-    ctx = _appointment_context(appt)
-    text, html = _render_template("appointment_created", ctx)
-    _send_async("Подтверждение записи", [appt.car.owner.email], text, html)
-    admins = admin_recipients()
-    if admins:
-        _send_async(f"Новая запись — {appt.service_center}", admins, text, html)
-
-def send_appointment_status_changed_email(appt) -> None:
-    ctx = _appointment_context(appt)
-    text, html = _render_template("appointment_status_changed", ctx)
-    subject = f"Статус вашей записи: {dict(appt.STATUS_CHOICES).get(appt.status, appt.status)}"
-    _send_async(subject, [appt.car.owner.email], text, html)
-```
-
-Такая структура позволяет добавлять новые типы уведомлений (например, напоминания за сутки до записи) без изменения основных контроллеров — достаточно добавить шаблон и новую функцию отправки.
+Для различных событий (создание записи, смена статуса, отмена, коммуникации по отзывам) используются шаблоны писем и единый принцип подготовки контекста. Это упрощает расширение системы уведомлений и поддерживает единый стиль коммуникации с клиентами и администраторами.
 
 #### 2.3.3 Программа лояльности
 
-Программа лояльности реализована как самостоятельный модуль `loyalty_program` с моделями `LoyaltyAccount`, `LoyaltySettings` и `BonusTransaction`. Статус клиента (Бронза / Серебро / Золото / Платина) определяется накопленной суммой покупок и обновляется автоматически при каждом изменении `total_spent` через переопределённый метод `save()`:
+Подсистема лояльности реализована в отдельном модуле `loyalty_program` и включает учёт баланса, статусов клиента, транзакций бонусов и параметров программы. Статус клиента обновляется на основе накопленной суммы покупок, а итоговая стоимость услуги рассчитывается с учётом скидок и ограничений на использование бонусов.
 
-```python
-def save(self, *args, **kwargs):
-    if self.pk:
-        try:
-            old = LoyaltyAccount.objects.get(pk=self.pk)
-            if old.total_spent != self.total_spent:
-                self._update_status()
-        except LoyaltyAccount.DoesNotExist:
-            self._update_status()
-    else:
-        self._update_status()
-    super().save(*args, **kwargs)
-
-def _update_status(self):
-    s = LoyaltySettings.get_settings()
-    if self.total_spent >= s.platinum_threshold:
-        self.status = CustomerStatus.PLATINUM
-    elif self.total_spent >= s.gold_threshold:
-        self.status = CustomerStatus.GOLD
-    elif self.total_spent >= s.silver_threshold:
-        self.status = CustomerStatus.SILVER
-    elif self.total_spent >= s.bronze_threshold:
-        self.status = CustomerStatus.BRONZE
-    else:
-        self.status = CustomerStatus.NONE
-```
-
-Расчёт итоговой стоимости с учётом статусной скидки, персональной скидки и частичной оплаты бонусами объединён в одном методе модели:
-
-```python
-def calculate_final_price(
-    self, base_price: Decimal, bonus_to_use: Decimal = Decimal("0.00")
-) -> Decimal:
-    discount_amount = self.calculate_discount(base_price)      # статус + персональная скидка
-    price_after_discount = base_price - discount_amount
-    max_bonus = self.calculate_max_bonus_usage(price_after_discount)
-    actual_bonus = min(bonus_to_use, max_bonus)
-    return max(price_after_discount - actual_bonus, Decimal("0.00"))
-```
-
-Интеграция с платёжным контуром выполнена через Django-сигналы. При успешной оплате (`Payment.status == "succeeded"`) срабатывает `post_save`-обработчик, который списывает использованные бонусы, начисляет новые за онлайн-оплату и обновляет накопленную сумму покупок. Для оплаты в центре (без онлайн-платежа) аналогичная логика срабатывает по сигналу на изменение статуса записи в `COMPLETED`:
-
-```python
-@receiver(post_save, sender=Payment)
-def process_online_payment_bonus(sender, instance, created, **kwargs):
-    if instance.status == "succeeded":
-        appointment = instance.appointment
-        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=appointment.car.owner)
-
-        # идемпотентность: не начислять бонусы повторно
-        bonus_description = f"Онлайн оплата услуги #{appointment.id}"
-        if loyalty_account.transactions.filter(description=bonus_description).exists():
-            return
-
-        if instance.bonus_used > 0:
-            loyalty_account.spend_bonuses(instance.bonus_used, f"Оплата услуги #{appointment.id}")
-
-        settings = LoyaltySettings.get_settings()
-        bonus_amount = instance.amount * (settings.online_payment_bonus_percent / Decimal("100"))
-        loyalty_account.add_bonuses(bonus_amount, bonus_description, save=False)
-        loyalty_account.add_purchase(instance.amount)
-
-@receiver(post_save, sender=Appointment)
-def process_offline_payment_bonus(sender, instance, created, **kwargs):
-    if instance.status == "COMPLETED":
-        if instance.payments.filter(status="succeeded").exists():
-            return   # онлайн-оплата уже обработана
-        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=instance.car.owner)
-        settings = LoyaltySettings.get_settings()
-        bonus_amount = instance.get_final_price() * (
-            settings.offline_payment_bonus_percent / Decimal("100")
-        )
-        loyalty_account.add_bonuses(bonus_amount, f"Оплата в центре за услугу #{instance.id}", save=False)
-        loyalty_account.add_purchase(instance.get_final_price())
-```
-
-Использование сигналов позволяет полностью изолировать бонусную механику от основного контроллера оплаты — контроллер создаёт платёж и перенаправляет пользователя, а модуль лояльности реагирует на изменение состояния самостоятельно, не требуя явного вызова.
+Связь с платёжным контуром выполнена через события модели: после успешной оплаты происходят списание/начисление бонусов и обновление накопительных показателей. Для исключения повторного начисления используются проверки идемпотентности. Такой подход обеспечивает прозрачный и устойчивый жизненный цикл бонусной механики.
 
 ### 2.4 Развертывание системы
 
@@ -763,30 +347,53 @@ def process_offline_payment_bonus(sender, instance, created, **kwargs):
 
 #### 2.6.1 Руководство пользователя (эксплуатационный минимум)
 
-Клиентский поток: вход → автомобиль → запись → оплата → контроль статуса.  
-Административный поток: управление расписанием и записями → корректировка статусов → мониторинг метрик.
+Эксплуатационный минимум разделён на два базовых контура.
+
+Клиентский контур:
+- регистрация и авторизация в системе;
+- заполнение профиля и добавление автомобиля;
+- выбор филиала, услуги, даты и времени;
+- подтверждение записи и, при необходимости, онлайн-оплата;
+- отслеживание статуса записи и получение уведомлений.
+
+Административный контур:
+- вход в защищённый backend;
+- просмотр и фильтрация записей по филиалам/статусам/клиентам;
+- корректировка статусов обслуживания;
+- управление доступностью временных интервалов;
+- контроль операционных показателей на дашборде.
+
+Такое разделение ролей обеспечивает прозрачность процессов и снижает число ошибок при повседневной эксплуатации.
 
 #### 2.6.2 Результаты апробации
 
-На текущем этапе система демонстрирует корректную работу ключевых сценариев, предсказуемость маршрута записи и приемлемую стабильность в тестовой эксплуатации.
+Апробация показала работоспособность ключевых бизнес-сценариев: от регистрации клиента до завершения обслуживания с фиксацией статуса и платежа. Проверки подтвердили устойчивость основных пользовательских и административных потоков, а также корректность межмодульного взаимодействия (запись, платежи, уведомления, лояльность).
+
+Важным результатом является предсказуемость операционного маршрута: система минимизирует конфликтные ситуации в расписании, поддерживает управляемую обработку ошибок и сохраняет консистентность данных при повторных действиях пользователя. Это позволяет использовать разработанное решение как рабочую основу для пилотной эксплуатации.
 
 #### 2.6.3 Ограничения и дальнейшее развитие
 
-Следующий этап развития: расширенная аналитика, мобильный канал, более глубокая интеграция с внешними корпоративными системами (CRM/ERP/финансы), усиление unit-покрытия отдельных модулей.
+К текущим ограничениям относятся: ограниченный объём продуктовой статистики в административной аналитике, отсутствие специализированного мобильного клиента и необходимость дальнейшего расширения автоматизированных проверок отдельных модулей на уровне unit-тестов.
+
+Приоритетные направления развития:
+- углубление аналитического блока (воронка записи, загрузка филиалов, показатели SLA);
+- развитие многоканального клиентского взаимодействия (мобильный интерфейс, push-уведомления);
+- интеграция с внешними корпоративными системами (CRM/ERP/финансовый контур);
+- усиление тестового покрытия для критичных бизнес-правил и сценариев отказоустойчивости.
 
 ---
 
 ## Заключение
 
-ВКР достигла поставленной цели: разработано веб-приложение, которое автоматизирует ключевые процессы планирования и операционной работы сети автомобильных сервисных центров. Полученный результат представляет собой не прототип интерфейсов, а инженерно целостную систему с модульной архитектурой, API-слоем, ролевой моделью доступа, интеграцией платежей, механизмами уведомлений и базовой аналитикой.
+В рамках ВКР достигнута поставленная цель: разработана и апробирована веб-система, автоматизирующая ключевые процессы обслуживания клиентов в сети автосервисов. Реализованное решение охватывает полный прикладной цикл — от регистрации пользователя и планирования визита до сопровождения статуса работ, оплаты и административного контроля операционной деятельности.
 
-Практическая ценность работы подтверждается тем, что реализованные сценарии покрывают реальный операционный цикл: от регистрации клиента и оформления записи до сопровождения оплаты и администрирования филиальной сети. Принятые технические решения (DRF ViewSet/Action-подход, сериализаторная валидация, JWT-аутентификация, изоляция интеграций по сервисным модулям) показывают применимость современных методов разработки к прикладной задаче отрасли.
+Практическая значимость работы подтверждается тем, что система ориентирована не на демонстрационный сценарий, а на реальную эксплуатацию: в ней реализованы ролевой доступ, серверная валидация бизнес-правил, механизмы устойчивой обработки ошибок, интеграция внешнего платёжного провайдера, сервис уведомлений и модуль лояльности. Архитектура построена модульно, что упрощает сопровождение и последующее функциональное расширение.
 
-С точки зрения профессиональной компетентности в работе продемонстрированы:
-- проектирование прикладной архитектуры под бизнес-процесс;
-- реализация и защита API;
-- интеграция внешнего платежного провайдера и событийной синхронизации;
-- построение тестовой системы для функциональных, интеграционных и нагрузочных сценариев;
-- подготовка системы к воспроизводимому развертыванию и сопровождению.
+С инженерной точки зрения в работе продемонстрированы:
+- проектирование и реализация backend-логики под реальные бизнес-процессы;
+- построение пользовательского и административного контуров с разграничением прав доступа;
+- интеграция внешних сервисов и обеспечение консистентности состояний;
+- применение функциональных, интеграционных и производительных проверок;
+- подготовка решения к воспроизводимому развертыванию.
 
-Итоговый вывод: разработанное решение можно использовать как рабочую основу для пилотного и последующего промышленного внедрения в сети автосервисов с дальнейшим развитием в сторону предиктивной аналитики и многоканального клиентского взаимодействия.
+Итоговый вывод: разработанное приложение может рассматриваться как готовая база для пилотного внедрения и дальнейшего промышленного развития, включая расширение аналитики, усиление тестового контура и интеграцию с корпоративными информационными системами.
