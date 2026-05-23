@@ -294,6 +294,8 @@ if conflicting_appointments.exists():
     raise ValidationError("Выбранное время уже занято.")
 ```
 
+Проверка пересечения реализована по классическому правилу overlap: новый интервал конфликтует с существующим, если `new_start < existing_end` и одновременно `new_end > existing_start`.
+
 Такой подход демонстрирует владение не только Django-формами как инструментом, но и умение формализовать бизнес-ограничения в явных, проверяемых правилах. За счёт этого критичные проверки не зависят от клиентского JavaScript и выполняются единообразно для всех точек входа.
 
 #### 2.2.2 Пользовательские Django views и обработка бизнес-сценариев
@@ -358,6 +360,7 @@ yoo_payment = YooPayment.create(payment_data)
 
 ```python
 def _send_async(subject, recipients, text, html):
+    from_email = settings.DEFAULT_FROM_EMAIL
     def _runner():
         send_mail(subject, text, from_email, list(recipients), html_message=html)
     threading.Thread(target=_runner, daemon=True).start()
