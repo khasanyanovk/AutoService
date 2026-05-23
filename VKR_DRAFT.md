@@ -284,6 +284,7 @@ REST API в рамках проекта обеспечивает програм�
 Компактный фрагмент кода проверки записи (реализовано в `AppointmentForm.clean`):
 
 ```python
+# импорт: from datetime import date
 if scheduled_date < date.today():
     raise ValidationError("Нельзя записаться на прошедшую дату.")
 
@@ -319,6 +320,7 @@ if conflicting_appointments.exists():
 Пример прикладной серверной автоматизации (автоотмена просроченных записей):
 
 ```python
+# today/now_time/now вычисляются выше через timezone.localtime(timezone.now())
 Appointment.objects.filter(status="SCHEDULED").filter(
     (Q(scheduled_date__lt=today) | Q(scheduled_date=today, end_time__lte=now_time))
 ).update(status="CANCELLED", updated_at=now)
