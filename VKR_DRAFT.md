@@ -263,277 +263,244 @@ REST API в рамках проекта обеспечивает програм�
 
 Практический результат клиентской реализации — предсказуемые и устойчивые операционные потоки: запись на обслуживание, управление связанными сущностями, контроль статусов и снижение конфликтов в расписании за счет серверной валидации и ролевого доступа.
 
-### 2.2 Реализация серверной части (REST API)
+### 2.2 Реализация серверной части (Django backend)
 
-В данном разделе API описан в объеме, необходимом для целостного представления архитектуры и интеграционных потоков; при этом основной объем реализации API выполнялся коллегой, а в рамках текущей работы отражены его интеграционные связи с пользовательским и административным веб-контурами.
+В данном разделе рассматривается именно тот backend-контур, который реализован автором в Django: серверные view-функции, формы, валидация, административная логика и контроль бизнес-правил. API-часть в проекте присутствует как инфраструктурный слой, но основной инженерный вклад в рамках этой работы сосредоточен в веб- и admin-backend.
 
-#### 2.2.1 Сериализаторы
+#### 2.2.1 Серверные формы и многоуровневая валидация
 
-Сериализаторы в DRF выполняют двойную функцию: контроль входных данных на уровне API-контракта и трансформация данных при выдаче ответа. Для каждого поля реализован собственный метод `validate_<field>`, что позволяет локализовать правила проверки и получать детализированные ошибки на уровне поля.
+Ключевой прием в реализации — перенос критичных проверок на серверный слой форм (`core/forms.py`), чтобы не зависеть от фронтенда и исключить неконсистентные данные.
 
-Пример — валидация гос. номера и VIN в `CarSerializer`. Гос. номер проверяется по регулярному выражению с учётом допустимых русских и латинских букв, а также уникальности в базе (с исключением самого редактируемого объекта при PATCH):
+Пример — `CarForm`: отдельные методы `clean_license_plate`, `clean_vin`, `clean_photo` и кросс-полевая проверка соответствия марки/модели в `clean()`:
 
 ```python
-def validate_license_plate(self, value):
-    value = value.strip().upper()
-    pattern = r'^[АВЕКМНОРСТУХABEKMHOPCTYX]{1}\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}$'
-    if not re.match(pattern, value):
-        raise serializers.ValidationError(
+def clean_license_plate(self):
+    plate = self.cleaned_data.get("license_plate", "").strip().upper()
+    pattern = r"^[А-Я]{1}\d{3}[А-Я]{2}$|^[A-Z]{1}\d{3}[A-Z]{2}$"
+    if not re.match(pattern, plate):
+        raise ValidationError(
             "Номер должен быть в формате X000XX (буква, 3 цифры, 2 буквы)."
         )
-    existing = Car.objects.filter(license_plate=value)
-    if self.instance:
-        existing = existing.exclude(id=self.instance.id)
-    if existing.exists():
-        raise serializers.ValidationError("Автомобиль с таким гос. номером уже существует.")
-    return value
+    return plate
 
-def validate_vin(self, value):
-    value = value.strip().upper()
-    if len(value) != 17:
-        raise serializers.ValidationError("VIN-код должен содержать ровно 17 символов.")
-    if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', value):
-        raise serializers.ValidationError(
+def clean_vin(self):
+    vin = self.cleaned_data.get("vin", "").strip().upper()
+    if vin and len(vin) != 17:
+        raise ValidationError("VIN-код должен содержать ровно 17 символов.")
+    if vin and not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
+        raise ValidationError(
             "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
         )
-    existing = Car.objects.filter(vin=value)
-    if self.instance:
-        existing = existing.exclude(id=self.instance.id)
-    if existing.exists():
-        raise serializers.ValidationError("Автомобиль с таким VIN-кодом уже существует.")
-    return value
+    return vin
+
+def clean(self):
+    cleaned_data = super().clean()
+    brand = cleaned_data.get("brand")
+    model = cleaned_data.get("model")
+    if brand and model and model.brand != brand:
+        self.add_error("model", "Выбранная модель не соответствует выбранной марке.")
+    return cleaned_data
 ```
 
-Для записи на обслуживание реализован `AppointmentCreateSerializer` с многоуровневой валидацией: сначала проверяется каждое поле в отдельности, затем метод `validate()` выполняет кросс-полевые проверки — соответствие услуги выбранному филиалу, попадание времени в рабочие часы, учёт обеденного перерыва, конфликты с существующими записями и заблокированными слотами:
+Аналогичный подход применен в `AppointmentForm`: проверяются прошедшие даты/время, рабочий график филиала, обеденный перерыв и конфликты интервалов с уже существующими записями.
 
 ```python
-def validate_scheduled_date(self, value):
-    today = timezone.localtime(timezone.now()).date()
-    if value < today:
-        raise serializers.ValidationError("Нельзя записаться на прошедшую дату")
-    max_date = today + timedelta(days=30)
-    if value > max_date:
-        raise serializers.ValidationError("Запись возможна не более чем на 30 дней вперед")
-    return value
+def clean(self):
+    cleaned_data = super().clean()
+    service_type = cleaned_data.get("service_type")
+    scheduled_date = cleaned_data.get("scheduled_date")
+    scheduled_time = cleaned_data.get("scheduled_time")
 
-def validate(self, data):
-    service_type = data.get('service_type_id')
-    service_center = data.get('service_center_id')
-    scheduled_date = data.get('scheduled_date')
-    scheduled_time = data.get('scheduled_time')
+    if scheduled_date < date.today():
+        raise ValidationError("Нельзя записаться на прошедшую дату.")
 
-    # Услуга должна принадлежать выбранному филиалу
-    if service_type.service_center_id != service_center.id:
-        raise serializers.ValidationError({
-            'service_type_id': 'Выбранная услуга не предоставляется в этом автосервисе'
-        })
-
-    # Проверка рабочего времени и обеденного перерыва
     day_of_week = scheduled_date.isoweekday()
+    service_center = cleaned_data.get("service_center")
     working_hours = WorkingHours.objects.get(
         service_center=service_center, day_of_week=day_of_week
     )
-    if not working_hours.is_working:
-        raise serializers.ValidationError({'scheduled_date': 'Выбранный день не является рабочим'})
 
-    scheduled_datetime = datetime.combine(scheduled_date, scheduled_time)
-    end_datetime = scheduled_datetime + timedelta(minutes=service_type.duration)
+    scheduled_datetime = datetime.combine(
+        scheduled_date, datetime.strptime(scheduled_time, "%H:%M").time()
+    )
+    end_datetime = datetime.combine(scheduled_date, working_hours.end_time)
 
-    if working_hours.lunch_start and working_hours.lunch_end:
-        lunch_start_dt = datetime.combine(scheduled_date, working_hours.lunch_start)
-        lunch_end_dt = datetime.combine(scheduled_date, working_hours.lunch_end)
-        if not (end_datetime <= lunch_start_dt or scheduled_datetime >= lunch_end_dt):
-            raise serializers.ValidationError({
-                'scheduled_time': 'Выбранное время попадает на обеденный перерыв'
-            })
+    if scheduled_datetime + timedelta(minutes=service_type.duration) > end_datetime:
+        raise ValidationError(
+            "Выбранная услуга не успевает завершиться до конца рабочего дня."
+        )
 
-    # Проверка конфликта с уже существующими записями
-    conflicting = Appointment.objects.filter(
-        service_center=service_center,
+    conflicting_appointments = Appointment.objects.filter(
         scheduled_date=scheduled_date,
-        status__in=['SCHEDULED', 'IN_PROGRESS']
-    ).filter(
-        scheduled_time__lt=end_datetime.time(),
-        end_time__gt=scheduled_time
-    )
-    if conflicting.exists():
-        raise serializers.ValidationError({'scheduled_time': 'Выбранное время уже занято'})
-
-    # Проверка административных блокировок слота
-    if BlockedTimeSlot.objects.filter(
-        service_center=service_center, date=scheduled_date, time=scheduled_time
-    ).exists():
-        raise serializers.ValidationError({'scheduled_time': 'Это время заблокировано администратором'})
-
-    return data
-```
-
-Дополнительно JWT-токен обогащается пользовательскими данными через расширенный сериализатор, чтобы клиент при получении токена уже имел необходимые атрибуты без дополнительного запроса к `/profile/`:
-
-```python
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token['username'] = user.username
-        token['email'] = user.email
-        token['is_staff'] = user.is_staff
-        return token
-```
-
-#### 2.2.2 ViewSets и Actions
-
-ViewSet-подход объединяет CRUD-операции и прикладные действия в едином контракте. Для нестандартных операций используется декоратор `@action`, что позволяет не создавать отдельные APIView и сохранить единый стиль маршрутизации.
-
-Пример — синхронизация платёжного статуса. Действие проверяет все незавершённые платежи по записи и принудительно актуализирует статус из YooKassa:
-
-```python
-@action(detail=True, methods=['post'])
-def sync_payment_status(self, request, pk=None):
-    """Принудительно синхронизировать статус платежа с ЮKassa"""
-    appointment = self.get_object()
-    payments = Payment.objects.filter(
-        appointment=appointment,
-        status__in=['pending', 'waiting_for_capture']
-    )
-    for payment in payments:
-        check_payment_status(payment)
-
-    latest_payment = Payment.objects.filter(
-        appointment=appointment
-    ).order_by('-created_at').first()
-    if latest_payment:
-        check_payment_status(latest_payment)
-
-    return Response({
-        'is_paid': Payment.objects.filter(
-            appointment=appointment, status='succeeded'
-        ).exists(),
-        'payment_status': latest_payment.status if latest_payment else None
-    })
-```
-
-Другой пример — отмена записи с проверкой бизнес-правила: отмена допускается только в статусе `SCHEDULED` и не позднее чем за 2 часа до назначенного времени:
-
-```python
-@action(detail=True, methods=['post'])
-def cancel(self, request, pk=None):
-    appointment = self.get_object()
-    if appointment.status != 'SCHEDULED':
-        return Response(
-            {'error': 'Можно отменить только запланированную запись'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    now = timezone.localtime(timezone.now())
-    appointment_datetime = timezone.make_aware(
-        datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
-    )
-    if (appointment_datetime - now).total_seconds() <= 7200:
-        return Response(
-            {'error': 'Нельзя отменить запись менее чем за 2 часа до начала'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    appointment.status = 'CANCELLED'
-    appointment.save()
-    return Response({'success': True, 'message': 'Запись успешно отменена'})
-```
-
-Для публичных данных (справочники брендов, моделей, услуг) применяется `ReadOnlyModelViewSet` с фильтрацией по query-параметрам, что избавляет от необходимости описывать отдельные list/retrieve-представления:
-
-```python
-class CarModelViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = CarModelSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        queryset = CarModel.objects.all().select_related('brand').order_by('name')
-        brand_id = self.request.query_params.get('brand_id')
-        if brand_id:
-            queryset = queryset.filter(brand_id=brand_id)
-        return queryset
-```
-
-Для получения доступных временных слотов реализован отдельный action с полной логикой расчёта: генерируется список слотов на основе рабочего графика с шагом 30 минут, затем исключаются занятые записи, заблокированные администратором интервалы и уже прошедшее время:
-
-```python
-@action(detail=False, methods=['get'])
-def available_time_slots(self, request):
-    # ... получение параметров и объектов ...
-    slots = self._generate_time_slots(
-        working_hours.start_time, working_hours.end_time,
-        service_type.duration,
-        working_hours.lunch_start, working_hours.lunch_end
-    )
-    booked_appointments = Appointment.objects.filter(
+        status__in=["SCHEDULED", "IN_PROGRESS"],
         service_center=service_center,
-        scheduled_date=selected_date,
-        status__in=['SCHEDULED', 'IN_PROGRESS']
+        scheduled_time__lt=(scheduled_datetime + timedelta(minutes=service_type.duration)).time(),
+        end_time__gt=scheduled_datetime.time(),
     )
-    blocked_times = set(
-        BlockedTimeSlot.objects.filter(
-            service_center=service_center, date=selected_date
-        ).values_list('time', flat=True)
+    if conflicting_appointments.exists():
+        raise ValidationError("Выбранное время уже занято. Пожалуйста, выберите другое время.")
+
+    return cleaned_data
+```
+
+#### 2.2.2 Пользовательские Django views и обработка бизнес-сценариев
+
+В пользовательском контуре логика построена на function-based views с `@login_required`, что делает поток выполнения прозрачным и удобным для кастомизации.
+
+Для операций с автомобилями реализована защищенная обработка ошибок: форма валидируется, а потенциальные ограничения БД (`IntegrityError`) переводятся в понятные сообщения для пользователя.
+
+```python
+@login_required
+def add_car(request):
+    if request.method == "POST":
+        form = CarForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                form.save(request.user)
+                messages.success(request, "Автомобиль успешно добавлен!")
+                return redirect("profile")
+            except IntegrityError as e:
+                error_msg = str(e).lower()
+                if "license_plate" in error_msg:
+                    messages.error(request, "Автомобиль с таким гос. номером уже существует.")
+                elif "vin" in error_msg:
+                    messages.error(request, "Автомобиль с таким VIN-кодом уже существует.")
+```
+
+Для управления записью реализован отдельный backend-алгоритм вычисления свободных слотов с учетом длительности услуги и обеда (`generate_time_slots`), а также отдельный сценарий отмены записи:
+
+```python
+def generate_time_slots(start_time, end_time, slot_duration=30, lunch_start=None, lunch_end=None, service_duration=None):
+    slots = []
+    current_time = datetime.combine(date.today(), start_time)
+    end_datetime = datetime.combine(date.today(), end_time)
+    step = timedelta(minutes=slot_duration)
+    effective_duration = service_duration if service_duration else slot_duration
+
+    while current_time < end_datetime:
+        slot_end_time = current_time + timedelta(minutes=effective_duration)
+        if slot_end_time > end_datetime:
+            break
+        if lunch_start and lunch_end:
+            lunch_start_dt = datetime.combine(date.today(), lunch_start)
+            lunch_end_dt = datetime.combine(date.today(), lunch_end)
+            if not (slot_end_time <= lunch_start_dt or current_time >= lunch_end_dt):
+                current_time += step
+                continue
+        slots.append(current_time.strftime("%H:%M"))
+        current_time += step
+    return slots
+
+@login_required
+def cancel_appointment(request, appointment_id):
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, car__owner=request.user
     )
-    now = timezone.localtime(timezone.now())
-    available_slots = []
-    for slot_time in slots:
-        if selected_date == now.date() and slot_time <= now.time():
-            continue
-        if slot_time in blocked_times:
-            continue
-        slot_end_time = (
-            datetime.combine(selected_date, slot_time) +
-            timedelta(minutes=service_type.duration)
-        ).time()
-        is_available = all(
-            slot_end_time <= appt.scheduled_time or slot_time >= appt.end_time
-            for appt in booked_appointments
+    if request.method == "POST":
+        if appointment.status == "SCHEDULED":
+            appointment.status = "CANCELLED"
+            appointment.save()
+            messages.success(request, "Запись успешно отменена")
+```
+
+#### 2.2.3 Административный backend: контроль процессов и операционная аналитика
+
+Административный контур реализован отдельно в `admin_panel/views.py` и защищен связкой `@login_required + @admin_required`. Это позволяет жестко отделить операционные действия сотрудников от клиентского потока.
+
+Пример — `admin_dashboard`: на сервере агрегируются KPI (записи за день, статусы, последние визиты, динамика по дням), после чего данные сразу подаются в шаблон.
+
+```python
+@login_required
+@admin_required
+def admin_dashboard(request):
+    _auto_cancel_overdue_appointments()
+    today = timezone.localtime(timezone.now()).date()
+
+    total_appointments = Appointment.objects.count()
+    today_appointments = Appointment.objects.filter(scheduled_date=today).count()
+    pending_appointments = Appointment.objects.filter(status="SCHEDULED").count()
+
+    visits_qs = (
+        Appointment.objects.filter(scheduled_date__gte=today - timedelta(days=6), scheduled_date__lte=today)
+        .values("scheduled_date")
+        .annotate(count=Count("id"))
+        .order_by("scheduled_date")
+    )
+```
+
+Пример управленческого сценария — фильтрация и массовый мониторинг записей в `admin_appointments`:
+
+```python
+@login_required
+@admin_required
+def admin_appointments(request):
+    qs = Appointment.objects.select_related(
+        "service_center", "car", "car__owner", "service_type"
+    ).all()
+
+    branch = request.GET.get("branch")
+    statuses = request.GET.getlist("status")
+    user_query = request.GET.get("user")
+
+    if branch:
+        qs = qs.filter(service_center_id=branch)
+    if statuses:
+        qs = qs.filter(status__in=statuses)
+    if user_query:
+        qs = qs.filter(
+            Q(car__owner__username__icontains=user_query)
+            | Q(car__owner__email__icontains=user_query)
         )
-        if is_available:
-            available_slots.append(slot_time.strftime('%H:%M'))
-    return Response({'date': date_str, 'slots': available_slots})
 ```
 
-#### 2.2.3 Права доступа
+#### 2.2.4 Устойчивость backend-логики и прикладные приёмы
 
-Разграничение доступа реализовано на двух уровнях. На уровне ViewSet задан базовый класс разрешений, а для отдельных `@action`-методов он переопределяется через параметр `permission_classes`. Это позволяет, например, открыть публичное чтение данных о филиалах, но закрыть возможность оставить отзыв для неаутентифицированных пользователей:
+Важная сильная сторона реализации — автоматизация регламентных операций и идемпотентное поведение в критичных сценариях.
+
+Во-первых, реализован авто-отменяющий механизм для просроченных записей (`_auto_cancel_overdue_appointments`), который вызывается в ключевых административных потоках и не требует ручного вмешательства:
 
 ```python
-class ServiceCenterViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [AllowAny]   # публичное чтение
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def add_review(self, request, pk=None):
-        ...
+def _auto_cancel_overdue_appointments():
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+    now_time = now.time()
+    (
+        Appointment.objects.filter(status="SCHEDULED")
+        .filter(
+            Q(scheduled_date__lt=today)
+            | Q(scheduled_date=today, end_time__lte=now_time)
+        )
+        .update(status="CANCELLED", updated_at=now)
+    )
 ```
 
-Административные ViewSets (`AdminAppointmentViewSet`, `AdminServiceTypeViewSet` и др.) используют `IsAdminUser`, что полностью изолирует управленческие операции от клиентского контура. Таким образом, одна и та же сущность (например, запись или услуга) имеет раздельные endpoint-группы с независимыми наборами прав и сериализаторов.
-
-#### 2.2.4 Маршрутизация
-
-Единый `DefaultRouter` регистрирует все ViewSets и автоматически генерирует стандартные маршруты (`list`, `retrieve`, `create`, `update`, `destroy`) вместе с маршрутами для кастомных `@action`. Административные ресурсы сгруппированы под префиксом `admin-panel/`, что явно отделяет их от клиентского API и упрощает настройку прав на уровне URL:
+Во-вторых, для ручного управления расписанием реализована серверная блокировка/разблокировка слотов в `admin_toggle_slot_block`:
 
 ```python
-router = DefaultRouter()
-router.register(r'cars', CarViewSet, basename='cars')
-router.register(r'appointments', AppointmentViewSet, basename='appointments')
-router.register(r'service-centers', ServiceCenterViewSet, basename='service-centers')
-router.register(r'profile', ProfileViewSet, basename='profile')
+@login_required
+@admin_required
+def admin_toggle_slot_block(request, service_center_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 
-router.register(r'admin-panel/appointments', AdminAppointmentViewSet, basename='admin-appointments')
-router.register(r'admin-panel/services',     AdminServiceTypeViewSet,  basename='admin-services')
-router.register(r'admin-panel/centers',      AdminServiceCenterViewSet, basename='admin-centers')
-router.register(r'admin-panel/dashboard',    AdminDashboardViewSet,    basename='admin-dashboard')
+    date_str = request.POST.get("date")
+    time_str = request.POST.get("time")
+    action = request.POST.get("action")  # block/unblock
 
-urlpatterns = [
-    path('register/', RegisterAPIView.as_view(), name='api_register'),
-    path('token/',    MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('', include(router.urls)),
-]
+    slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    slot_time = datetime.strptime(time_str, "%H:%M").time()
+
+    if action == "block":
+        blocked_slot, created = BlockedTimeSlot.objects.get_or_create(
+            service_center=service_center,
+            date=slot_date,
+            time=slot_time,
+            defaults={"blocked_by": request.user, "reason": request.POST.get("reason", "")},
+        )
+        return JsonResponse({"success": True, "action": "blocked", "id": str(blocked_slot.id)})
 ```
 
-Такая структура делает URL предсказуемыми для интеграции (клиентские пути `/api/appointments/`, `/api/cars/`) и чётко сигнализирует об уровне доступа через сам префикс маршрута.
+Именно совокупность этих решений — серверная валидация, защита ролей, вычисление доступности, автоматизация регламентных правил и удобные админ-потоки — формирует практическую ценность реализованного Django backend и демонстрирует применённые инженерные приёмы.
 
 ### 2.3 Реализация интеграций и прикладных сервисов
 
