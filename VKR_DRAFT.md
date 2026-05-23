@@ -310,8 +310,7 @@ if conflicting_appointments.exists():
 
 ```python
 Appointment.objects.filter(status="SCHEDULED").filter(
-    Q(scheduled_date__lt=today) |
-    Q(scheduled_date=today, end_time__lte=now_time)
+    (Q(scheduled_date__lt=today) | Q(scheduled_date=today, end_time__lte=now_time))
 ).update(status="CANCELLED", updated_at=now)
 ```
 
