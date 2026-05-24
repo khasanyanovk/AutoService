@@ -261,6 +261,77 @@
 
 Границы ответственности модулей фиксированы: `core` содержит ключевые сущности (автомобили, услуги, филиалы, записи) и пользовательские/REST-потоки; `admin_panel` агрегирует операционные интерфейсы и админ-API; `payments` инкапсулирует создание и проверку платежей, включая webhook-обработку; `notifications` отвечает за отправку коммуникаций; `loyalty_program` рассчитывает бонусные начисления и скидки в платежном модуле.
 
+*Рисунок 4 — Компонентная диаграмма архитектуры AutoService*
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["Клиент"]
+        B[Браузер / API-клиент]
+    end
+
+    subgraph DJANGO["Django Backend"]
+        CORE[core\nМодели, views, формы]
+        ADMIN[admin_panel\nОперационные интерфейсы]
+        API[core.api\nDRF + JWT]
+        PAY[payments\nYooKassa-интеграция]
+        LOY[loyalty_program\nБонусы и скидки]
+        NOTIF[notifications\nEmail-сервис]
+    end
+
+    DB[(PostgreSQL)]
+    YK[YooKassa API]
+    SMTP[SMTP-сервер]
+
+    B --> CORE
+    B --> ADMIN
+    B --> API
+    CORE --> PAY
+    CORE --> NOTIF
+    PAY --> LOY
+    PAY --> YK
+    YK -->|webhook| PAY
+    NOTIF --> SMTP
+    CORE --> DB
+    ADMIN --> DB
+    PAY --> DB
+    LOY --> DB
+    API --> CORE
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 1.4 Компонентная архитектура AutoService
+package "Django Backend" {
+  [core] as CORE
+  [admin_panel] as ADMIN
+  [core.api (DRF+JWT)] as API
+  [payments] as PAY
+  [loyalty_program] as LOY
+  [notifications] as NOTIF
+}
+database "PostgreSQL" as DB
+cloud "YooKassa API" as YK
+node "SMTP" as SMTP
+
+CORE --> DB
+ADMIN --> DB
+PAY --> DB
+LOY --> DB
+API --> CORE
+CORE --> PAY
+CORE --> NOTIF
+PAY --> LOY
+PAY --> YK
+YK --> PAY : webhook
+NOTIF --> SMTP
+@enduml
+```
+
+</details>
+
 Ключевые архитектурные принципы:
 - централизация бизнес-правил на backend-уровне.
 - единая модель данных для пользовательского и административного разделов.
@@ -299,13 +370,175 @@ REST API реализован на DRF и обеспечивает програ�
 
 Клиент формирует заявку через веб-форму или API-интерфейс, после чего система выполняет серверную валидацию входных данных, проверяет ограничения рабочего времени и отсутствие конфликтов по слоту. При успешной проверке создается запись, фиксируемая в общей доменной модели.
 
+*Рисунок 1 — Последовательность взаимодействия при записи на обслуживание*
+
+```mermaid
+sequenceDiagram
+    actor C as Клиент
+    participant UI as Web UI
+    participant APP as Django View
+    participant DB as PostgreSQL
+    participant MAIL as Email Service
+
+    C->>UI: Выбор филиала / услуги / даты
+    UI->>APP: GET доступных слотов
+    APP->>DB: Запрос WorkingHours,<br/>Appointment, BlockedTimeSlot
+    DB-->>APP: Свободные интервалы
+    APP-->>UI: Список слотов
+
+    C->>UI: Подтверждение записи
+    UI->>APP: POST create_appointment
+    APP->>DB: Повторная проверка слота
+    DB-->>APP: OK
+    APP->>DB: INSERT Appointment (status=pending)
+    APP->>MAIL: send_appointment_created_email()
+    APP-->>UI: Успех + детали записи
+    UI-->>C: Страница «Мои записи»
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 1.6.1 Запись на обслуживание
+actor Клиент
+participant "Web UI" as UI
+participant "Django View" as APP
+database "PostgreSQL" as DB
+participant "Email Service" as MAIL
+
+Клиент -> UI: Выбор филиала/услуги/даты
+UI -> APP: GET доступных слотов
+APP -> DB: WorkingHours / Appointment / BlockedTimeSlot
+DB --> APP: Свободные интервалы
+APP --> UI: Список слотов
+
+Клиент -> UI: Подтверждение записи
+UI -> APP: POST create_appointment
+APP -> DB: Повторная проверка слота
+DB --> APP: OK
+APP -> DB: INSERT Appointment (status=pending)
+APP -> MAIL: send_appointment_created_email()
+APP --> UI: Успех + детали
+@enduml
+```
+
+</details>
+
 #### 1.6.2 Сценарий «Онлайн-оплата»
 
 После инициирования оплаты формируется платежная сессия и выполняется редирект к платежному провайдеру. После возврата пользователя в систему статус платежа синхронизируется по запросу и через webhook-механизм, что обеспечивает согласованное состояние записи и платежа.
 
+*Рисунок 2 — Последовательность взаимодействия при онлайн-оплате*
+
+```mermaid
+sequenceDiagram
+    actor C as Клиент
+    participant UI as Web UI / API
+    participant PAY as payments.services
+    participant LOY as loyalty_program
+    participant YK as YooKassa
+    participant DB as PostgreSQL
+
+    C->>UI: Инициировать оплату
+    UI->>PAY: create_payment(appointment, bonus_amount)
+    PAY->>LOY: Рассчитать скидку / бонусы
+    LOY-->>PAY: final_amount, bonus_used
+    PAY->>YK: Payment.create(idempotence_key)
+    YK-->>PAY: payment_id + confirmation_url
+    PAY->>DB: INSERT Payment(status=pending)
+    PAY-->>UI: URL оплаты
+    UI-->>C: Редирект на страницу оплаты
+
+    C->>YK: Подтверждает оплату
+    YK-->>C: Редирект обратно (return_url)
+    YK->>PAY: Webhook payment.succeeded
+    PAY->>YK: check_payment_status(payment_id)
+    YK-->>PAY: succeeded
+    PAY->>DB: UPDATE Payment(status=succeeded),<br/>Appointment.paid_amount
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 1.6.2 Онлайн-оплата
+actor Клиент
+participant "Web UI / API" as UI
+participant "payments.services" as PAY
+participant "loyalty_program" as LOY
+participant "YooKassa" as YK
+database "PostgreSQL" as DB
+
+Клиент -> UI: Инициировать оплату
+UI -> PAY: create_payment(appointment, bonus_amount)
+PAY -> LOY: Рассчитать скидку/бонусы
+LOY --> PAY: final_amount
+PAY -> YK: Payment.create
+YK --> PAY: payment_id + confirmation_url
+PAY -> DB: INSERT Payment(pending)
+PAY --> UI: URL оплаты
+
+Клиент -> YK: Подтверждает оплату
+YK -> PAY: webhook payment.succeeded
+PAY -> YK: check_payment_status()
+YK --> PAY: succeeded
+PAY -> DB: UPDATE Payment + Appointment
+@enduml
+```
+
+</details>
+
 #### 1.6.3 Сценарий «Смена статуса записи администратором»
 
 Администратор изменяет состояние записи через административный интерфейс или административный endpoint. Перед применением изменений выполняется проверка прав доступа, затем статус обновляется в доменной модели, а пользователю отправляется уведомление о результате операции.
+
+*Рисунок 3 — Последовательность взаимодействия при смене статуса записи*
+
+```mermaid
+sequenceDiagram
+    actor A as Администратор
+    participant AP as Admin Panel
+    participant ADM as admin_panel.views
+    participant DB as PostgreSQL
+    participant MAIL as Email Service
+
+    A->>AP: Изменить статус записи
+    AP->>ADM: admin_api_update_appointment(id, new_status)
+    ADM->>DB: Проверка прав + допустимости перехода
+    DB-->>ADM: Текущий статус
+    ADM->>DB: UPDATE Appointment.status
+    DB-->>ADM: OK
+    ADM->>MAIL: send_appointment_status_changed_email()
+    ADM-->>AP: 200 OK
+    AP-->>A: Обновлённая карточка записи
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 1.6.3 Смена статуса записи администратором
+actor Администратор
+participant "Admin Panel" as AP
+participant "admin_panel.views" as ADM
+database "PostgreSQL" as DB
+participant "Email Service" as MAIL
+
+Администратор -> AP: Изменить статус записи
+AP -> ADM: admin_api_update_appointment
+ADM -> DB: Проверка прав и перехода
+DB --> ADM: OK
+ADM -> DB: UPDATE Appointment.status
+ADM -> MAIL: send_appointment_status_changed_email()
+ADM --> AP: Успех
+@enduml
+```
+
+</details>
 
 ---
 
@@ -318,6 +551,85 @@ REST API реализован на DRF и обеспечивает програ�
 Серверная часть реализована на Django + DRF и объединяет модель данных для транспортных сущностей, расписания, услуг, записей, оплаты, лояльности и отзывов. Архитектурно сервер выступает единым источником правды для бизнес-правил и ограничений предметной области.
 
 REST API в рамках проекта обеспечивает программный доступ к функциям системы и интеграционные сценарии; его основная реализация выполнялась коллегой и в данной работе рассматривается как необходимый инфраструктурный слой.
+
+*Рисунок 5 — Диаграмма компонентов серверной части*
+
+```mermaid
+flowchart LR
+    subgraph CORE["core"]
+        M[Models\nAppointment, Car,\nServiceCenter, Review…]
+        V[Views\nПользовательские сценарии]
+        F[Forms + Validation]
+    end
+    subgraph API["core.api"]
+        S[Serializers]
+        AV[APIViews / ViewSets]
+        JWT[JWT Auth]
+    end
+    subgraph ADMIN["admin_panel"]
+        AV2[Admin Views]
+        AF[Admin Forms]
+    end
+    PAY[payments]
+    LOY[loyalty_program]
+    NOTIF[notifications]
+    DB[(PostgreSQL)]
+
+    V --> F --> M --> DB
+    AV2 --> AF --> M
+    AV --> S --> M
+    JWT --> AV
+    V --> PAY
+    V --> NOTIF
+    PAY --> LOY
+    PAY --> DB
+    LOY --> DB
+    NOTIF --> DB
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 2.1.1 Компоненты серверной части
+package "core" {
+  [Models]
+  [Views]
+  [Forms]
+}
+package "core.api" {
+  [Serializers]
+  [APIViews]
+  [JWT Auth]
+}
+package "admin_panel" {
+  [Admin Views]
+  [Admin Forms]
+}
+[payments]
+[loyalty_program]
+[notifications]
+database "PostgreSQL" as DB
+
+[Views] --> [Forms]
+[Forms] --> [Models]
+[Models] --> DB
+[Admin Views] --> [Admin Forms]
+[Admin Forms] --> [Models]
+[APIViews] --> [Serializers]
+[Serializers] --> [Models]
+[JWT Auth] --> [APIViews]
+[Views] --> [payments]
+[Views] --> [notifications]
+[payments] --> [loyalty_program]
+[payments] --> DB
+[loyalty_program] --> DB
+[notifications] --> DB
+@enduml
+```
+
+</details>
 
 #### 2.1.2 Структура клиентской части
 
@@ -336,6 +648,135 @@ REST API в рамках проекта обеспечивает програм�
 Отдельный акцент в реализации сделан на прослеживаемости принятых технических решений. Для каждой критичной бизнес-операции (создание записи, смена статуса, обработка оплаты, коммуникация с клиентом) выделены проверяемые входные условия, допустимые переходы состояния и ожидаемые выходные эффекты. Такой подход важен не только для текущей версии проекта, но и для его последующего развития: новая функциональность добавляется в систему с уже заданной инженерной рамкой, а не «поверх» неформализованного поведения.
 
 Практически это означает, что backend в проекте выступает не пассивным слоем хранения данных, а активным управляющим уровнем предметной логики. Именно на сервере фиксируются ограничения по времени обслуживания, ролевые границы действий, правила консистентности и условия интеграционного взаимодействия. За счёт этого система остается предсказуемой при росте числа пользователей и при усложнении сценариев эксплуатации.
+
+*Рисунок 6 — Диаграмма классов доменной модели*
+
+```mermaid
+classDiagram
+direction LR
+
+class User {
+  +username
+  +email
+  +password_hash
+}
+class UserProfile {
+  +phone
+  +bonus_level
+}
+class Car {
+  +vin
+  +plate_number
+  +year
+}
+class CarBrand {
+  +name
+}
+class CarModel {
+  +name
+}
+class ServiceCenter {
+  +name
+  +address
+  +city
+}
+class ServiceType {
+  +name
+  +duration_minutes
+  +base_price
+}
+class WorkingHours {
+  +weekday
+  +start_time
+  +end_time
+}
+class Appointment {
+  +date
+  +time_start
+  +status
+  +paid_amount
+}
+class Payment {
+  +yookassa_id
+  +amount
+  +status
+}
+class LoyaltyAccount {
+  +bonus_balance
+  +status_level
+}
+class BonusTransaction {
+  +amount
+  +type
+  +created_at
+}
+class Review {
+  +rating
+  +text
+}
+class BlockedTimeSlot {
+  +date
+  +time_start
+  +time_end
+}
+
+User "1" -- "1" UserProfile
+User "1" -- "0..*" Car
+CarBrand "1" -- "0..*" CarModel
+CarModel "1" -- "0..*" Car
+ServiceCenter "1" -- "0..*" ServiceType
+ServiceCenter "1" -- "0..*" WorkingHours
+ServiceCenter "1" -- "0..*" Appointment
+ServiceCenter "1" -- "0..*" Review
+ServiceCenter "1" -- "0..*" BlockedTimeSlot
+ServiceType "1" -- "0..*" Appointment
+Car "1" -- "0..*" Appointment
+Appointment "1" -- "0..*" Payment
+User "1" -- "1" LoyaltyAccount
+LoyaltyAccount "1" -- "0..*" BonusTransaction
+User "1" -- "0..*" Review
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 2.2 Доменная модель (ключевые сущности)
+class User
+class UserProfile { phone; bonus_level }
+class Car { vin; plate_number; year }
+class CarBrand { name }
+class CarModel { name }
+class ServiceCenter { name; address; city }
+class ServiceType { name; duration_minutes; base_price }
+class WorkingHours { weekday; start_time; end_time }
+class Appointment { date; time_start; status; paid_amount }
+class Payment { yookassa_id; amount; status }
+class LoyaltyAccount { bonus_balance; status_level }
+class BonusTransaction { amount; type }
+class Review { rating; text }
+class BlockedTimeSlot { date; time_start; time_end }
+
+User "1" -- "1" UserProfile
+User "1" -- "0..*" Car
+CarBrand "1" -- "0..*" CarModel
+CarModel "1" -- "0..*" Car
+ServiceCenter "1" -- "0..*" ServiceType
+ServiceCenter "1" -- "0..*" WorkingHours
+ServiceCenter "1" -- "0..*" Appointment
+ServiceCenter "1" -- "0..*" Review
+ServiceCenter "1" -- "0..*" BlockedTimeSlot
+ServiceType "1" -- "0..*" Appointment
+Car "1" -- "0..*" Appointment
+Appointment "1" -- "0..*" Payment
+User "1" -- "1" LoyaltyAccount
+LoyaltyAccount "1" -- "0..*" BonusTransaction
+User "1" -- "0..*" Review
+@enduml
+```
+
+</details>
 
 #### 2.2.1 Серверные формы и многоуровневая валидация
 
@@ -484,6 +925,71 @@ def spend_bonuses(self, amount: Decimal, description: str = ""):
 
 С инженерной позиции это демонстрирует умение автора строить не только отдельные сервисы, но и их корректное взаимодействие в составе единого бизнес-процесса. При развитии системы такая архитектура позволяет добавлять новые интеграции (например, внешнюю CRM или push-канал уведомлений) без разрушения уже работающих механизмов, поскольку базовый принцип согласованности состояний и ответственности модулей уже реализован на уровне проектных решений.
 
+*Рисунок 7 — Сквозной интеграционный поток: запись → оплата → лояльность → уведомление*
+
+```mermaid
+sequenceDiagram
+    actor C as Клиент
+    participant UI as Web UI / API
+    participant PAY as payments
+    participant YK as YooKassa
+    participant DB as PostgreSQL
+    participant LOY as loyalty_program
+    participant NOTIF as notifications
+
+    C->>UI: Оплатить запись
+    UI->>PAY: create_payment(appointment, bonus_amount)
+    PAY->>YK: Payment.create
+    YK-->>PAY: pending + url
+    PAY->>DB: INSERT Payment(pending)
+    PAY-->>UI: URL оплаты
+    UI-->>C: Редирект на YooKassa
+
+    YK->>PAY: Webhook payment.succeeded
+    PAY->>YK: check_payment_status
+    YK-->>PAY: succeeded
+    PAY->>DB: UPDATE Payment(succeeded)
+    PAY->>DB: UPDATE Appointment.paid_amount
+    PAY->>LOY: Начислить бонусы (post_save signal)
+    LOY->>DB: UPDATE LoyaltyAccount,<br/>INSERT BonusTransaction
+    PAY->>NOTIF: Уведомить о смене статуса
+    NOTIF-->>C: Email с результатом оплаты
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 2.3.4 Сквозной интеграционный поток
+actor Клиент
+participant "Web UI / API" as UI
+participant "payments" as PAY
+participant "YooKassa" as YK
+database "PostgreSQL" as DB
+participant "loyalty_program" as LOY
+participant "notifications" as NOTIF
+
+Клиент -> UI: Оплатить запись
+UI -> PAY: create_payment
+PAY -> YK: Payment.create
+YK --> PAY: pending + url
+PAY -> DB: INSERT Payment(pending)
+PAY --> UI: URL оплаты
+
+YK -> PAY: webhook payment.succeeded
+PAY -> YK: check_payment_status
+YK --> PAY: succeeded
+PAY -> DB: UPDATE Payment + Appointment
+PAY -> LOY: Начислить бонусы
+LOY -> DB: UPDATE LoyaltyAccount
+PAY -> NOTIF: Уведомление
+NOTIF -> Клиент: Email
+@enduml
+```
+
+</details>
+
 ### 2.4 Развертывание системы
 
 #### 2.4.1 Подготовка окружения и запуск
@@ -501,6 +1007,70 @@ def spend_bonuses(self, amount: Decimal, description: str = ""):
 В работающем контуре развертывания каждый сервис выполняет отдельную, явно ограниченную роль. Сервис `web` отвечает за исполнение прикладной логики: обработку HTTP-запросов, серверную валидацию, работу доменных модулей (`core`, `payments`, `notifications`, `loyalty_program`) и формирование ответов для пользовательского и административного интерфейсов. Сервис `db` выступает единой точкой хранения состояния системы: пользователей, записей, статусов, платежных сущностей и бонусных операций. Сервис `caddy` обеспечивает внешний входной контур: принимает клиентские запросы, проксирует динамические обращения к `web`, а статические и медиа-ресурсы отдает напрямую.
 
 Такое разделение обязанностей имеет практический эффект для эксплуатации. База данных изолирована от внешнего прямого доступа, прикладной код не смешивается с функциями обратного прокси, а управление HTTP-трафиком и выдачей файлов вынесено в отдельный инфраструктурный слой. В результате система проще масштабируется и сопровождается: изменения на уровне веб-сервера, БД или reverse-proxy можно выполнять поэтапно, не нарушая границы ответственности.
+
+*Рисунок 8 — Диаграмма Docker-контейнеров и их взаимодействия*
+
+```mermaid
+flowchart LR
+    U[Браузер пользователя]
+
+    subgraph DOCKER["docker-compose"]
+        C["caddy\nReverse Proxy\nHTTPS / static / media"]
+        W["web\nDjango + Gunicorn\n:8000"]
+        D[("db\nPostgreSQL 16")]
+
+        VS[("static volume")]
+        VM[("media volume")]
+        VD[("db volume")]
+    end
+
+    YK[YooKassa API]
+    SMTP[SMTP-сервер]
+
+    U -->|HTTPS| C
+    C -->|proxy_pass :8000| W
+    W -->|SQL / ORM| D
+    D --- VD
+    W --- VS
+    W --- VM
+    C -->|serve /static| VS
+    C -->|serve /media| VM
+    W -->|API requests| YK
+    YK -->|webhook /payments/webhook/| W
+    W -->|send_mail| SMTP
+```
+
+<details>
+<summary>PlantUML-версия</summary>
+
+```plantuml
+@startuml
+title 2.4 Docker Deployment — AutoService
+node "Браузер" as U
+node "caddy\nReverse Proxy" as C
+node "web\nDjango + Gunicorn" as W
+database "db\nPostgreSQL 16" as DB
+cloud "YooKassa" as YK
+node "SMTP" as SMTP
+folder "static volume" as VS
+folder "media volume" as VM
+folder "db volume" as VD
+
+U --> C : HTTPS
+C --> W : proxy :8000
+W --> DB : SQL
+DB -- VD
+W -- VS
+W -- VM
+C --> VS : /static
+C --> VM : /media
+W --> YK : API
+YK --> W : webhook
+W --> SMTP : send_mail
+@enduml
+```
+
+</details>
 
 Отдельную роль играет работа с постоянными данными через Docker-тома. Данные PostgreSQL, а также статические и медиа-файлы не теряются при перезапуске контейнеров, что критично для реального использования и воспроизводимых обновлений. Таким образом, архитектура развертывания поддерживает не только запуск приложения, но и его жизненный цикл в длительной эксплуатации.
 
