@@ -2,8 +2,13 @@
     color: #6c757d;
     font-size: 1.05rem;
   }
-  .dashboard-card {
+  #appointmentsRoot .dashboard-card {
     overflow: visible;
+  }
+
+  #appointmentsRoot .dashboard-card:first-of-type {
+    position: relative;
+    z-index: 30;
   }
   .card-header {
     border-radius: 20px 20px 0 0 !important;
@@ -16,6 +21,7 @@
   .filters-wrap {
     position: relative;
     padding: 1.5rem;
+    z-index: 20;
   }
   .filters-reset {
     position: absolute;
@@ -102,7 +108,12 @@
     margin-top: 0.5rem;
     min-width: 100%;
     position: absolute !important;
-    z-index: 1060;
+    z-index: 2000;
+  }
+
+  #appointmentsListCard {
+    position: relative;
+    z-index: 1;
   }
 
   .dropdown-menu .form-check {

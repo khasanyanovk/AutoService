@@ -231,16 +231,18 @@ class CarForm(forms.Form):
     def clean_vin(self):
         """Проверка корректности VIN-кода (17 символов, цифры и латинские буквы)"""
         vin = self.cleaned_data.get("vin", "").strip()
-        if vin:
-            vin = vin.upper()
+        if not vin:
+            return None
 
-            if len(vin) != 17:
-                raise ValidationError("VIN-код должен содержать ровно 17 символов.")
+        vin = vin.upper()
 
-            if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
-                raise ValidationError(
-                    "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
-                )
+        if len(vin) != 17:
+            raise ValidationError("VIN-код должен содержать ровно 17 символов.")
+
+        if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin):
+            raise ValidationError(
+                "VIN-код должен содержать только латинские буквы (кроме I, O, Q) и цифры."
+            )
         return vin
 
     def __init__(self, *args, **kwargs):
@@ -308,7 +310,7 @@ class CarForm(forms.Form):
             year=self.cleaned_data["year"],
             model=self.cleaned_data["model"],
             license_plate=self.cleaned_data["license_plate"],
-            vin=self.cleaned_data.get("vin"),
+            vin=self.cleaned_data.get("vin") or None,
             owner=user,
         )
         uploaded = self.cleaned_data.get("photo") or (

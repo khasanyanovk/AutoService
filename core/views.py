@@ -426,7 +426,7 @@ def edit_car(request, car_id):
                 car.year = form.cleaned_data["year"]
                 car.model = form.cleaned_data["model"]
                 car.license_plate = form.cleaned_data["license_plate"]
-                car.vin = form.cleaned_data.get("vin")
+                car.vin = form.cleaned_data.get("vin") or None
                 uploaded = (
                     getattr(form, "cleaned_data", {}).get("photo")
                     if hasattr(form, "cleaned_data")
